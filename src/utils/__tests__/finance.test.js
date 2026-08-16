@@ -10,6 +10,7 @@ import {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  clampPct,
 } from '../finance';
 
 describe('annualizedVol', () => {
@@ -131,6 +132,15 @@ describe('riskContribution', () => {
     const rc = riskContribution(weights, vols, corr);
     expect(rc.A).toBeGreaterThan(rc.B);
   });
+  it('falls back to an equal split when total risk contribution is zero (fully hedged portfolio)', () => {
+    const weights = { A: 0.5, B: 0.5 };
+    const vols = { A: 0.1, B: 0.1 };
+    const corr = { A: { A: 1, B: -1 }, B: { A: -1, B: 1 } };
+    const rc = riskContribution(weights, vols, corr);
+    expect(rc.A).toBeCloseTo(0.5, 5);
+    expect(rc.B).toBeCloseTo(0.5, 5);
+    expect(rc.A + rc.B).toBeCloseTo(1, 5);
+  });
 });
 
 describe('simulatePerformance', () => {
@@ -150,5 +160,17 @@ describe('simulatePerformance', () => {
   it('handles empty input gracefully', () => {
     const result = simulatePerformance({}, {}, 0.05);
     expect(result.dates.length).toBe(0);
+  });
+});
+
+describe('clampPct', () => {
+  it('clamps negative values to 0', () => {
+    expect(clampPct(-0.05)).toBe(0);
+  });
+  it('clamps values above 1 to 1', () => {
+    expect(clampPct(1.2)).toBe(1);
+  });
+  it('passes through in-range values unchanged', () => {
+    expect(clampPct(0.42)).toBe(0.42);
   });
 });
