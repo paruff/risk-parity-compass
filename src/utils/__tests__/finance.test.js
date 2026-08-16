@@ -10,6 +10,7 @@ import {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  clampPct,
 } from '../finance';
 
 describe('annualizedVol', () => {
@@ -150,5 +151,17 @@ describe('simulatePerformance', () => {
   it('handles empty input gracefully', () => {
     const result = simulatePerformance({}, {}, 0.05);
     expect(result.dates.length).toBe(0);
+  });
+});
+
+describe('clampPct', () => {
+  it('clamps negative values to 0', () => {
+    expect(clampPct(-0.05)).toBe(0);
+  });
+  it('clamps values above 1 to 1', () => {
+    expect(clampPct(1.2)).toBe(1);
+  });
+  it('passes through in-range values unchanged', () => {
+    expect(clampPct(0.42)).toBe(0.42);
   });
 });

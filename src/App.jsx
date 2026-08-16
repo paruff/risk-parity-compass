@@ -25,6 +25,7 @@ import {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  clampPct,
   fmt,
 } from './utils/finance';
 
@@ -1343,7 +1344,7 @@ export default function App() {
                                       left: 0,
                                       top: 2,
                                       height: 12,
-                                      width: `${rc * 100}%`,
+                                      width: `${clampPct(rc) * 100}%`,
                                       background: diff > 0.02 ? '#f59e0b88' : '#16a34a88',
                                       borderRadius: 2,
                                       opacity: 0.85,

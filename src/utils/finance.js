@@ -409,6 +409,10 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
   return { dates, rebalanced, buyAndHold };
 }
 
+// Clamp a ratio to [0, 1] for use as a CSS percentage width — negative
+// risk contributions (a hedging asset) must not render as a negative width.
+const clampPct = v => Math.max(0, Math.min(1, v));
+
 const fmt = {
   pct: v => `${(v * 100).toFixed(1)}%`,
   usd: v =>
@@ -434,5 +438,6 @@ export {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  clampPct,
   fmt,
 };
