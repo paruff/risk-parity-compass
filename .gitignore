@@ -224,3 +224,6 @@ playwright-report/
 
 # Husky
 .husky/_
+
+# Git worktrees (local scratch, not part of the repo)
+.worktrees/
