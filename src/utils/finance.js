@@ -329,10 +329,17 @@ function riskContribution(weights, vols, corrMatrix) {
     totalRC += contribution;
   }
 
-  // Normalize to percentages
+  // Normalize to percentages. A fully (or near-fully) hedged portfolio can
+  // have ~zero total variance, i.e. totalRC <= 0; fall back to an equal
+  // split so the "sums to 100%" contract always holds instead of silently
+  // returning raw, non-normalized covariance units.
   if (totalRC > 0) {
     for (const t of tickers) {
       rc[t] = rc[t] / totalRC;
+    }
+  } else {
+    for (const t of tickers) {
+      rc[t] = 1 / n;
     }
   }
   return rc;

@@ -132,6 +132,15 @@ describe('riskContribution', () => {
     const rc = riskContribution(weights, vols, corr);
     expect(rc.A).toBeGreaterThan(rc.B);
   });
+  it('falls back to an equal split when total risk contribution is zero (fully hedged portfolio)', () => {
+    const weights = { A: 0.5, B: 0.5 };
+    const vols = { A: 0.1, B: 0.1 };
+    const corr = { A: { A: 1, B: -1 }, B: { A: -1, B: 1 } };
+    const rc = riskContribution(weights, vols, corr);
+    expect(rc.A).toBeCloseTo(0.5, 5);
+    expect(rc.B).toBeCloseTo(0.5, 5);
+    expect(rc.A + rc.B).toBeCloseTo(1, 5);
+  });
 });
 
 describe('simulatePerformance', () => {
