@@ -357,12 +357,8 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
   const minLen = Math.min(...tickers.map(t => allCloses[t]?.length ?? 0));
   if (minLen < 10) return { dates: [], rebalanced: [], buyAndHold: [] };
 
-  // Current weights (rebalanced) and buy-and-hold weights
+  // Current weights (rebalanced), drift-tracked across the loop
   const currentWeights = { ...weights };
-  const bhValues = {};
-  for (const t of tickers) {
-    bhValues[t] = weights[t] * (allCloses[t][0] ?? 1);
-  }
 
   const rebalanced = [1];
   const buyAndHold = [1];
@@ -410,7 +406,9 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
       bhDollars[t] *= dayReturn;
       bhTotal += bhDollars[t];
     }
-    buyAndHold.push(buyAndHold[0] * bhTotal);
+    // bhTotal is already the absolute cumulative value (starts at 1, since
+    // bhDollars is normalized to sum to 1) — push it directly.
+    buyAndHold.push(bhTotal);
   }
 
   return { dates, rebalanced, buyAndHold };
