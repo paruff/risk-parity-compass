@@ -227,3 +227,6 @@ playwright-report/
 
 # Git worktrees (local scratch, not part of the repo)
 .worktrees/
+
+# Subagent-driven-development scratch workspace (ledgers, briefs, reports)
+.superpowers/
