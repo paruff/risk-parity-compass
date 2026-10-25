@@ -12,6 +12,10 @@ import {
   simulatePerformance,
   monteCarloSimulation,
   clampPct,
+  fetchMonthlyHistory,
+  computeOverlap,
+  mulberry32,
+  normalSampler,
 } from '../finance';
 
 describe('annualizedVol', () => {
@@ -241,5 +245,87 @@ describe('monteCarloSimulation', () => {
     const result = monteCarloSimulation({}, {}, {}, {}, { simulations: 10 });
     expect(result.terminalValues.length).toBe(0);
     expect(result.stats.median).toBe(0);
+  });
+});
+
+describe('fetchMonthlyHistory', () => {
+  it('returns monthly dates and closes', async () => {
+    const { dates, closes } = await fetchMonthlyHistory('SPY');
+    expect(Array.isArray(dates)).toBe(true);
+    expect(Array.isArray(closes)).toBe(true);
+    expect(dates.length).toBe(closes.length);
+    expect(dates.length).toBeGreaterThan(0);
+  });
+
+  it('throws on 404', async () => {
+    await expect(fetchMonthlyHistory('INVALID')).rejects.toThrow();
+  });
+});
+
+describe('computeOverlap', () => {
+  it('aligns tickers to common date range', () => {
+    const histories = {
+      A: { dates: ['2020-01', '2020-02', '2020-03'], closes: [100, 101, 102] },
+      B: { dates: ['2020-02', '2020-03', '2020-04'], closes: [50, 51, 52] },
+    };
+    const { aligned, effectiveYears } = computeOverlap(histories);
+    expect(Object.keys(aligned)).toEqual(['A', 'B']);
+    expect(aligned.A).toEqual([101, 102]); // B starts Feb
+    expect(aligned.B).toEqual([50, 51]);
+    expect(effectiveYears).toBeCloseTo(2 / 12, 2);
+  });
+
+  it('returns empty when no overlap', () => {
+    const histories = {
+      A: { dates: ['2020-01'], closes: [100] },
+      B: { dates: ['2021-01'], closes: [50] },
+    };
+    const { aligned, effectiveYears } = computeOverlap(histories);
+    expect(Object.keys(aligned)).toEqual([]);
+    expect(effectiveYears).toBe(0);
+  });
+});
+
+describe('mulberry32', () => {
+  it('produces deterministic sequence for fixed seed', () => {
+    const rng1 = mulberry32(42);
+    const rng2 = mulberry32(42);
+    for (let i = 0; i < 100; i++) {
+      expect(rng1()).toBe(rng2());
+    }
+  });
+
+  it('produces different sequences for different seeds', () => {
+    const rng1 = mulberry32(1);
+    const rng2 = mulberry32(2);
+    let same = true;
+    for (let i = 0; i < 100; i++) {
+      if (rng1() !== rng2()) {
+        same = false;
+        break;
+      }
+    }
+    expect(same).toBe(false);
+  });
+
+  it('outputs values in [0, 1)', () => {
+    const rng = mulberry32(123);
+    for (let i = 0; i < 1000; i++) {
+      const v = rng();
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThan(1);
+    }
+  });
+});
+
+describe('normalSampler', () => {
+  it('produces approximately normal distribution', () => {
+    const rng = mulberry32(42);
+    const sampler = normalSampler(rng);
+    const samples = Array.from({ length: 10000 }, () => sampler());
+    const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+    const variance = samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length;
+    expect(mean).toBeCloseTo(0, 1);
+    expect(variance).toBeCloseTo(1, 1);
   });
 });

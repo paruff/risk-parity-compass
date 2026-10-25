@@ -440,6 +440,58 @@ function choleskyDecompose(covMatrix) {
 // ─── SEEDED PRNG ──────────────────────────────────────────────────────────
 // mulberry32: small, fast, deterministic 32-bit PRNG. A seed makes Monte
 // Carlo runs reproducible and unit-testable.
+// ─── MONTHLY HISTORY FETCH ─────────────────────────────────────────────────────
+// Fetches monthly adjusted close data from Yahoo Finance for long-horizon analysis.
+async function fetchMonthlyHistory(ticker) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=max&interval=1mo&events=history`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Failed to fetch ${ticker}: HTTP ${resp.status}`);
+  const json = await resp.json();
+  const result = json?.chart?.result?.[0];
+  if (!result) throw new Error(`No data for ${ticker}`);
+  const timestamps = result.timestamp ?? [];
+  const closes = result.indicators?.adjclose?.[0]?.adjclose ?? result.indicators?.quote?.[0]?.close;
+  if (!closes || closes.length < 10) throw new Error(`Insufficient monthly history for ${ticker}`);
+  const dates = timestamps.map(ts => new Date(ts * 1000).toISOString().slice(0, 7)); // YYYY-MM
+  const validPairs = dates
+    .map((d, i) => ({ date: d, close: closes[i] }))
+    .filter(p => p.close != null);
+  return {
+    dates: validPairs.map(p => p.date),
+    closes: validPairs.map(p => p.close),
+  };
+}
+
+// Aligns multiple ticker histories to their common date range.
+// Returns { aligned: { [ticker]: number[] }, effectiveYears: number }
+function computeOverlap(histories) {
+  const tickers = Object.keys(histories);
+  if (tickers.length === 0) return { aligned: {}, effectiveYears: 0 };
+
+  // Find common date range
+  const allDates = tickers.map(t => new Set(histories[t].dates));
+  let commonDates = new Set(allDates[0]);
+  for (let i = 1; i < allDates.length; i++) {
+    commonDates = new Set([...commonDates].filter(d => allDates[i].has(d)));
+  }
+  if (commonDates.size === 0) {
+    return { aligned: {}, effectiveYears: 0 };
+  }
+  const sortedCommon = [...commonDates].sort();
+
+  // Align closes to common dates
+  const aligned = {};
+  for (const t of tickers) {
+    const { dates, closes } = histories[t];
+    const map = new Map(dates.map((d, i) => [d, closes[i]]));
+    aligned[t] = sortedCommon.map(d => map.get(d));
+  }
+
+  const effectiveYears = sortedCommon.length / 12;
+  return { aligned, effectiveYears };
+}
+
+// ─── SEEDED PRNG ────────────────────────────────────────────────────────────────
 function mulberry32(seed) {
   let a = seed >>> 0;
   return function () {
@@ -660,6 +712,8 @@ export {
   ACCOUNT_TYPES,
   LOOKBACK_OPTIONS,
   fetchQuote,
+  fetchMonthlyHistory,
+  computeOverlap,
   annualizedVol,
   inverseVolWeights,
   taxLocationWaterfall,
@@ -671,6 +725,8 @@ export {
   riskContribution,
   simulatePerformance,
   monteCarloSimulation,
+  mulberry32,
+  normalSampler,
   clampPct,
   fmt,
 };
