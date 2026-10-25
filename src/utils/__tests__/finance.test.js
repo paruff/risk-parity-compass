@@ -10,6 +10,7 @@ import {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  monteCarloSimulation,
   clampPct,
 } from '../finance';
 
@@ -172,5 +173,73 @@ describe('clampPct', () => {
   });
   it('passes through in-range values unchanged', () => {
     expect(clampPct(0.42)).toBe(0.42);
+  });
+});
+
+describe('monteCarloSimulation', () => {
+  const makeCloses = () => ({
+    A: Array.from({ length: 60 }, (_, i) => 100 + Math.sin(i * 0.2) * 5),
+    B: Array.from({ length: 60 }, (_, i) => 100 + Math.cos(i * 0.15) * 4),
+  });
+  const weights = { A: 0.6, B: 0.4 };
+  const vols = { A: 0.2, B: 0.1 };
+  const corr = {
+    A: { A: 1, B: 0.3 },
+    B: { A: 0.3, B: 1 },
+  };
+
+  it('is deterministic for a fixed seed', () => {
+    const opts = { simulations: 50, steps: 60, seed: 7 };
+    const first = monteCarloSimulation(makeCloses(), weights, vols, corr, opts);
+    const second = monteCarloSimulation(makeCloses(), weights, vols, corr, opts);
+    expect(Array.from(first.terminalValues)).toEqual(Array.from(second.terminalValues));
+  });
+
+  it('produces the requested number of terminal values', () => {
+    const result = monteCarloSimulation(makeCloses(), weights, vols, corr, {
+      simulations: 25,
+      steps: 30,
+      seed: 1,
+    });
+    expect(result.terminalValues.length).toBe(25);
+  });
+
+  it('orders percentiles p10 <= median <= p90', () => {
+    const { stats } = monteCarloSimulation(makeCloses(), weights, vols, corr, {
+      simulations: 200,
+      steps: 60,
+      seed: 2,
+    });
+    expect(stats.p10).toBeLessThanOrEqual(stats.median);
+    expect(stats.median).toBeLessThanOrEqual(stats.p90);
+  });
+
+  it('returns a final price for every ticker', () => {
+    const result = monteCarloSimulation(makeCloses(), weights, vols, corr, {
+      simulations: 20,
+      steps: 30,
+      seed: 3,
+    });
+    expect(Object.keys(result.finalPrices).sort()).toEqual(['A', 'B']);
+    expect(result.finalPrices.A).toBeGreaterThan(0);
+    expect(result.finalPrices.B).toBeGreaterThan(0);
+  });
+
+  it('leaves a zero-volatility portfolio unchanged', () => {
+    const flat = { A: 0.0, B: 0.0 };
+    const result = monteCarloSimulation(makeCloses(), weights, flat, corr, {
+      simulations: 10,
+      steps: 30,
+      seed: 4,
+    });
+    for (const v of result.terminalValues) {
+      expect(v).toBeCloseTo(1, 10);
+    }
+  });
+
+  it('handles empty weights gracefully', () => {
+    const result = monteCarloSimulation({}, {}, {}, {}, { simulations: 10 });
+    expect(result.terminalValues.length).toBe(0);
+    expect(result.stats.median).toBe(0);
   });
 });

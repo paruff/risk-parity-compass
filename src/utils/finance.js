@@ -414,6 +414,233 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
   return { dates, rebalanced, buyAndHold };
 }
 
+// ─── CHOLESKY DECOMPOSITION ───────────────────────────────────────────────
+// Given a positive-definite covariance matrix, return its Cholesky factor L
+// such that L * L^T = covariance. L is lower-triangular with positive diagonal.
+function choleskyDecompose(covMatrix) {
+  const n = covMatrix.length;
+  const L = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j <= i; j++) {
+      let sum = 0;
+      for (let k = 0; k < j; k++) {
+        sum += L[i][k] * L[j][k];
+      }
+      if (i === j) {
+        const variance = covMatrix[i][i] - sum;
+        L[i][j] = variance > 0 ? Math.sqrt(variance) : 0;
+      } else {
+        L[i][j] = L[j][j] > 0 ? (covMatrix[i][j] - sum) / L[j][j] : 0;
+      }
+    }
+  }
+  return L;
+}
+
+// ─── SEEDED PRNG ──────────────────────────────────────────────────────────
+// mulberry32: small, fast, deterministic 32-bit PRNG. A seed makes Monte
+// Carlo runs reproducible and unit-testable.
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a += 0x6d2b79f5;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Box-Muller transform: returns a function drawing standard normal(0,1)
+// numbers from a supplied uniform RNG.
+function normalSampler(rng) {
+  let spare = null;
+  return function () {
+    if (spare !== null) {
+      const v = spare;
+      spare = null;
+      return v;
+    }
+    let u1 = 0;
+    let u2 = 0;
+    while (u1 === 0) u1 = rng();
+    while (u2 === 0) u2 = rng();
+    const r = Math.sqrt(-2 * Math.log(u1));
+    const theta = 2 * Math.PI * u2;
+    spare = r * Math.sin(theta);
+    return r * Math.cos(theta);
+  };
+}
+
+function percentile(sorted, p) {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)));
+  return sorted[idx];
+}
+
+// ─── MONTE CARLO SIMULATION ────────────────────────────────────────────────
+// Simulate random portfolio paths using geometric Brownian motion with
+// correlated asset returns. Uses Cholesky decomposition of the correlation
+// matrix to generate correlated shocks.
+// allCloses: { ticker: closes[] } - historical close prices
+// weights: { ticker: weight } - target portfolio weights (sums to 1)
+// vols: { ticker: annualizedVol } - annualized volatilities (per year)
+// corrMatrix: { ticker: { [ticker2]: correlation } } - correlation matrix
+// options: {
+//   simulations: number of paths (default 1000),
+//   steps: number of daily steps per path (default 252 ≈ 1 year),
+//   threshold: rebalance drift threshold (default 0.05),
+//   riskFreeRate: annual risk-free rate for Sharpe ratio (default 0.02),
+//   expectedReturn: annual asset drift (default 0 = conservative),
+//   seed: PRNG seed for reproducible runs (default 42),
+// }
+// Returns: { terminalValues: Float64Array, finalPrices: {ticker: median price}, stats }
+function monteCarloSimulation(allCloses, weights, vols, corrMatrix, options = {}) {
+  const simulations = options.simulations ?? 1000;
+  const steps = options.steps ?? 252;
+  const threshold = options.threshold ?? 0.05;
+  const riskFreeRate = options.riskFreeRate ?? 0.02;
+  const expectedReturn = options.expectedReturn ?? 0;
+  const seed = options.seed ?? 42;
+
+  const tickers = Object.keys(weights);
+  const n = tickers.length;
+
+  if (n === 0 || simulations <= 0 || steps <= 0) {
+    return {
+      terminalValues: new Float64Array(0),
+      finalPrices: {},
+      stats: { mean: 0, median: 0, p10: 0, p90: 0, sharpe: 0, cagr: 0, min: 0, max: 0 },
+    };
+  }
+
+  const dt = 1 / 252;
+
+  // Build daily covariance matrix: Cov(i,j) = ρ(i,j) × σ(i) × σ(j) / 252
+  const cov = [];
+  for (let i = 0; i < n; i++) {
+    cov[i] = [];
+    for (let j = 0; j < n; j++) {
+      const rho = corrMatrix[tickers[i]]?.[tickers[j]] ?? (i === j ? 1 : 0);
+      const sigmaI = vols[tickers[i]] ?? 0;
+      const sigmaJ = vols[tickers[j]] ?? 0;
+      cov[i][j] = (rho * sigmaI * sigmaJ) / 252;
+    }
+  }
+
+  const L = choleskyDecompose(cov);
+
+  // Current prices (latest close from historical data)
+  const currentPrices = {};
+  for (const t of tickers) {
+    const series = allCloses[t];
+    if (!series || series.length === 0) {
+      throw new Error(`No price history for ${t}`);
+    }
+    currentPrices[t] = series[series.length - 1];
+  }
+
+  // Per-step drift for geometric Brownian motion: (μ - σ²/2) · dt
+  const dailyDrift = {};
+  for (const t of tickers) {
+    const sigma = vols[t] ?? 0;
+    dailyDrift[t] = (expectedReturn - 0.5 * sigma * sigma) * dt;
+  }
+
+  const rng = mulberry32(seed);
+  const normal = normalSampler(rng);
+
+  const terminalValues = new Float64Array(simulations);
+  const terminalPrices = {};
+  for (const t of tickers) terminalPrices[t] = new Float64Array(simulations);
+
+  for (let sim = 0; sim < simulations; sim++) {
+    const currentWeights = {};
+    for (const t of tickers) currentWeights[t] = weights[t];
+    const pathPrices = { ...currentPrices };
+    let portfolioValue = 1;
+
+    for (let step = 0; step < steps; step++) {
+      // Correlated shocks: Z = L · X
+      const normals = Array.from({ length: n }, () => normal());
+      const correlated = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j <= i; j++) sum += L[i][j] * normals[j];
+        correlated[i] = sum;
+      }
+
+      let rebalReturn = 0;
+      for (let i = 0; i < n; i++) {
+        const t = tickers[i];
+        const growth = Math.exp(dailyDrift[t] + Math.sqrt(dt) * correlated[i]);
+        pathPrices[t] *= growth;
+        rebalReturn += currentWeights[t] * growth;
+        currentWeights[t] *= growth;
+      }
+
+      // Renormalize weights after the price move
+      let weightSum = 0;
+      for (const t of tickers) weightSum += currentWeights[t];
+      for (const t of tickers) currentWeights[t] /= weightSum;
+
+      // Rebalance if drift exceeds threshold
+      let needsRebal = false;
+      for (const t of tickers) {
+        if (Math.abs(currentWeights[t] - weights[t]) > threshold) {
+          needsRebal = true;
+          break;
+        }
+      }
+      if (needsRebal) {
+        for (const t of tickers) currentWeights[t] = weights[t];
+      }
+
+      portfolioValue *= rebalReturn;
+    }
+
+    terminalValues[sim] = portfolioValue;
+    for (const t of tickers) terminalPrices[t][sim] = pathPrices[t];
+  }
+
+  // Statistics
+  const sortedValues = Array.from(terminalValues).sort((a, b) => a - b);
+  const mean = sortedValues.reduce((a, b) => a + b, 0) / simulations;
+  const median = percentile(sortedValues, 0.5);
+  const p10 = percentile(sortedValues, 0.1);
+  const p90 = percentile(sortedValues, 0.9);
+  const variance = sortedValues.reduce((sum, v) => sum + (v - mean) ** 2, 0) / simulations;
+  const stdDev = Math.sqrt(variance);
+
+  const years = steps / 252;
+  const annualMeanReturn = years > 0 && mean > 0 ? Math.pow(mean, 1 / years) - 1 : 0;
+  const annualVol = years > 0 ? stdDev / Math.sqrt(years) : 0;
+  const sharpe = annualVol > 0 ? (annualMeanReturn - riskFreeRate) / annualVol : 0;
+
+  const finalPrices = {};
+  for (const t of tickers) {
+    finalPrices[t] = percentile(
+      Array.from(terminalPrices[t]).sort((a, b) => a - b),
+      0.5
+    );
+  }
+
+  return {
+    terminalValues,
+    finalPrices,
+    stats: {
+      mean,
+      median,
+      p10,
+      p90,
+      sharpe,
+      cagr: annualMeanReturn,
+      min: sortedValues[0],
+      max: sortedValues[sortedValues.length - 1],
+    },
+  };
+}
+
 // Clamp a ratio to [0, 1] for use as a CSS percentage width — negative
 // risk contributions (a hedging asset) must not render as a negative width.
 const clampPct = v => Math.max(0, Math.min(1, v));
@@ -443,6 +670,7 @@ export {
   correlationMatrix,
   riskContribution,
   simulatePerformance,
+  monteCarloSimulation,
   clampPct,
   fmt,
 };
