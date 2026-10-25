@@ -83,17 +83,17 @@ These definitions drive the calculation contracts in §5.
 **Assumptions (to be confirmed before M1 implementation):**
 - A1. Primary user is a US-based retiree; tax/RMD rules are US federal only.
 - A2. Inflation is modeled as a constant user input (default 3%/yr); no CPI series fetch in v1.
-- A3. Expected return in Monte Carlo defaults to zero drift (conservative), with an optional user override.
+- A3. Expected return in Monte Carlo defaults to **historical mean returns** (per-ticker, computed from the loaded price history), with a user-selectable mode: `historical` | `zero` | `custom`.
 - A4. `localStorage` remains the persistence layer; no backend.
 - A5. The app remains React 18 + Vite with inline styles; no UI framework is introduced.
 - A6. Historical SWR uses the longest monthly history Yahoo exposes; when ETF inception limits the window, the UI reports the effective horizon rather than pretending 30 years exist.
 - A7. Tax calculations are heuristic planning aids, not filing-grade.
 
-**Open questions:**
-- Q1. Should MC use zero drift or historical mean returns by default? (Spec assumes zero drift; revisit after user testing.)
-- Q2. Should RMD tables be data-driven (JSON) to survive law changes, or hard-coded with a version constant? (Spec: data-driven table with `RMD_TABLE_VERSION`.)
-- Q3. Should guardrails be per-portfolio policy or per-plan? (Spec: per-plan, with RPR-80 as the default preset.)
-- Q4. Do we need a printable PDF, or is browser print CSS sufficient? (Spec: print CSS in M5; PDF only if requested.)
+**Resolved decisions (approved 2026-10-25):**
+- Q1 → **Historical mean returns** are the default MC drift mode. Compute per-ticker annualized mean return from the loaded history; expose a `historical | zero | custom` toggle. `zero` remains available as the conservative option.
+- Q2 → **Data-driven, versioned** RMD table (JSON module) with `RMD_TABLE_VERSION` surfaced in the UI.
+- Q3 → **Per-plan** guardrail policy, with `rpr-80` as the default preset.
+- Q4 → **Both**: browser print CSS *and* a PDF export. PDF is produced dependency-free via print CSS + `window.print()` (browser "Save as PDF"), avoiding a new runtime dependency.
 
 ---
 
@@ -101,12 +101,13 @@ These definitions drive the calculation contracts in §5.
 
 ### 5.1 Module layout
 
-Repo rule says "all portfolio logic in `src/utils/finance.js`". Adding ~800 lines of retirement logic there would make the file unmaintainable, and the brainstorming guidance treats an oversized file as a boundary problem. **Proposed deviation:** keep existing `finance.js` as-is and add focused pure modules:
+Repo rule says "all portfolio logic in `src/utils/finance.js`". Adding ~800 lines of retirement logic there would make the file unmaintainable, and the brainstorming guidance treats an oversized file as a boundary problem. **Approved deviation (2026-10-25):** keep existing `finance.js` as-is and add focused pure modules:
 
 ```
 src/utils/
   finance.js          # unchanged responsibilities (market math, trades)
   withdrawal.js       # NEW: SWR, PWR, drawdown backtest, RMD, guardrails, MC-with-withdrawals
+  rmd-tables.json     # NEW: versioned US Uniform Lifetime Table data
   portfolios.js       # NEW: RPR portfolio templates + diversification scoring
   storage.js          # NEW: versioned persistence + migration + export/import
   __tests__/
@@ -117,8 +118,6 @@ src/utils/
 ```
 
 All three new modules are pure (no DOM, no network) except `storage.js`, which wraps `localStorage` and is mocked in tests. This preserves the repo's purity/testing intent while keeping files focused.
-
-> **Approval needed:** if you prefer to keep everything in `finance.js`, say so and I will consolidate.
 
 ### 5.2 Data model (state additions)
 
@@ -133,7 +132,8 @@ retirement: {
   pensionMonthly: 0,
   cashBufferMonths: 12,
   guardrail: 'rpr-80',        // 'none' | 'rpr-80' | 'guyton-klinger' | 'vpw'
-  expectedReturn: 0,          // annual drift for MC; 0 = conservative
+  driftMode: 'historical',    // 'historical' | 'zero' | 'custom'
+  expectedReturn: null,       // only used when driftMode === 'custom'
 }
 
 portfolio: {
@@ -203,7 +203,8 @@ monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, {
   steps = 360,                 // months
   monthlySpend,
   inflationRate = 0.03,
-  expectedReturn = 0,
+  driftMode = 'historical',    // 'historical' | 'zero' | 'custom'
+  expectedReturns = null,      // {ticker: annualReturn} for 'custom'; ignored otherwise
   threshold = 0.05,
   seed = 42,
 })
@@ -215,11 +216,12 @@ Success = fraction of paths where balance never hits zero.
 
 ### 6.4 Correctness fixes to existing MC (must land in M1)
 
-1. Replace `Math.random` with a seeded PRNG (`mulberry32(seed)`); accept `seed` in options so tests are deterministic.
-2. Fix `vols[tickers[t]]` → `vols[t]` (currently zeroes drift).
-3. Track per-ticker terminal prices and return real `finalPrices` (median terminal price per ticker).
-4. Annualize Sharpe and CAGR from terminal values over the actual horizon.
-5. Guard empty input: return empty arrays and zeroed stats instead of `NaN`.
+1. Replace `Math.random` with a seeded PRNG (`mulberry32(seed)`); accept `seed` in options so tests are deterministic. **(already landed in `503cace`)**
+2. Fix `vols[tickers[t]]` → `vols[t]` (currently zeroes drift). **(already landed)**
+3. Track per-ticker terminal prices and return real `finalPrices` (median terminal price per ticker). **(already landed)**
+4. Annualize Sharpe and CAGR from terminal values over the actual horizon. **(already landed)**
+5. Guard empty input: return empty arrays and zeroed stats instead of `NaN`. **(already landed)**
+6. Add per-ticker **historical-mean drift** as the default mode, replacing the single scalar `expectedReturn`; keep `zero` and `custom` modes.
 
 ### 6.5 RMD
 
@@ -230,7 +232,7 @@ requiredMinimumDistribution(age, priorYearEndBalance, { tableVersion = '2022+' }
 ```
 
 - Eligibility age: 73 for those born 1951–1959, 75 for 1960+ (encode birth-year rule).
-- Table stored as a versioned constant; `tableVersion` surfaced in the UI.
+- Table stored as a **data-driven, versioned JSON module** (`src/utils/rmd-tables.json`) with `RMD_TABLE_VERSION` exported alongside it and surfaced in the UI.
 
 ### 6.6 Guardrails
 
@@ -322,6 +324,7 @@ Determinism requirement: every MC test passes a fixed `seed` and asserts exact/n
 - `storage.js` v2 migration, export/import, backup reminder.
 - Data resilience: stale-price cache, manual override, `fetchMonthlyHistory` overlap reporting.
 - Accessibility: font scale, high contrast, print CSS, keyboard/screen-reader pass.
+- **PDF export**: dependency-free, using print CSS + `window.print()` (browser "Save as PDF"), plus a visible "Download PDF" action on the Retirement tab.
 - Observability: visible data timestamps, error boundaries on new tabs.
 - E2E + a11y expansion.
 - **Exit:** documented production checklist passes; Lighthouse budgets hold.
@@ -334,7 +337,7 @@ Determinism requirement: every MC test passes a fixed `seed` and asserts exact/n
 |---|---|
 | Yahoo API breaks | Last-good cache, manual override, isolated `fetchQuote` swap point, clear stale-data banner |
 | Short ETF history limits 30-year SWR | Use longest monthly overlap; report effective horizon; MC covers long horizons parametrically |
-| MC assumptions oversell outcomes | Default zero drift; show assumptions next to results; disclaimers |
+| MC assumptions oversell outcomes | Default **historical mean** drift with a visible mode toggle (`historical`/`zero`/`custom`); show assumptions next to results; disclaimers |
 | RMD/tax law changes | Versioned RMD table; heuristic tax logic labeled as estimates |
 | Scope creep | Milestones strictly ordered; each is a shippable slice |
 | Accessibility regressions | Automated axe gate on new tabs |
