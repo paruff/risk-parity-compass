@@ -28,4 +28,15 @@ test.describe('Accessibility', () => {
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations).toEqual([]);
   });
+
+  test('no violations on retirement tab after calculation', async ({ page }) => {
+    await page.click('button:has-text("Run Analysis")');
+    await expect(page.locator('text=Risk Parity Weights')).toBeVisible({ timeout: 15000 });
+    await page.click('button:has-text("Retirement")');
+    await page.fill('#ret-monthly-spend', '4000');
+    await page.click('button:has-text("Calculate")');
+    await expect(page.getByText('Safe Withdrawal Rate (SWR)')).toBeVisible({ timeout: 15000 });
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations).toEqual([]);
+  });
 });
