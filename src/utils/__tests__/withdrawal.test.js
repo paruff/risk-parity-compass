@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { drawdownPath, rollingWithdrawalRates } from '../withdrawal';
+import { drawdownPath, rollingWithdrawalRates, monteCarloWithWithdrawals } from '../withdrawal';
 
 describe('drawdownPath', () => {
   it('drawdownPath with zero spend returns full balance', () => {
@@ -59,5 +59,48 @@ describe('rollingWithdrawalRates', () => {
     expect(r.swr).toBeGreaterThan(0.03);
     expect(r.swr).toBeLessThan(0.15);
     expect(r.pwr).toBeLessThanOrEqual(r.swr);
+  });
+});
+
+describe('monteCarloWithWithdrawals', () => {
+  it('is deterministic with fixed seed', () => {
+    const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i * 0.1) * 2) };
+    const weights = { SPY: 1 };
+    const vols = { SPY: 0.15 };
+    const corr = { SPY: { SPY: 1 } };
+    const opts = {
+      simulations: 100,
+      steps: 120,
+      monthlySpend: 400,
+      inflationRate: 0.03,
+      driftMode: 'zero',
+      seed: 42,
+    };
+    const r1 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
+    const r2 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
+    expect(Array.from(r1.terminalValues)).toEqual(Array.from(r2.terminalValues));
+    expect(r1.bands.p50).toEqual(r2.bands.p50);
+  });
+
+  it('successRate = fraction never depleted', () => {
+    const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005 ** i) };
+    const weights = { SPY: 1 };
+    const vols = { SPY: 0.15 };
+    const corr = { SPY: { SPY: 1 } };
+    const opts = {
+      simulations: 200,
+      steps: 120,
+      monthlySpend: 100,
+      inflationRate: 0.03,
+      driftMode: 'historical',
+      seed: 123,
+    };
+    const r = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
+    expect(r.successRate).toBeGreaterThanOrEqual(0);
+    expect(r.successRate).toBeLessThanOrEqual(1);
+    expect(r.bands.p10.length).toBe(120);
+    expect(r.bands.p50.length).toBe(120);
+    expect(r.bands.p90.length).toBe(120);
+    expect(r.depletionYears.length).toBe(200);
   });
 });

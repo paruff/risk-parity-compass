@@ -2,6 +2,8 @@
 // Pure functions for retirement drawdown, SWR/PWR, Monte Carlo with withdrawals,
 // RMD, guardrails, and cash buffer. No side effects, fully unit-testable.
 
+import { mulberry32, normalSampler } from './finance.js';
+
 // Withdraw a fixed real amount monthly from a portfolio path.
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
 // monthlySpend: real monthly spend amount (constant in real terms)
@@ -159,5 +161,225 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     worstDepletionYear,
     maxDrawdown: overallMaxDrawdown,
     samples,
+  };
+}
+
+// Cholesky decomposition (copied from finance.js for independence)
+function choleskyDecompose(covMatrix) {
+  const n = covMatrix.length;
+  const L = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j <= i; j++) {
+      let sum = 0;
+      for (let k = 0; k < j; k++) {
+        sum += L[i][k] * L[j][k];
+      }
+      if (i === j) {
+        const variance = covMatrix[i][i] - sum;
+        L[i][j] = variance > 0 ? Math.sqrt(variance) : 0;
+      } else {
+        L[i][j] = L[j][j] > 0 ? (covMatrix[i][j] - sum) / L[j][j] : 0;
+      }
+    }
+  }
+  return L;
+}
+
+// Percentile helper
+function percentile(sorted, p) {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)));
+  return sorted[idx];
+}
+
+// Monte Carlo with monthly withdrawals, inflation, and percentile bands.
+// allCloses: { ticker: closes[] } historical closes
+// weights: { ticker: weight }
+// vols: { ticker: annualizedVol }
+// corrMatrix: { ticker: { [ticker2]: correlation } }
+// options: { simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed }
+// Returns: { terminalValues, successRate, bands: { p10, p25, p50, p75, p90 }, stats, depletionYears }
+export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options = {}) {
+  const {
+    simulations = 1000,
+    steps = 360,
+    monthlySpend = 0,
+    inflationRate = 0.03,
+    driftMode = 'historical',
+    expectedReturns = null,
+    threshold = 0.05,
+    seed = 42,
+  } = options;
+
+  const tickers = Object.keys(weights);
+  const n = tickers.length;
+
+  if (n === 0 || simulations <= 0 || steps <= 0) {
+    return {
+      terminalValues: new Float64Array(0),
+      successRate: 0,
+      bands: { p10: [], p25: [], p50: [], p75: [], p90: [] },
+      stats: { mean: 0, median: 0, p10: 0, p90: 0, cagr: 0, sharpe: 0 },
+      depletionYears: [],
+    };
+  }
+
+  const dt = 1 / 12; // monthly steps
+
+  // Per-ticker annual drift
+  const annualDrift = {};
+  for (const t of tickers) {
+    if (driftMode === 'zero') {
+      annualDrift[t] = 0;
+    } else if (driftMode === 'custom' && expectedReturns?.[t] != null) {
+      annualDrift[t] = expectedReturns[t];
+    } else {
+      // historical: compute mean annual return from allCloses
+      const closes = allCloses[t] ?? [];
+      if (closes.length >= 2) {
+        const totalReturn = closes[closes.length - 1] / closes[0];
+        const years = closes.length / 12;
+        annualDrift[t] = years > 0 ? totalReturn ** (1 / years) - 1 : 0;
+      } else {
+        annualDrift[t] = 0;
+      }
+    }
+  }
+
+  // Daily covariance matrix (monthly): Cov(i,j) = ρ(i,j) × σ(i) × σ(j) / 12
+  const cov = [];
+  for (let i = 0; i < n; i++) {
+    cov[i] = [];
+    for (let j = 0; j < n; j++) {
+      const rho = corrMatrix[tickers[i]]?.[tickers[j]] ?? (i === j ? 1 : 0);
+      const sigmaI = vols[tickers[i]] ?? 0;
+      const sigmaJ = vols[tickers[j]] ?? 0;
+      cov[i][j] = (rho * sigmaI * sigmaJ) / 12;
+    }
+  }
+
+  const L = choleskyDecompose(cov);
+
+  // Current prices (latest close from historical data)
+  const currentPrices = {};
+  for (const t of tickers) {
+    const series = allCloses[t];
+    currentPrices[t] = series?.[series.length - 1] ?? 1;
+  }
+
+  // Per-step drift for GBM: (μ - σ²/2) · dt
+  const stepDrift = {};
+  for (const t of tickers) {
+    const sigma = vols[t] ?? 0;
+    stepDrift[t] = (annualDrift[t] - 0.5 * sigma * sigma) * dt;
+  }
+
+  // Seeded PRNG
+  const rng = mulberry32(seed);
+  const normal = normalSampler(rng);
+
+  const terminalValues = new Float64Array(simulations);
+  const depletionYears = new Array(simulations);
+  const pathValues = Array.from({ length: simulations }, () => new Float64Array(steps));
+
+  for (let sim = 0; sim < simulations; sim++) {
+    const currentWeights = { ...weights };
+    const pathPrices = { ...currentPrices };
+    let portfolioValue = 1; // normalized
+
+    for (let step = 0; step < steps; step++) {
+      // Correlated shocks: Z = L · X
+      const normals = Array.from({ length: n }, () => normal());
+      const correlated = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j <= i; j++) sum += L[i][j] * normals[j];
+        correlated[i] = sum;
+      }
+
+      let rebalReturn = 0;
+      for (let i = 0; i < n; i++) {
+        const t = tickers[i];
+        const growth = Math.exp(stepDrift[t] + Math.sqrt(dt) * correlated[i]);
+        pathPrices[t] *= growth;
+        rebalReturn += currentWeights[t] * growth;
+        currentWeights[t] *= growth;
+      }
+
+      // Renormalize weights after price moves
+      let weightSum = 0;
+      for (const t of tickers) weightSum += currentWeights[t];
+      for (const t of tickers) currentWeights[t] /= weightSum;
+
+      // Rebalance if drift exceeds threshold
+      let needsRebal = false;
+      for (const t of tickers) {
+        if (Math.abs(currentWeights[t] - weights[t]) > threshold) {
+          needsRebal = true;
+          break;
+        }
+      }
+      if (needsRebal) {
+        for (const t of tickers) currentWeights[t] = weights[t];
+      }
+
+      // Apply monthly withdrawal (inflation-adjusted)
+      const yearFraction = step / 12;
+      const inflationFactor = (1 + inflationRate) ** yearFraction;
+      const realSpend = monthlySpend * inflationFactor;
+      portfolioValue = Math.max(0, portfolioValue * rebalReturn - realSpend);
+
+      pathValues[sim][step] = portfolioValue;
+
+      if (depletionYears[sim] === undefined && portfolioValue <= 0) {
+        depletionYears[sim] = yearFraction;
+      }
+    }
+
+    // If never depleted, record full horizon
+    if (depletionYears[sim] === undefined) {
+      depletionYears[sim] = steps / 12;
+    }
+
+    terminalValues[sim] = portfolioValue;
+  }
+
+  // Statistics
+  const sortedValues = Array.from(terminalValues).sort((a, b) => a - b);
+  const mean = sortedValues.reduce((a, b) => a + b, 0) / simulations;
+  const median = percentile(sortedValues, 0.5);
+  const p10 = percentile(sortedValues, 0.1);
+  const p90 = percentile(sortedValues, 0.9);
+  const variance = sortedValues.reduce((sum, v) => sum + (v - mean) ** 2, 0) / simulations;
+  const stdDev = Math.sqrt(variance);
+
+  const years = steps / 12;
+  const annualMeanReturn = years > 0 && mean > 0 ? Math.pow(mean, 1 / years) - 1 : 0;
+  const annualVol = years > 0 ? stdDev / Math.sqrt(years) : 0;
+  const sharpe = annualVol > 0 ? (annualMeanReturn - 0.02) / annualVol : 0; // 2% risk-free
+
+  // Percentile bands per step
+  const bands = { p10: [], p25: [], p50: [], p75: [], p90: [] };
+  for (let step = 0; step < steps; step++) {
+    const stepVals = [];
+    for (let sim = 0; sim < simulations; sim++) {
+      stepVals.push(pathValues[sim][step]);
+    }
+    stepVals.sort((a, b) => a - b);
+    bands.p10.push(percentile(stepVals, 0.1));
+    bands.p25.push(percentile(stepVals, 0.25));
+    bands.p50.push(percentile(stepVals, 0.5));
+    bands.p75.push(percentile(stepVals, 0.75));
+    bands.p90.push(percentile(stepVals, 0.9));
+  }
+
+  const successRate = depletionYears.filter(y => y >= steps / 12).length / simulations;
+
+  return {
+    terminalValues,
+    successRate,
+    bands,
+    stats: { mean, median, p10, p90, cagr: annualMeanReturn, sharpe },
+    depletionYears,
   };
 }
