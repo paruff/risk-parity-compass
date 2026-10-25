@@ -5,6 +5,7 @@ import {
   monteCarloWithWithdrawals,
   requiredMinimumDistribution,
   RMD_TABLE_VERSION,
+  withdrawalSequence,
 } from '../withdrawal';
 
 describe('drawdownPath', () => {
@@ -139,5 +140,38 @@ describe('requiredMinimumDistribution', () => {
     expect(r2.eligible).toBe(false);
     const r3 = requiredMinimumDistribution(75, 1000000, { birthYear: 1960 });
     expect(r3.eligible).toBe(true);
+  });
+});
+
+describe('withdrawalSequence', () => {
+  it('withdrawalSequence uses taxable first, then traditional, then Roth', () => {
+    const accounts = { Taxable: 50000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const r = withdrawalSequence(accounts, 4000);
+    expect(r.byAccount.Taxable).toBe(4000);
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(0);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+  });
+
+  it('withdrawalSequence spills to traditional when taxable exhausted', () => {
+    const accounts = { Taxable: 2000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const r = withdrawalSequence(accounts, 4000);
+    expect(r.byAccount.Taxable).toBe(2000);
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(2000);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+  });
+
+  it('withdrawalSequence respects RMD floor on traditional', () => {
+    const accounts = { Taxable: 50000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const rmdByAccount = { 'Traditional IRA / 401k': 5000 }; // RMD > spend
+    const r = withdrawalSequence(accounts, 4000, { rmdByAccount });
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(5000); // at least RMD
+  });
+
+  it('withdrawalSequence bracketHeuristic limits traditional to bracket', () => {
+    const accounts = { Taxable: 0, 'Traditional IRA / 401k': 200000, 'Roth IRA': 100000 };
+    const r = withdrawalSequence(accounts, 10000, { bracketHeuristic: true });
+    // Heuristic: don't push traditional withdrawal into next marginal bracket
+    // Implementation detail: cap traditional at ~44k (2024 12% bracket top for single)
+    expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000 / 12);
   });
 });

@@ -424,3 +424,65 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     depletionYears,
   };
 }
+
+// Withdrawal sequencing: determine which account to draw from each month.
+// Order: Taxable → Traditional (max of needed and RMD) → Roth
+// accounts: { "Taxable": balance, "Traditional IRA / 401k": balance, "Roth IRA": balance }
+// monthlySpend: total monthly spend needed
+// options: { bracketHeuristic?: boolean, rmdByAccount?: Record<string, number>, traditionalBracketCap?: number }
+// rmdByAccount and traditionalBracketCap are MONTHLY values (not annual)
+// Returns: { byAccount (monthly), totalSpend (monthly), bracketUsed (monthly), shortfall (monthly) }
+export function withdrawalSequence(accounts, monthlySpend, options = {}) {
+  const {
+    bracketHeuristic = false,
+    rmdByAccount = {},
+    traditionalBracketCap = 44000 / 12,
+  } = options;
+
+  const taxableBalance = accounts.Taxable ?? 0;
+  const traditionalBalance = accounts['Traditional IRA / 401k'] ?? 0;
+  const rothBalance = accounts['Roth IRA'] ?? 0;
+
+  // RMD floor for traditional (monthly)
+  const rmdMonthly = rmdByAccount['Traditional IRA / 401k'] ?? 0;
+
+  // Monthly spending
+  let remainingSpend = monthlySpend;
+
+  // 1. Taxable first
+  const taxableUsed = Math.min(taxableBalance, remainingSpend);
+  remainingSpend -= taxableUsed;
+
+  // 2. Traditional (max of needed and RMD, capped by bracket heuristic)
+  // RMD applies even if taxable covered the spend
+  let traditionalUsed = 0;
+  if (traditionalBalance > 0) {
+    const neededFromTraditional = Math.max(remainingSpend, rmdMonthly);
+    const maxFromTraditional = bracketHeuristic
+      ? Math.min(traditionalBracketCap, traditionalBalance)
+      : traditionalBalance;
+    traditionalUsed = Math.min(neededFromTraditional, maxFromTraditional);
+    remainingSpend -= traditionalUsed;
+  }
+
+  // 3. Roth
+  let rothUsed = 0;
+  if (remainingSpend > 0 && rothBalance > 0) {
+    rothUsed = Math.min(rothBalance, remainingSpend);
+    remainingSpend -= rothUsed;
+  }
+
+  // Shortfall if all accounts exhausted
+  const shortfall = Math.max(0, remainingSpend);
+
+  return {
+    byAccount: {
+      Taxable: taxableUsed,
+      'Traditional IRA / 401k': traditionalUsed,
+      'Roth IRA': rothUsed,
+    },
+    totalSpend: monthlySpend - shortfall,
+    bracketUsed: bracketHeuristic ? traditionalUsed : 0,
+    shortfall,
+  };
+}
