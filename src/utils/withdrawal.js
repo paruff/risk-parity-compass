@@ -3,6 +3,47 @@
 // RMD, guardrails, and cash buffer. No side effects, fully unit-testable.
 
 import { mulberry32, normalSampler } from './finance.js';
+import rmdTable from './rmd-tables.json';
+
+export const RMD_TABLE_VERSION = rmdTable.version;
+
+// US Uniform Lifetime Table. age: owner age at year end; balance: prior 12/31 balance.
+// Returns { age, distributionPeriod, rmd, eligible }
+export function requiredMinimumDistribution(age, priorYearEndBalance, options = {}) {
+  const { tableVersion, birthYear } = options;
+  // Eligibility age: 73 for born 1951-1959, 75 for 1960+
+  let eligibleAge = 73;
+  if (birthYear != null) {
+    eligibleAge = birthYear >= 1960 ? 75 : 73;
+  }
+
+  if (age < eligibleAge) {
+    return { age, distributionPeriod: null, rmd: 0, eligible: false };
+  }
+
+  const table = rmdTable.table;
+  const ageKey = String(age);
+  const distributionPeriod = table[ageKey];
+
+  if (distributionPeriod == null) {
+    // Age beyond table - use last entry
+    const lastAge = Math.max(...Object.keys(table).map(Number));
+    const fallbackPeriod = table[String(lastAge)];
+    return {
+      age,
+      distributionPeriod: fallbackPeriod,
+      rmd: priorYearEndBalance / fallbackPeriod,
+      eligible: true,
+    };
+  }
+
+  return {
+    age,
+    distributionPeriod,
+    rmd: priorYearEndBalance / distributionPeriod,
+    eligible: true,
+  };
+}
 
 // Withdraw a fixed real amount monthly from a portfolio path.
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)

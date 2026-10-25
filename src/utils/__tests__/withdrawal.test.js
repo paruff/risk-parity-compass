@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { drawdownPath, rollingWithdrawalRates, monteCarloWithWithdrawals } from '../withdrawal';
+import {
+  drawdownPath,
+  rollingWithdrawalRates,
+  monteCarloWithWithdrawals,
+  requiredMinimumDistribution,
+  RMD_TABLE_VERSION,
+} from '../withdrawal';
 
 describe('drawdownPath', () => {
   it('drawdownPath with zero spend returns full balance', () => {
@@ -102,5 +108,36 @@ describe('monteCarloWithWithdrawals', () => {
     expect(r.bands.p50.length).toBe(120);
     expect(r.bands.p90.length).toBe(120);
     expect(r.depletionYears.length).toBe(200);
+  });
+});
+
+describe('requiredMinimumDistribution', () => {
+  it('RMD_TABLE_VERSION is exposed', () => {
+    expect(RMD_TABLE_VERSION).toBe('2022+');
+  });
+
+  it('requiredMinimumDistribution before eligibility returns 0', () => {
+    const r = requiredMinimumDistribution(70, 1000000);
+    expect(r.eligible).toBe(false);
+    expect(r.rmd).toBe(0);
+    expect(r.distributionPeriod).toBeNull();
+  });
+
+  it('requiredMinimumDistribution at age 73 uses correct factor', () => {
+    const r = requiredMinimumDistribution(73, 1000000);
+    expect(r.eligible).toBe(true);
+    expect(r.distributionPeriod).toBe(26.5);
+    expect(r.rmd).toBeCloseTo(1000000 / 26.5, 0);
+  });
+
+  it('requiredMinimumDistribution birth-year rule', () => {
+    // Born 1959 -> eligible at 73
+    const r1 = requiredMinimumDistribution(73, 1000000, { birthYear: 1959 });
+    expect(r1.eligible).toBe(true);
+    // Born 1960 -> eligible at 75
+    const r2 = requiredMinimumDistribution(73, 1000000, { birthYear: 1960 });
+    expect(r2.eligible).toBe(false);
+    const r3 = requiredMinimumDistribution(75, 1000000, { birthYear: 1960 });
+    expect(r3.eligible).toBe(true);
   });
 });
