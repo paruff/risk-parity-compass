@@ -231,7 +231,7 @@ function generateTrades(currentHoldings, targetAllocation, prices, totalValue, t
       trades.push({
         ticker,
         action: deltaVal > 0 ? 'BUY' : 'SELL',
-        shares: parseFloat(shares.toFixed(4)),
+        shares: parseFloat(shares.toFixed(2)),
         dollarAmount: Math.abs(deltaVal),
         currentWeight,
         targetWeight,
@@ -651,7 +651,7 @@ const fmt = {
     v >= 1000
       ? `$${v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
       : `$${v.toFixed(2)}`,
-  shares: v => v.toFixed(4),
+  shares: v => v.toFixed(2),
   vol: v => `${(v * 100).toFixed(1)}%`,
 };
 

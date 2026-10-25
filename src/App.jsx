@@ -67,8 +67,8 @@ function saveState(state) {
 function WeightBar({ current, target, ticker }) {
   const maxW = Math.max(current, target, 0.001);
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-      <span style={{ width: 44, fontFamily: 'monospace', color: '#94a3b8' }}>{ticker}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+      <span style={{ width: 48, fontFamily: 'monospace', color: '#94a3b8' }}>{ticker}</span>
       <div style={{ flex: 1, position: 'relative', height: 20 }}>
         {/* Target bar (background) */}
         <div
@@ -99,8 +99,8 @@ function WeightBar({ current, target, ticker }) {
           }}
         />
       </div>
-      <span style={{ width: 40, color: '#cbd5e1', textAlign: 'right' }}>{fmt.pct(current)}</span>
-      <span style={{ width: 40, color: '#3b82f6', textAlign: 'right' }}>{fmt.pct(target)}</span>
+      <span style={{ width: 52, color: '#cbd5e1', textAlign: 'right' }}>{fmt.pct(current)}</span>
+      <span style={{ width: 52, color: '#60a5fa', textAlign: 'right' }}>{fmt.pct(target)}</span>
     </div>
   );
 }
@@ -175,12 +175,13 @@ export default function App() {
   const [corrMatrix, setCorrMatrix] = useState({});
   const [riskContrib, setRiskContrib] = useState({});
   const [perfData, setPerfData] = useState({ dates: [], rebalanced: [], buyAndHold: [] });
+  const [lastRunSignature, setLastRunSignature] = useState('');
 
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const isMobile = useMediaQuery('(max-width: 767px)');
+  const isMobile = useMediaQuery('(max-width: 1023px)');
   const lookbackRef = useRef(null);
   const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
   const [scenarioName, setScenarioName] = useState('');
@@ -213,6 +214,11 @@ export default function App() {
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
   const canRun = tickers.length > 0 && totalValue > 0;
+  const analysisSignature = useMemo(
+    () => JSON.stringify({ tickers, lookback, threshold, accounts, currentHoldings }),
+    [tickers, lookback, threshold, accounts, currentHoldings]
+  );
+  const isStale = analysisState === 'done' && lastRunSignature !== analysisSignature;
 
   // ── Debounced ticker validation
   useEffect(() => {
@@ -303,6 +309,9 @@ export default function App() {
       setPerfData(perf);
       setAnalysisState('done');
       setLastFetch(new Date().toISOString());
+      setLastRunSignature(
+        JSON.stringify({ tickers, lookback, threshold, accounts, currentHoldings })
+      );
       setTab('analysis');
     } catch (e) {
       setErrorMsg(e.message ?? String(e));
@@ -419,7 +428,7 @@ export default function App() {
       background: '#0a0f1e',
       color: '#e2e8f0',
       fontFamily: "'Inter', 'system-ui', sans-serif",
-      fontSize: 14,
+      fontSize: 16,
     },
     header: {
       borderBottom: '1px solid #1e293b',
@@ -440,8 +449,8 @@ export default function App() {
       fontSize: 16,
       flexShrink: 0,
     },
-    title: { fontSize: 17, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.01em' },
-    subtitle: { fontSize: 12, color: '#94a3b8', marginTop: 1 },
+    title: { fontSize: 18, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.01em' },
+    subtitle: { fontSize: 13, color: '#94a3b8', marginTop: 1 },
     body: { display: 'flex', height: 'calc(100vh - 62px)' },
     sidebar: {
       width: 260,
@@ -453,7 +462,7 @@ export default function App() {
     },
     main: { flex: 1, overflowY: 'auto', padding: '20px 24px' },
     label: {
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: 600,
       color: '#94a3b8',
       textTransform: 'uppercase',
@@ -463,18 +472,19 @@ export default function App() {
     },
     input: {
       width: '100%',
+      minHeight: 44,
       background: '#131d2e',
       border: '1px solid #1e293b',
       borderRadius: 6,
       color: '#e2e8f0',
-      padding: '7px 10px',
-      fontSize: 13,
+      padding: '11px 12px',
+      fontSize: 15,
       outline: 'none',
       boxSizing: 'border-box',
     },
     section: { marginBottom: 22 },
     sectionTitle: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: 700,
       color: '#94a3b8',
       textTransform: 'uppercase',
@@ -485,17 +495,18 @@ export default function App() {
     },
     btn: {
       width: '100%',
-      padding: '10px 0',
+      minHeight: 44,
+      padding: '12px 0',
       background: 'linear-gradient(135deg, #1d4ed8, #0891b2)',
       color: '#fff',
       border: 'none',
       borderRadius: 8,
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: 600,
       cursor: 'pointer',
       letterSpacing: '0.02em',
     },
-    btnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+    btnDisabled: { opacity: 0.45, cursor: 'not-allowed', filter: 'grayscale(0.4)' },
     tabs: {
       display: 'flex',
       gap: 4,
@@ -504,13 +515,14 @@ export default function App() {
       paddingBottom: 0,
     },
     tabBtn: active => ({
-      padding: '8px 16px',
+      minHeight: 44,
+      padding: '12px 16px',
       background: 'none',
       border: 'none',
       borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
       color: active ? '#e2e8f0' : '#94a3b8',
       cursor: 'pointer',
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: active ? 600 : 400,
       marginBottom: -1,
     }),
@@ -522,7 +534,7 @@ export default function App() {
       marginBottom: 14,
     },
     cardTitle: {
-      fontSize: 12,
+      fontSize: 13,
       fontWeight: 700,
       color: '#94a3b8',
       textTransform: 'uppercase',
@@ -531,23 +543,23 @@ export default function App() {
     },
     pill: color => ({
       display: 'inline-block',
-      padding: '2px 8px',
+      padding: '4px 9px',
       borderRadius: 100,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: 600,
       background: color === 'buy' ? '#14532d' : color === 'sell' ? '#4c0519' : '#1e293b',
       color: color === 'buy' ? '#86efac' : color === 'sell' ? '#fca5a5' : '#94a3b8',
     }),
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-    metricVal: { fontSize: 22, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' },
-    metricLbl: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+    metricVal: { fontSize: 24, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' },
+    metricLbl: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
     warning: {
       background: '#1c1200',
       border: '1px solid #92400e',
       borderRadius: 8,
       padding: '10px 14px',
       color: '#fbbf24',
-      fontSize: 12,
+      fontSize: 13,
       marginBottom: 14,
     },
     error: {
@@ -556,22 +568,46 @@ export default function App() {
       borderRadius: 8,
       padding: '12px 16px',
       color: '#fca5a5',
-      fontSize: 13,
+      fontSize: 14,
       marginBottom: 14,
     },
     tableWrap: { overflowX: 'auto' },
-    table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+    table: { width: '100%', borderCollapse: 'collapse', fontSize: 14 },
     th: {
-      padding: '8px 12px',
+      padding: '10px 12px',
       textAlign: 'left',
-      fontSize: 11,
+      fontSize: 12,
       color: '#94a3b8',
       fontWeight: 600,
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       borderBottom: '1px solid #1e293b',
     },
-    td: { padding: '10px 12px', borderBottom: '1px solid #0f172a', color: '#cbd5e1' },
+    td: { padding: '12px 12px', borderBottom: '1px solid #0f172a', color: '#cbd5e1' },
+    staleBanner: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      flexWrap: 'wrap',
+      background: '#1c1200',
+      border: '1px solid #92400e',
+      borderRadius: 8,
+      padding: '10px 14px',
+      color: '#fbbf24',
+      fontSize: 14,
+      marginBottom: 14,
+    },
+    mobileAction: {
+      position: 'fixed',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 30,
+      padding: '10px 16px',
+      background: '#0d1424',
+      borderTop: '1px solid #1e293b',
+    },
   };
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
@@ -580,15 +616,22 @@ export default function App() {
     <div style={S.app}>
       <style>{`
         .sd-table th:first-child, .sd-table td:first-child { position: sticky; left: 0; background: #0d1424; z-index: 1; }
-        .sd-input:focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
+        button:focus-visible, a:focus-visible, [role="tab"]:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+        .sd-tooltip-trigger:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+        .sd-input:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
+        .sd-holdings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(140px, 45%), 1fr)); gap: 10px; }
         @keyframes sd-fall { to { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
         .sd-confetti { animation: sd-fall 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @media (max-width: 767px) {
-          .sd-sidebar { position: fixed; top: 62px; bottom: 0; left: 0; z-index: 40; width: 260px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 0 0 20px rgba(0,0,0,.4); }
+        @media (max-width: 1023px) {
+          .sd-sidebar { position: fixed; top: 68px; bottom: 0; left: 0; z-index: 40; width: 290px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: 0 0 20px rgba(0,0,0,.4); }
           .sd-sidebar.open { transform: translateX(0); }
-          .sd-backdrop { position: fixed; inset: 62px 0 0 0; background: rgba(0,0,0,.5); z-index: 39; }
+          .sd-backdrop { position: fixed; inset: 68px 0 0 0; background: rgba(0,0,0,.5); z-index: 39; }
         }
-        @media (min-width: 768px) { .sd-backdrop { display: none; } }
+        @media (min-width: 1024px) { .sd-backdrop { display: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          .sd-confetti { animation: none; display: none; }
+          .sd-sidebar { transition: none; }
+        }
       `}</style>
       {/* HEADER */}
       <header style={S.header}>
@@ -603,6 +646,8 @@ export default function App() {
               fontSize: 20,
               cursor: 'pointer',
               padding: '2px 6px',
+              minHeight: 44,
+              minWidth: 44,
             }}
           >
             ☰
@@ -615,10 +660,12 @@ export default function App() {
               Shannon's Demon
             </Tooltip>
           </h1>
-          <div style={S.subtitle}>Risk parity rebalancer · tax-efficient · retirement</div>
+          <div style={{ ...S.subtitle, display: isMobile ? 'none' : 'block' }}>
+            Risk parity rebalancer · tax-efficient · retirement
+          </div>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 12, color: '#94a3b8' }}>
-          Total: <span style={{ color: '#94a3b8', fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
+        <div style={{ marginLeft: 'auto', fontSize: 14, color: '#94a3b8', whiteSpace: 'nowrap' }}>
+          Total: <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
         </div>
       </header>
 
@@ -648,7 +695,7 @@ export default function App() {
                 }
               }}
             />
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>
               {tickers.map(t => {
                 const st = tickerStatus[t];
                 const badge =
@@ -678,8 +725,9 @@ export default function App() {
                 border: 'none',
                 color: '#94a3b8',
                 cursor: 'pointer',
-                fontSize: 12,
-                padding: 0,
+                fontSize: 14,
+                padding: '10px 0',
+                minHeight: 44,
                 fontWeight: 600,
               }}
               aria-expanded={showAdvanced}
@@ -719,13 +767,13 @@ export default function App() {
                   step={0.01}
                   value={threshold}
                   onChange={e => setThreshold(parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: '#3b82f6' }}
+                  style={{ width: '100%', accentColor: '#3b82f6', minHeight: 44 }}
                 />
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: 11,
+                    fontSize: 13,
                     color: '#94a3b8',
                   }}
                 >
@@ -733,7 +781,7 @@ export default function App() {
                   <span>20% (lazy)</span>
                 </div>
                 {Object.keys(prices).length > 0 && (
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 8 }}>
+                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
                     {estimatedTrades.length > 0
                       ? `~${estimatedTrades.length} trades if run now`
                       : 'No trades needed at current drift'}
@@ -777,7 +825,11 @@ export default function App() {
           </button>
 
           {analysisState === 'done' && (
-            <div style={{ fontSize: 11, color: '#16a34a', textAlign: 'center', marginTop: 8 }}>
+            <div
+              role="status"
+              aria-live="polite"
+              style={{ fontSize: 13, color: '#4ade80', textAlign: 'center', marginTop: 8 }}
+            >
               ✓ Analysis complete
               {lastFetch && (
                 <div style={{ color: '#94a3b8', marginTop: 2 }}>
@@ -792,17 +844,26 @@ export default function App() {
           {/* Scenarios */}
           <div style={S.section}>
             <div style={S.sectionTitle}>Scenarios</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <label style={S.label} htmlFor="scenario-name">
+              Scenario name
+            </label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               <input
+                id="scenario-name"
                 className="sd-input"
                 style={{ ...S.input, flex: 1 }}
-                placeholder="Name…"
+                placeholder="e.g. Retirement base case"
                 value={scenarioName}
                 onChange={e => setScenarioName(e.target.value)}
-                aria-label="Scenario name"
               />
               <button
-                style={{ ...S.btn, padding: '6px 10px' }}
+                type="button"
+                style={{
+                  ...S.btn,
+                  width: 'auto',
+                  padding: '10px 14px',
+                  ...(scenarioName.trim() ? {} : S.btnDisabled),
+                }}
                 onClick={() => saveScenario(scenarioName)}
                 disabled={!scenarioName.trim()}
               >
@@ -810,7 +871,7 @@ export default function App() {
               </button>
             </div>
             {scenarios.length === 0 && (
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+              <div style={{ fontSize: 13, color: '#94a3b8' }}>
                 Save a snapshot of inputs to compare later.
               </div>
             )}
@@ -821,38 +882,49 @@ export default function App() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  fontSize: 12,
-                  padding: '4px 0',
+                  gap: 8,
+                  fontSize: 13,
+                  padding: '8px 0',
                   borderBottom: '1px solid #0f172a',
                 }}
               >
                 <span style={{ color: '#cbd5e1' }}>
                   {s.name}
-                  <span style={{ color: '#64748b', fontSize: 10 }}>
-                    {' '}
-                    · {new Date(s.timestamp).toLocaleDateString()}
+                  <span style={{ color: '#94a3b8', fontSize: 12, display: 'block' }}>
+                    {new Date(s.timestamp).toLocaleDateString()}
                   </span>
                 </span>
-                <span>
+                <span style={{ display: 'flex', gap: 4 }}>
                   <button
+                    type="button"
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#3b82f6',
+                      color: '#60a5fa',
                       cursor: 'pointer',
-                      fontSize: 12,
+                      fontSize: 13,
+                      minHeight: 44,
+                      minWidth: 44,
+                      padding: '6px 8px',
+                      borderRadius: 6,
                     }}
                     onClick={() => loadScenario(s)}
                   >
                     Load
-                  </button>{' '}
+                  </button>
                   <button
+                    type="button"
+                    aria-label={`Delete scenario ${s.name}`}
                     style={{
                       background: 'none',
                       border: 'none',
                       color: '#f87171',
                       cursor: 'pointer',
-                      fontSize: 12,
+                      fontSize: 13,
+                      minHeight: 44,
+                      minWidth: 44,
+                      padding: '6px 8px',
+                      borderRadius: 6,
                     }}
                     onClick={() => deleteScenario(s.timestamp)}
                   >
@@ -869,14 +941,14 @@ export default function App() {
               padding: '10px 12px',
               background: '#0a0f1e',
               borderRadius: 8,
-              fontSize: 11,
+              fontSize: 13,
               color: '#94a3b8',
               lineHeight: 1.6,
             }}
           >
             ⚠ Uses Yahoo Finance unofficial API. Data is for planning only — not financial advice.
             Verify trades before executing.
-            <div style={{ marginTop: 8, fontSize: 10, color: '#94a3b8' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
               v{__VERSION__} ·{' '}
               <a
                 href={`https://github.com/paruff/shannonsdemon/commit/${__COMMIT__}`}
@@ -891,14 +963,45 @@ export default function App() {
         </aside>
 
         {/* MAIN CONTENT */}
-        <main style={S.main}>
-          <div style={S.tabs}>
+        <main style={isMobile ? { ...S.main, paddingBottom: 96 } : S.main}>
+          {isStale && (
+            <div style={S.staleBanner} role="status">
+              <span>Inputs changed since the last analysis.</span>
+              <button
+                type="button"
+                style={{ ...S.btn, width: 'auto', padding: '10px 16px' }}
+                onClick={runAnalysis}
+              >
+                Recalculate
+              </button>
+            </div>
+          )}
+          <div style={S.tabs} role="tablist" aria-label="Portfolio views">
             {[
               { id: 'holdings', label: 'Current Holdings' },
               { id: 'analysis', label: 'Risk Parity Targets' },
               { id: 'trades', label: `Trades${trades.length > 0 ? ` (${trades.length})` : ''}` },
             ].map(t => (
-              <button key={t.id} style={S.tabBtn(tab === t.id)} onClick={() => setTab(t.id)}>
+              <button
+                key={t.id}
+                id={`tab-${t.id}`}
+                role="tab"
+                type="button"
+                aria-selected={tab === t.id}
+                aria-controls={`panel-${t.id}`}
+                tabIndex={tab === t.id ? 0 : -1}
+                style={S.tabBtn(tab === t.id)}
+                onClick={() => setTab(t.id)}
+                onKeyDown={e => {
+                  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                  const ids = ['holdings', 'analysis', 'trades'];
+                  const index = ids.indexOf(t.id);
+                  const nextId =
+                    ids[(index + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length];
+                  setTab(nextId);
+                  document.getElementById(`tab-${nextId}`)?.focus();
+                }}
+              >
                 {t.label}
               </button>
             ))}
@@ -907,7 +1010,7 @@ export default function App() {
           {/* ── HOLDINGS TAB ── */}
           {tab === 'holdings' && (
             <ErrorBoundary>
-              <div>
+              <div role="tabpanel" id="panel-holdings" aria-labelledby="tab-holdings">
                 <div style={S.warning}>
                   Enter your <strong>current share counts</strong> per account. These are compared
                   against risk parity targets to generate trades. Leave at 0 if you don't hold a
@@ -919,7 +1022,7 @@ export default function App() {
                   <textarea
                     placeholder="Paste CSV: Account, Ticker, Shares — e.g. Taxable,SPY,100"
                     className="sd-input"
-                    style={{ ...S.input, height: 52, fontFamily: 'monospace', fontSize: 11 }}
+                    style={{ ...S.input, height: 64, fontFamily: 'monospace', fontSize: 14 }}
                     onPaste={handlePaste}
                   />
                 </div>
@@ -927,16 +1030,10 @@ export default function App() {
                 {ACCOUNT_TYPES.map(acct => (
                   <div key={acct} style={S.card}>
                     <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
                       Balance: {fmt.usd(accounts[acct] ?? 0)}
                     </div>
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                        gap: 10,
-                      }}
-                    >
+                    <div className="sd-holdings-grid">
                       {tickers.map(ticker => (
                         <div key={ticker}>
                           <label style={S.label} htmlFor={`holding-${acct}-${ticker}`}>
@@ -954,7 +1051,7 @@ export default function App() {
                             onChange={e => updateHolding(acct, ticker, e.target.value)}
                           />
                           {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>
+                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 3 }}>
                               ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
                             </div>
                           )}
@@ -983,7 +1080,7 @@ export default function App() {
                         </div>
                       ))}
                     </div>
-                    <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 12 }}>
+                    <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 13 }}>
                       Total tracked:{' '}
                       <strong style={{ color: '#e2e8f0' }}>
                         {fmt.usd(currentTotalFromPrices)}
@@ -1000,7 +1097,7 @@ export default function App() {
           {/* ── ANALYSIS TAB ── */}
           {tab === 'analysis' && (
             <ErrorBoundary>
-              <div>
+              <div role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis">
                 {analysisState === 'idle' && (
                   <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
                     Enter your holdings and click{' '}
@@ -1029,13 +1126,16 @@ export default function App() {
                             }}
                             style={{
                               margin: '0 4px',
-                              padding: '2px 8px',
+                              padding: '8px 12px',
+                              minHeight: 44,
+                              minWidth: 44,
                               background: '#131d2e',
                               border: '1px solid #1e293b',
                               color: '#93c5fd',
                               borderRadius: 4,
                               cursor: 'pointer',
                               fontFamily: 'monospace',
+                              fontSize: 14,
                             }}
                           >
                             {s}
@@ -1067,22 +1167,21 @@ export default function App() {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(4, 1fr)',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
                         gap: 12,
                         marginBottom: 18,
                       }}
                     >
                       {[
                         { label: 'Assets', val: tickers.length },
-                        { label: 'Total Value', val: fmt.usd(totalValue) },
-                        { label: 'Rebalance Band', val: fmt.pct(threshold) },
+                        { label: 'Trade Trigger', val: fmt.pct(threshold) },
                         { label: 'Trades Needed', val: trades.length },
                       ].map(m => (
                         <div key={m.label} style={S.card}>
                           <div style={S.metricVal}>{m.val}</div>
                           <div style={S.metricLbl}>
-                            {m.label === 'Rebalance Band' ? (
-                              <Tooltip tip="Only trade when drift exceeds this % — captures volatility premium above costs">
+                            {m.label === 'Trade Trigger' ? (
+                              <Tooltip tip="Only trade when drift exceeds this trigger — captures the volatility premium above costs">
                                 {m.label}
                               </Tooltip>
                             ) : (
@@ -1096,7 +1195,7 @@ export default function App() {
                     {/* Weight comparison chart */}
                     <div style={S.card}>
                       <div style={S.cardTitle}>Current vs Target Weights</div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
                         <span
                           style={{
                             background: '#16a34a',
@@ -1154,11 +1253,11 @@ export default function App() {
                             <tr>
                               {[
                                 'Ticker',
-                                'Ann. Vol',
-                                'Target Weight',
-                                'Target $',
-                                'Current $',
-                                'Drift',
+                                'Volatility',
+                                'Target Allocation',
+                                'Target Value',
+                                'Current Value',
+                                'Off Target',
                               ].map(h => (
                                 <th key={h} style={S.th}>
                                   {h}
@@ -1213,9 +1312,10 @@ export default function App() {
                           Tax-Efficient Location (Target)
                         </Tooltip>
                       </div>
-                      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
                         Tax-inefficient assets (bonds, commodities, REITs) are placed in
-                        tax-advantaged accounts first. Scores are heuristics — verify with a tax
+                        tax-advantaged accounts first. Tax score: 8–10 means hold in an IRA, 5–7 is
+                        neutral, 1–4 is tax-efficient. Scores are heuristics — verify with a tax
                         advisor.
                       </div>
                       <div style={S.tableWrap}>
@@ -1262,7 +1362,7 @@ export default function App() {
                                     {targetAllocation[a]?.[t] > 0 ? (
                                       fmt.usd(targetAllocation[a][t])
                                     ) : (
-                                      <span style={{ color: '#1e293b' }}>—</span>
+                                      <span style={{ color: '#94a3b8' }}>—</span>
                                     )}
                                   </td>
                                 ))}
@@ -1280,11 +1380,11 @@ export default function App() {
                         {tickers.map(t => (
                           <div key={t} style={{ minWidth: 80 }}>
                             <div
-                              style={{ fontFamily: 'monospace', fontSize: 12, color: '#94a3b8' }}
+                              style={{ fontFamily: 'monospace', fontSize: 13, color: '#94a3b8' }}
                             >
                               {t}
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#e2e8f0' }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>
                               {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
                             </div>
                           </div>
@@ -1311,7 +1411,7 @@ export default function App() {
           {/* ── TRADES TAB ── */}
           {tab === 'trades' && (
             <ErrorBoundary>
-              <div>
+              <div role="tabpanel" id="panel-trades" aria-labelledby="tab-trades">
                 {analysisState !== 'done' && (
                   <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
                     Run Analysis first to generate trades.
@@ -1321,12 +1421,12 @@ export default function App() {
                 {analysisState === 'done' && trades.length === 0 && (
                   <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                    <div style={{ color: '#94a3b8', fontSize: 14 }}>
+                    <div style={{ color: '#94a3b8', fontSize: 15 }}>
                       All positions are within the{' '}
                       <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
                       band. No trades needed.
                     </div>
-                    <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
+                    <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 8 }}>
                       Shannon's Demon: Only rebalance when drift captures a meaningful volatility
                       premium above transaction costs.
                     </div>
@@ -1343,14 +1443,41 @@ export default function App() {
                       impact of sells in taxable accounts.
                     </div>
 
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                      <button style={S.btn} onClick={exportTradesCSV}>
-                        📋 Copy Trades as CSV
-                      </button>
-                      <button style={S.btn} onClick={exportState}>
-                        📦 Copy Full State JSON
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        style={{ ...S.btn, width: 'auto', padding: '12px 16px' }}
+                        onClick={exportTradesCSV}
+                      >
+                        📋 Copy trades as CSV
                       </button>
                     </div>
+                    <details style={{ marginBottom: 12 }}>
+                      <summary
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 14,
+                          color: '#94a3b8',
+                          minHeight: 44,
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        Advanced
+                      </summary>
+                      <button
+                        type="button"
+                        style={{
+                          ...S.btn,
+                          width: 'auto',
+                          padding: '12px 16px',
+                          marginTop: 8,
+                        }}
+                        onClick={exportState}
+                      >
+                        📦 Copy full state JSON
+                      </button>
+                    </details>
 
                     <div style={S.card}>
                       <div style={S.cardTitle}>Rebalancing Trades</div>
@@ -1364,9 +1491,9 @@ export default function App() {
                                 'Account',
                                 'Shares',
                                 'Amount',
-                                'Current %',
-                                'Target %',
-                                'Drift',
+                                'Current Allocation',
+                                'Target Allocation',
+                                'Off Target',
                               ].map(h => (
                                 <th key={h} style={S.th}>
                                   {h}
@@ -1394,7 +1521,7 @@ export default function App() {
                                 <td style={S.td}>{fmt.shares(tr.shares)}</td>
                                 <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
                                 <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
-                                <td style={{ ...S.td, color: '#3b82f6' }}>
+                                <td style={{ ...S.td, color: '#93c5fd' }}>
                                   {fmt.pct(tr.targetWeight)}
                                 </td>
                                 <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
@@ -1421,7 +1548,7 @@ export default function App() {
                                   justifyContent: 'space-between',
                                   padding: '5px 0',
                                   borderBottom: '1px solid #0f172a',
-                                  fontSize: 13,
+                                  fontSize: 14,
                                 }}
                               >
                                 <span>
@@ -1441,6 +1568,22 @@ export default function App() {
                 )}
               </div>
             </ErrorBoundary>
+          )}
+
+          {isMobile && (
+            <div style={S.mobileAction}>
+              <button
+                type="button"
+                style={{
+                  ...S.btn,
+                  ...(analysisState === 'loading' || !canRun ? S.btnDisabled : {}),
+                }}
+                onClick={runAnalysis}
+                disabled={analysisState === 'loading' || !canRun}
+              >
+                {analysisState === 'loading' ? '⏳ Fetching data…' : '▶ Run Analysis'}
+              </button>
+            </div>
           )}
         </main>
       </div>

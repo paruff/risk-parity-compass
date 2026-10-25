@@ -10,7 +10,7 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           Risk Contribution
         </Tooltip>
       </div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
         Weight % vs risk contribution %. Equal risk contribution = true risk parity.
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
@@ -19,7 +19,7 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           const rc = riskContrib[t] ?? 0;
           const diff = rc - w;
           return (
-            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
               <span style={{ width: 44, fontFamily: 'monospace', color: '#94a3b8' }}>{t}</span>
               <div style={{ flex: 1, position: 'relative', height: 16 }}>
                 <div
@@ -63,7 +63,7 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           );
         })}
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 10, color: '#94a3b8' }}>
+      <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 13, color: '#94a3b8' }}>
         <span>
           <span
             style={{

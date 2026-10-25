@@ -10,7 +10,7 @@ export default function PerformanceChart({ S, perfData }) {
           Performance Simulation
         </Tooltip>
       </div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
         Rebalanced (blue) vs buy-and-hold (gray) over {perfData.dates.length} trading days.
       </div>
       <div
@@ -19,7 +19,7 @@ export default function PerformanceChart({ S, perfData }) {
           height: 200,
           background: '#0a0f1e',
           borderRadius: 6,
-          padding: '12px 8px 24px 40px',
+          padding: '12px 8px 24px 52px',
         }}
       >
         <svg
@@ -72,7 +72,7 @@ export default function PerformanceChart({ S, perfData }) {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            fontSize: 9,
+            fontSize: 12,
             color: '#94a3b8',
           }}
         >
@@ -81,7 +81,16 @@ export default function PerformanceChart({ S, perfData }) {
           <span>{fmt.pct(Math.min(...perfData.rebalanced, ...perfData.buyAndHold) - 1)}</span>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 10, color: '#94a3b8' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          flexWrap: 'wrap',
+          marginTop: 8,
+          fontSize: 13,
+          color: '#94a3b8',
+        }}
+      >
         <span>
           <span
             style={{

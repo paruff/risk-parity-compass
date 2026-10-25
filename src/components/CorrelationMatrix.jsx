@@ -9,14 +9,14 @@ export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
           Correlation Matrix
         </Tooltip>
       </div>
-      <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
         Lower correlation = better diversification. Ideal: uncorrelated assets.
       </div>
       <div style={S.tableWrap}>
         <table className="sd-table" style={S.table}>
           <thead>
             <tr>
-              <th style={{ ...S.th, fontSize: 10 }}>Ticker</th>
+              <th style={{ ...S.th, fontSize: 12 }}>Ticker</th>
               {tickers.map(t => (
                 <th key={t} style={{ ...S.th, fontFamily: 'monospace' }}>
                   {t}
@@ -46,7 +46,7 @@ export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
                         ...S.td,
                         textAlign: 'center',
                         fontFamily: 'monospace',
-                        fontSize: 11,
+                        fontSize: 13,
                         background: bg,
                         color: a === b ? '#94a3b8' : '#e2e8f0',
                       }}
