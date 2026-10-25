@@ -20,6 +20,8 @@ import {
   ACCOUNT_TYPES,
   LOOKBACK_OPTIONS,
   fetchQuote,
+  fetchMonthlyHistory,
+  computeOverlap,
   annualizedVol,
   inverseVolWeights,
   taxLocationWaterfall,
@@ -29,7 +31,16 @@ import {
   riskContribution,
   simulatePerformance,
   fmt,
+  mulberry32,
+  normalSampler,
 } from './utils/finance';
+import {
+  drawdownPath,
+  rollingWithdrawalRates,
+  monteCarloWithWithdrawals,
+  requiredMinimumDistribution,
+  RMD_TABLE_VERSION,
+} from './utils/withdrawal';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -142,6 +153,307 @@ function Confetti() {
   );
 }
 
+// ─── DRAWDOWN BACKTEST CHART ──────────────────────────────────────────────────
+function DrawdownBacktestChart({ samples, horizonYears }) {
+  if (!samples || samples.length === 0)
+    return (
+      <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>
+        No historical data for backtest
+      </div>
+    );
+
+  const width = 600;
+  const height = 200;
+  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+
+  const rates = samples.flatMap(s => [s.swr, s.pwr]);
+  const maxRate = Math.max(...rates) * 1.1 || 0.1;
+
+  const xScale = i => margin.left + (i / (samples.length - 1 || 1)) * innerWidth;
+  const yScale = rate => margin.top + innerHeight - (rate / maxRate) * innerHeight;
+
+  return (
+    <div style={{ width: '100%', maxWidth: width, margin: '0 auto' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
+        {[0, 0.25, 0.5, 0.75, 1].map(y => (
+          <line
+            key={y}
+            x1={margin.left}
+            y1={yScale(maxRate * y)}
+            x2={margin.left + innerWidth}
+            y2={yScale(maxRate * y)}
+            stroke="#1e293b"
+            strokeWidth={0.5}
+          />
+        ))}
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={margin.left}
+          y2={margin.top + innerHeight}
+          stroke="#334155"
+          strokeWidth={1}
+        />
+        <line
+          x1={margin.left}
+          y1={margin.top + innerHeight}
+          x2={margin.left + innerWidth}
+          y2={margin.top + innerHeight}
+          stroke="#334155"
+          strokeWidth={1}
+        />
+        {[0, 0.25, 0.5, 0.75, 1].map(y => (
+          <text
+            key={y}
+            x={margin.left - 8}
+            y={yScale(maxRate * y) + 4}
+            textAnchor="end"
+            fontSize={10}
+            fill="#94a3b8"
+          >
+            {(maxRate * y * 100).toFixed(1)}%
+          </text>
+        ))}
+        {samples
+          .filter((_, i) => i % Math.max(1, Math.floor(samples.length / 10)) === 0)
+          .map((s, idx) => (
+            <text
+              key={s.startIndex}
+              x={xScale(s.startIndex)}
+              y={margin.top + innerHeight + 16}
+              textAnchor="middle"
+              fontSize={10}
+              fill="#94a3b8"
+              transform={`rotate(-45, ${xScale(s.startIndex)}, ${margin.top + innerHeight + 16})`}
+            >
+              Start {s.startIndex}
+            </text>
+          ))}
+        <polyline
+          fill="none"
+          stroke="#16a34a"
+          strokeWidth={1.5}
+          points={samples.map((s, i) => `${xScale(i)},${yScale(s.swr)}`).join(' ')}
+        />
+        <polyline
+          fill="none"
+          stroke="#60a5fa"
+          strokeWidth={1.5}
+          strokeDasharray="4,2"
+          points={samples.map((s, i) => `${xScale(i)},${yScale(s.pwr)}`).join(' ')}
+        />
+        {samples
+          .filter(s => s.depleted)
+          .map(s => (
+            <circle
+              key={s.startIndex}
+              cx={xScale(samples.indexOf(s))}
+              cy={yScale(s.swr)}
+              r={3}
+              fill="#f87171"
+            />
+          ))}
+      </svg>
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          marginTop: 8,
+          fontSize: 12,
+          color: '#94a3b8',
+          justifyContent: 'center',
+        }}
+      >
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 2,
+              background: '#16a34a',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          SWR
+        </span>
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 2,
+              background: '#60a5fa',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          PWR
+        </span>
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              background: '#f87171',
+              borderRadius: '50%',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          Depleted
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── FAN CHART ─────────────────────────────────────────────────────────────────
+function FanChart({ bands, steps, monthlySpend }) {
+  if (!bands || !bands.p50 || bands.p50.length === 0)
+    return (
+      <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>No Monte Carlo data</div>
+    );
+
+  const width = 600;
+  const height = 200;
+  const margin = { top: 20, right: 20, bottom: 40, left: 60 };
+  const innerWidth = width - margin.left - margin.right;
+  const innerHeight = height - margin.top - margin.bottom;
+
+  const allVals = [...bands.p90, ...bands.p75, ...bands.p50, ...bands.p25, ...bands.p10];
+  const maxVal = Math.max(...allVals) * 1.05 || 1;
+
+  const xScale = i => margin.left + (i / (steps - 1)) * innerWidth;
+  const yScale = val => margin.top + innerHeight - (val / maxVal) * innerHeight;
+
+  return (
+    <div style={{ width: '100%', maxWidth: width, margin: '0 auto' }}>
+      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
+        {[0, 0.25, 0.5, 0.75, 1].map(y => (
+          <line
+            key={y}
+            x1={margin.left}
+            y1={yScale(maxVal * y)}
+            x2={margin.left + innerWidth}
+            y2={yScale(maxVal * y)}
+            stroke="#1e293b"
+            strokeWidth={0.5}
+          />
+        ))}
+        <path
+          d={`M${bands.p10.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' L')} L${bands.p90.map((v, i) => `${xScale(steps - 1 - i)},${yScale(v)}`).join(' L')} Z`}
+          fill="#3b82f622"
+        />
+        <path
+          d={`M${bands.p25.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' L')} L${bands.p75.map((v, i) => `${xScale(steps - 1 - i)},${yScale(v)}`).join(' L')} Z`}
+          fill="#3b82f644"
+        />
+        <polyline
+          fill="none"
+          stroke="#3b82f6"
+          strokeWidth={1.5}
+          points={bands.p50.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')}
+        />
+        <line
+          x1={margin.left}
+          y1={margin.top}
+          x2={margin.left}
+          y2={margin.top + innerHeight}
+          stroke="#334155"
+          strokeWidth={1}
+        />
+        <line
+          x1={margin.left}
+          y1={margin.top + innerHeight}
+          x2={margin.left + innerWidth}
+          y2={margin.top + innerHeight}
+          stroke="#334155"
+          strokeWidth={1}
+        />
+        {[0, 0.25, 0.5, 0.75, 1].map(y => (
+          <text
+            key={y}
+            x={margin.left - 8}
+            y={yScale(maxVal * y) + 4}
+            textAnchor="end"
+            fontSize={10}
+            fill="#94a3b8"
+          >
+            {fmt.usd(maxVal * y)}
+          </text>
+        ))}
+        {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => (
+          <text
+            key={i}
+            x={margin.left + (i * innerWidth) / 4}
+            y={margin.top + innerHeight + 18}
+            textAnchor="middle"
+            fontSize={10}
+            fill="#94a3b8"
+          >
+            Y{Math.round((frac * steps) / 12)}
+          </text>
+        ))}
+      </svg>
+      <div
+        style={{
+          display: 'flex',
+          gap: 16,
+          marginTop: 8,
+          fontSize: 12,
+          color: '#94a3b8',
+          justifyContent: 'center',
+        }}
+      >
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 8,
+              background: '#3b82f622',
+              border: '1px solid #3b82f6',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          P10–P90
+        </span>
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 8,
+              background: '#3b82f644',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          P25–P75
+        </span>
+        <span>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 12,
+              height: 2,
+              background: '#3b82f6',
+              marginRight: 4,
+              verticalAlign: 'middle',
+            }}
+          />{' '}
+          Median
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -192,6 +504,22 @@ export default function App() {
       return [];
     }
   });
+
+  // ── Retirement state
+  const [retirement, setRetirement] = useState({
+    monthlySpend: 4000,
+    inflationRate: 0.03,
+    horizonYears: 30,
+    legacyTarget: 0,
+    socialSecurityMonthly: 0,
+    pensionMonthly: 0,
+    cashBufferMonths: 12,
+    guardrail: 'none',
+    driftMode: 'historical',
+    expectedReturn: null,
+  });
+  const [retirementResults, setRetirementResults] = useState(null);
+  const [retirementCalculating, setRetirementCalculating] = useState(false);
 
   // ── Load persisted state
   useEffect(() => {
@@ -318,6 +646,105 @@ export default function App() {
       setAnalysisState('error');
     }
   }, [tickers, lookback, accounts, currentHoldings, totalValue, threshold]);
+
+  // ── Calculate Retirement
+  const calculateRetirement = useCallback(async () => {
+    if (analysisState !== 'done') return;
+    setRetirementCalculating(true);
+    setRetirementResults(null);
+
+    try {
+      // Fetch monthly history for all tickers
+      const monthlyData = await Promise.allSettled(tickers.map(t => fetchMonthlyHistory(t)));
+      const histories = {};
+      for (let i = 0; i < tickers.length; i++) {
+        if (monthlyData[i].status === 'fulfilled') {
+          histories[tickers[i]] = monthlyData[i].value;
+        }
+      }
+
+      // Compute overlap
+      const { aligned, effectiveYears } = computeOverlap(histories);
+      if (Object.keys(aligned).length === 0) {
+        throw new Error('No overlapping price history across tickers');
+      }
+
+      // Build monthly portfolio values using target weights and aligned prices
+      const tickersWithData = Object.keys(aligned);
+      const steps = aligned[tickersWithData[0]].length;
+      const portfolioValues = new Array(steps).fill(0);
+
+      for (let step = 0; step < steps; step++) {
+        let portfolioValue = 0;
+        for (const t of tickersWithData) {
+          const weight = targetWeights[t] ?? 0;
+          const price = aligned[t][step];
+          if (price) {
+            portfolioValue += weight * price;
+          }
+        }
+        // Scale to total portfolio value
+        portfolioValues[step] = portfolioValue * totalValue;
+      }
+
+      // Apply income floor (SS/pension)
+      const { netSpend } = await import('./utils/withdrawal');
+      const { netMonthlySpend, bridgeYears } = netSpend(
+        retirement.monthlySpend,
+        retirement.socialSecurityMonthly,
+        retirement.pensionMonthly,
+        retirement.socialSecurityStartAge ?? 67,
+        retirement.pensionStartAge ?? 65,
+        new Date().getFullYear() - (retirement.birthYear ?? 1960)
+      );
+
+      // Rolling SWR/PWR
+      const rolling = rollingWithdrawalRates(portfolioValues, {
+        horizonYears: retirement.horizonYears,
+        periodsPerYear: 12,
+        inflationRate: retirement.inflationRate,
+      });
+
+      // Monte Carlo with withdrawals
+      const allCloses = {};
+      for (const t of tickersWithData) {
+        allCloses[t] = aligned[t];
+      }
+      const mc = monteCarloWithWithdrawals(allCloses, targetWeights, vols, corrMatrix, {
+        simulations: 200,
+        steps: retirement.horizonYears * 12,
+        monthlySpend: netMonthlySpend,
+        inflationRate: retirement.inflationRate,
+        driftMode: retirement.driftMode,
+        seed: 42,
+      });
+
+      // RMD for each traditional account
+      const rmdTable = {};
+      for (const acct of ACCOUNT_TYPES) {
+        if (acct.includes('IRA') || acct.includes('401k')) {
+          rmdTable[acct] = {};
+          for (let age = 73; age <= 90; age++) {
+            rmdTable[acct][age] = requiredMinimumDistribution(age, accounts[acct] ?? 0);
+          }
+        }
+      }
+
+      setRetirementResults({
+        ...rolling,
+        effectiveYears,
+        bridgeYears,
+        bands: mc.bands,
+        rmdTable,
+        mcStats: mc.stats,
+      });
+    } catch (e) {
+      console.error('Retirement calculation failed:', e);
+      setRetirementResults({ error: e.message });
+    } finally {
+      setRetirementCalculating(false);
+    }
+  }, [analysisState, tickers, targetWeights, vols, corrMatrix, accounts, totalValue, retirement]);
 
   // ── UI helpers
   const updateAccount = (name, val) => {
@@ -981,6 +1408,7 @@ export default function App() {
               { id: 'holdings', label: 'Current Holdings' },
               { id: 'analysis', label: 'Risk Parity Targets' },
               { id: 'trades', label: `Trades${trades.length > 0 ? ` (${trades.length})` : ''}` },
+              { id: 'retirement', label: 'Retirement' },
             ].map(t => (
               <button
                 key={t.id}
@@ -994,7 +1422,7 @@ export default function App() {
                 onClick={() => setTab(t.id)}
                 onKeyDown={e => {
                   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-                  const ids = ['holdings', 'analysis', 'trades'];
+                  const ids = ['holdings', 'analysis', 'trades', 'retirement'];
                   const index = ids.indexOf(t.id);
                   const nextId =
                     ids[(index + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length];
@@ -1565,6 +1993,358 @@ export default function App() {
                       })}
                     </div>
                   </>
+                )}
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ── RETIREMENT TAB ── */}
+          {tab === 'retirement' && (
+            <ErrorBoundary>
+              <div role="tabpanel" id="panel-retirement" aria-labelledby="tab-retirement">
+                {analysisState !== 'done' ? (
+                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                    Run Analysis first to generate retirement projections.
+                  </div>
+                ) : (
+                  <div>
+                    {/* Inputs Panel */}
+                    <div style={S.card}>
+                      <div style={S.cardTitle}>Retirement Parameters</div>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gap: 12,
+                        }}
+                      >
+                        <div>
+                          <label style={S.label} htmlFor="ret-monthly-spend">
+                            Monthly Spend
+                          </label>
+                          <input
+                            id="ret-monthly-spend"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.monthlySpend}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                monthlySpend: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            step={100}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-inflation-rate">
+                            Inflation Rate
+                          </label>
+                          <input
+                            id="ret-inflation-rate"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.inflationRate}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                inflationRate: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            max={0.2}
+                            step={0.005}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-horizon-years">
+                            Horizon (Years)
+                          </label>
+                          <input
+                            id="ret-horizon-years"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.horizonYears}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                horizonYears: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            min={1}
+                            max={50}
+                            step={1}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-legacy-target">
+                            Legacy Target
+                          </label>
+                          <input
+                            id="ret-legacy-target"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.legacyTarget}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                legacyTarget: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            step={1000}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-ss-monthly">
+                            Social Security / Mo
+                          </label>
+                          <input
+                            id="ret-ss-monthly"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.socialSecurityMonthly}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                socialSecurityMonthly: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            step={100}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-pension-monthly">
+                            Pension / Mo
+                          </label>
+                          <input
+                            id="ret-pension-monthly"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.pensionMonthly}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                pensionMonthly: parseFloat(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            step={100}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-cash-buffer">
+                            Cash Buffer (Months)
+                          </label>
+                          <input
+                            id="ret-cash-buffer"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.cashBufferMonths}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                cashBufferMonths: parseInt(e.target.value) || 0,
+                              }))
+                            }
+                            min={0}
+                            max={60}
+                            step={1}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-guardrail">
+                            Spending Guardrail
+                          </label>
+                          <select
+                            id="ret-guardrail"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.guardrail}
+                            onChange={e =>
+                              setRetirement(r => ({ ...r, guardrail: e.target.value }))
+                            }
+                          >
+                            <option value="none">None (Fixed)</option>
+                            <option value="rpr-80">RPR-80 (Cut to 6% if &lt;80%)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-drift-mode">
+                            MC Drift Mode
+                          </label>
+                          <select
+                            id="ret-drift-mode"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.driftMode}
+                            onChange={e =>
+                              setRetirement(r => ({ ...r, driftMode: e.target.value }))
+                            }
+                          >
+                            <option value="historical">Historical Mean</option>
+                            <option value="zero">Zero (Conservative)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={{
+                          ...S.btn,
+                          width: 'auto',
+                          padding: '12px 16px',
+                          marginTop: 12,
+                          ...(retirementCalculating ? S.btnDisabled : {}),
+                        }}
+                        onClick={calculateRetirement}
+                        disabled={retirementCalculating}
+                      >
+                        {retirementCalculating ? '⏳ Calculating…' : '▶ Calculate'}
+                      </button>
+                    </div>
+
+                    {/* Results */}
+                    {retirementResults && (
+                      <div>
+                        {/* Metric Cards */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                            gap: 12,
+                            marginBottom: 18,
+                          }}
+                        >
+                          <div style={S.card}>
+                            <div style={S.metricVal}>
+                              {(retirementResults.swr * 100).toFixed(2)}%
+                            </div>
+                            <div style={S.metricLbl}>Safe Withdrawal Rate (SWR)</div>
+                          </div>
+                          <div style={S.card}>
+                            <div style={S.metricVal}>
+                              {(retirementResults.pwr * 100).toFixed(2)}%
+                            </div>
+                            <div style={S.metricLbl}>Perpetual Withdrawal Rate (PWR)</div>
+                          </div>
+                          <div style={S.card}>
+                            <div style={S.metricVal}>
+                              {(retirementResults.successRate * 100).toFixed(1)}%
+                            </div>
+                            <div style={S.metricLbl}>Success Probability</div>
+                          </div>
+                          <div style={S.card}>
+                            <div style={S.metricVal}>
+                              {(retirementResults.maxDrawdown * 100).toFixed(1)}%
+                            </div>
+                            <div style={S.metricLbl}>Max Drawdown</div>
+                          </div>
+                          <div style={S.card}>
+                            <div style={S.metricVal}>
+                              {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
+                            </div>
+                            <div style={S.metricLbl}>Effective Horizon</div>
+                          </div>
+                        </div>
+
+                        {/* Disclaimer */}
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: '#94a3b8',
+                            marginBottom: 14,
+                            padding: '8px 12px',
+                            background: '#131d2e',
+                            borderRadius: 6,
+                          }}
+                        >
+                          Planning estimates only — not financial, tax, or legal advice. Historical
+                          and simulated results do not guarantee future outcomes. Verify RMDs and
+                          tax figures with a qualified advisor.
+                        </div>
+
+                        {/* Drawdown Backtest Chart */}
+                        <div style={S.card}>
+                          <div style={S.cardTitle}>Historical SWR/PWR by Start Year</div>
+                          <DrawdownBacktestChart
+                            samples={retirementResults.samples}
+                            horizonYears={retirement.horizonYears}
+                          />
+                        </div>
+
+                        {/* Monte Carlo Fan Chart */}
+                        <div style={S.card}>
+                          <div style={S.cardTitle}>Monte Carlo Fan Chart (P10–P90)</div>
+                          <FanChart
+                            bands={retirementResults.bands}
+                            steps={retirementResults.bands?.p50?.length ?? 360}
+                            monthlySpend={retirement.monthlySpend}
+                          />
+                        </div>
+
+                        {/* RMD Table */}
+                        <div style={S.card}>
+                          <div style={S.cardTitle}>
+                            Required Minimum Distributions (RMD){' '}
+                            <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 8 }}>
+                              Table: {RMD_TABLE_VERSION}
+                            </span>
+                          </div>
+                          <div style={S.tableWrap}>
+                            <table className="sd-table" style={S.table}>
+                              <thead>
+                                <tr>
+                                  <th style={S.th}>Age</th>
+                                  <th style={S.th}>Distribution Period</th>
+                                  {ACCOUNT_TYPES.filter(
+                                    a => a.includes('IRA') || a.includes('401k')
+                                  ).map(a => (
+                                    <th key={a} style={S.th}>
+                                      {a} RMD
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {[
+                                  73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
+                                  89, 90,
+                                ].map(age => (
+                                  <tr key={age}>
+                                    <td style={S.th}>{age}</td>
+                                    <td style={S.td}>
+                                      {requiredMinimumDistribution(age, 1000000)
+                                        .distributionPeriod ?? '—'}
+                                    </td>
+                                    {ACCOUNT_TYPES.filter(
+                                      a => a.includes('IRA') || a.includes('401k')
+                                    ).map(a => (
+                                      <td key={a} style={S.td}>
+                                        {accounts[a]
+                                          ? fmt.usd(
+                                              requiredMinimumDistribution(age, accounts[a]).rmd
+                                            )
+                                          : '—'}
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </ErrorBoundary>
