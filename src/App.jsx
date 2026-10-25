@@ -517,6 +517,9 @@ export default function App() {
     guardrail: 'none',
     driftMode: 'historical',
     expectedReturn: null,
+    birthYear: 1960,
+    socialSecurityStartAge: 67,
+    pensionStartAge: 65,
   });
   const [retirementResults, setRetirementResults] = useState(null);
   const [retirementCalculating, setRetirementCalculating] = useState(false);
@@ -725,7 +728,9 @@ export default function App() {
         if (acct.includes('IRA') || acct.includes('401k')) {
           rmdTable[acct] = {};
           for (let age = 73; age <= 90; age++) {
-            rmdTable[acct][age] = requiredMinimumDistribution(age, accounts[acct] ?? 0);
+            rmdTable[acct][age] = requiredMinimumDistribution(age, accounts[acct] ?? 0, {
+              birthYear: retirement.birthYear,
+            });
           }
         }
       }
@@ -2101,6 +2106,70 @@ export default function App() {
                           />
                         </div>
                         <div>
+                          <label style={S.label} htmlFor="ret-birth-year">
+                            Birth Year
+                          </label>
+                          <input
+                            id="ret-birth-year"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.birthYear}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                birthYear: parseInt(e.target.value) || 1960,
+                              }))
+                            }
+                            min={1920}
+                            max={2020}
+                            step={1}
+                            placeholder="e.g. 1955"
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-ss-start-age">
+                            Social Security Start Age
+                          </label>
+                          <input
+                            id="ret-ss-start-age"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.socialSecurityStartAge}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                socialSecurityStartAge: parseInt(e.target.value) || 67,
+                              }))
+                            }
+                            min={62}
+                            max={70}
+                            step={1}
+                          />
+                        </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-pension-start-age">
+                            Pension Start Age
+                          </label>
+                          <input
+                            id="ret-pension-start-age"
+                            type="number"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.pensionStartAge}
+                            onChange={e =>
+                              setRetirement(r => ({
+                                ...r,
+                                pensionStartAge: parseInt(e.target.value) || 65,
+                              }))
+                            }
+                            min={55}
+                            max={70}
+                            step={1}
+                          />
+                        </div>
+                        <div>
                           <label style={S.label} htmlFor="ret-ss-monthly">
                             Social Security / Mo
                           </label>
@@ -2322,8 +2391,9 @@ export default function App() {
                                   <tr key={age}>
                                     <td style={S.th}>{age}</td>
                                     <td style={S.td}>
-                                      {requiredMinimumDistribution(age, 1000000)
-                                        .distributionPeriod ?? '—'}
+                                      {requiredMinimumDistribution(age, 1000000, {
+                                        birthYear: retirement.birthYear,
+                                      }).distributionPeriod ?? '—'}
                                     </td>
                                     {ACCOUNT_TYPES.filter(
                                       a => a.includes('IRA') || a.includes('401k')
@@ -2331,7 +2401,9 @@ export default function App() {
                                       <td key={a} style={S.td}>
                                         {accounts[a]
                                           ? fmt.usd(
-                                              requiredMinimumDistribution(age, accounts[a]).rmd
+                                              requiredMinimumDistribution(age, accounts[a], {
+                                                birthYear: retirement.birthYear,
+                                              }).rmd
                                             )
                                           : '—'}
                                       </td>

@@ -35,3 +35,19 @@ test('Retirement tab shows inputs and computes metrics after analysis', async ({
   await expect(page.getByText('Perpetual Withdrawal Rate (PWR)')).toBeVisible();
   await expect(page.getByText('Success Probability')).toBeVisible();
 });
+
+test('Retirement tab shows RMD table for traditional accounts', async ({ page }) => {
+  await page.click('button:has-text("Run Analysis")');
+  await expect(page.getByText('Risk Parity Weights')).toBeVisible({ timeout: 15000 });
+  await page.click('button:has-text("Retirement")');
+  // Wait for the Retirement Parameters card to be visible
+  await expect(page.getByText('Retirement Parameters')).toBeVisible({ timeout: 5000 });
+  // Find the birth year input by its id
+  await expect(page.locator('#ret-birth-year')).toBeVisible({ timeout: 10000 });
+  await page.locator('#ret-birth-year').fill('1955');
+  await page.click('button:has-text("Calculate")');
+  await expect(page.getByText(/Required Minimum Distribution/i)).toBeVisible({ timeout: 5000 });
+  // Check that the RMD table has rows (at least one row with age data)
+  await expect(page.locator('table.sd-table tbody tr').first()).toBeVisible();
+  await expect(page.getByText(/Distribution period/i)).toBeVisible();
+});
