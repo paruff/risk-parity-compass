@@ -37,6 +37,29 @@ describe('drawdownPath', () => {
     const r = drawdownPath(values, 0);
     expect(r.maxDrawdown).toBeCloseTo(0.2, 3); // (100k->80k) / 100k = 20%
   });
+
+  it('drawdownPath with cash buffer draws from buffer first', () => {
+    const values = Array.from({ length: 120 }, (_, i) => 100000);
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
+    // First 12 months should come from buffer, portfolio untouched
+    expect(r.balances[11]).toBe(100000);
+    expect(r.balances[12]).toBeLessThan(100000);
+  });
+
+  it('drawdownPath buffer refills when portfolio grows', () => {
+    const values = Array.from({ length: 120 }, (_, i) => 100000 * 1.01 ** i); // growing
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
+    // Buffer should refill; portfolio balance should reflect refill
+    expect(r.balances[24]).toBeGreaterThan(100000 - 4000 * 12);
+  });
+
+  it('drawdownPath buffer depletion forces portfolio withdrawal', () => {
+    const values = Array.from({ length: 60 }, (_, i) => 100000); // flat
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 3 });
+    // Buffer lasts 3 months, then portfolio draws
+    expect(r.balances[2]).toBe(100000);
+    expect(r.balances[3]).toBe(96000);
+  });
 });
 
 describe('rollingWithdrawalRates', () => {

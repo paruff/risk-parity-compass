@@ -48,10 +48,10 @@ export function requiredMinimumDistribution(age, priorYearEndBalance, options = 
 // Withdraw a fixed real amount monthly from a portfolio path.
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
 // monthlySpend: real monthly spend amount (constant in real terms)
-// options: { periodsPerYear = 12, inflationRate = 0 }
+// options: { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 }
 // Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted }
 export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
-  const { periodsPerYear = 12, inflationRate = 0 } = options;
+  const { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 } = options;
   const n = portfolioValues.length;
   if (n === 0) {
     return { balances: [], depletedYear: null, maxDrawdown: 0, terminalReal: 0, yearsLasted: 0 };
@@ -63,6 +63,10 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   let maxDrawdown = 0;
   let cumulativeSpend = 0;
 
+  // Cash buffer
+  const bufferSize = monthlySpend * (cashBufferMonths || 0);
+  let bufferBalance = bufferSize;
+
   for (let i = 0; i < n; i++) {
     // Real portfolio value at month i (divide by inflation factor)
     const yearFraction = i / periodsPerYear;
@@ -72,8 +76,18 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
     // Add this month's spend (spend is constant in real terms)
     cumulativeSpend += monthlySpend;
 
-    // Real balance = real portfolio value - cumulative real spends
-    balances[i] = realPortfolioValue - cumulativeSpend;
+    // Draw from cash buffer first
+    const fromBuffer = Math.min(bufferBalance, monthlySpend);
+    bufferBalance -= fromBuffer;
+
+    // Remaining spend comes from portfolio
+    const fromPortfolio = monthlySpend - fromBuffer;
+
+    // Portfolio withdrawals = total spend - buffer used
+    const portfolioWithdrawals = cumulativeSpend - (bufferSize - bufferBalance);
+
+    // Real balance = real portfolio value - cumulative portfolio withdrawals
+    balances[i] = realPortfolioValue - portfolioWithdrawals;
 
     // Track peak and drawdown on real balances
     if (balances[i] > peak) {
