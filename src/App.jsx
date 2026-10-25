@@ -40,6 +40,7 @@ import {
   monteCarloWithWithdrawals,
   requiredMinimumDistribution,
   RMD_TABLE_VERSION,
+  withdrawalSequence,
 } from './utils/withdrawal';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
@@ -2041,6 +2042,7 @@ export default function App() {
                             }
                             min={0}
                             step={100}
+                            placeholder="e.g. 4000"
                           />
                         </div>
                         <div>
@@ -2410,6 +2412,155 @@ export default function App() {
                                     ))}
                                   </tr>
                                 ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Withdrawal Sequencing Table */}
+                        <div style={S.card}>
+                          <div style={S.cardTitle}>Withdrawal Sequencing</div>
+                          <div style={S.tableWrap}>
+                            <table className="sd-table" style={S.table}>
+                              <thead>
+                                <tr>
+                                  <th style={S.th}>Account</th>
+                                  <th style={S.th}>Taxable Withdrawal</th>
+                                  <th style={S.th}>Traditional Withdrawal (incl. RMD)</th>
+                                  <th style={S.th}>Roth Withdrawal</th>
+                                  <th style={S.th}>Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(() => {
+                                  const seq = withdrawalSequence(
+                                    accounts,
+                                    retirement.monthlySpend,
+                                    {
+                                      rmdByAccount: Object.fromEntries(
+                                        ACCOUNT_TYPES.filter(
+                                          a => a.includes('IRA') || a.includes('401k')
+                                        ).map(a => [
+                                          a,
+                                          requiredMinimumDistribution(73, accounts[a] ?? 0, {
+                                            birthYear: retirement.birthYear,
+                                          }).rmd,
+                                        ])
+                                      ),
+                                    }
+                                  );
+                                  return [
+                                    { name: 'Taxable', ...seq.byAccount.Taxable },
+                                    {
+                                      name: 'Traditional IRA / 401k',
+                                      ...seq.byAccount['Traditional IRA / 401k'],
+                                    },
+                                    { name: 'Roth IRA', ...seq.byAccount['Roth IRA'] },
+                                  ];
+                                })().map(row => (
+                                  <tr key={row.name}>
+                                    <td style={S.th}>{row.name}</td>
+                                    <td style={S.td}>
+                                      {row.taxable > 0 ? fmt.usd(row.taxable * 12) : '—'}
+                                    </td>
+                                    <td style={S.td}>
+                                      {row.traditional > 0 ? fmt.usd(row.traditional * 12) : '—'}
+                                    </td>
+                                    <td style={S.td}>
+                                      {row.roth > 0 ? fmt.usd(row.roth * 12) : '—'}
+                                    </td>
+                                    <td style={S.td}>
+                                      {fmt.usd((row.taxable + row.traditional + row.roth) * 12)}
+                                    </td>
+                                  </tr>
+                                ))}
+                                <tr>
+                                  <td style={S.th}>Yearly Total</td>
+                                  <td style={S.td}>
+                                    {(() => {
+                                      const seq = withdrawalSequence(
+                                        accounts,
+                                        retirement.monthlySpend,
+                                        {
+                                          rmdByAccount: Object.fromEntries(
+                                            ACCOUNT_TYPES.filter(
+                                              a => a.includes('IRA') || a.includes('401k')
+                                            ).map(a => [
+                                              a,
+                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
+                                                birthYear: retirement.birthYear,
+                                              }).rmd,
+                                            ])
+                                          ),
+                                        }
+                                      );
+                                      return fmt.usd(seq.byAccount.Taxable * 12);
+                                    })()}
+                                  </td>
+                                  <td style={S.td}>
+                                    {(() => {
+                                      const seq = withdrawalSequence(
+                                        accounts,
+                                        retirement.monthlySpend,
+                                        {
+                                          rmdByAccount: Object.fromEntries(
+                                            ACCOUNT_TYPES.filter(
+                                              a => a.includes('IRA') || a.includes('401k')
+                                            ).map(a => [
+                                              a,
+                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
+                                                birthYear: retirement.birthYear,
+                                              }).rmd,
+                                            ])
+                                          ),
+                                        }
+                                      );
+                                      return fmt.usd(seq.byAccount['Traditional IRA / 401k'] * 12);
+                                    })()}
+                                  </td>
+                                  <td style={S.td}>
+                                    {(() => {
+                                      const seq = withdrawalSequence(
+                                        accounts,
+                                        retirement.monthlySpend,
+                                        {
+                                          rmdByAccount: Object.fromEntries(
+                                            ACCOUNT_TYPES.filter(
+                                              a => a.includes('IRA') || a.includes('401k')
+                                            ).map(a => [
+                                              a,
+                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
+                                                birthYear: retirement.birthYear,
+                                              }).rmd,
+                                            ])
+                                          ),
+                                        }
+                                      );
+                                      return fmt.usd(seq.byAccount['Roth IRA'] * 12);
+                                    })()}
+                                  </td>
+                                  <td style={S.td}>
+                                    {(() => {
+                                      const seq = withdrawalSequence(
+                                        accounts,
+                                        retirement.monthlySpend,
+                                        {
+                                          rmdByAccount: Object.fromEntries(
+                                            ACCOUNT_TYPES.filter(
+                                              a => a.includes('IRA') || a.includes('401k')
+                                            ).map(a => [
+                                              a,
+                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
+                                                birthYear: retirement.birthYear,
+                                              }).rmd,
+                                            ])
+                                          ),
+                                        }
+                                      );
+                                      return fmt.usd(seq.totalSpend * 12);
+                                    })()}
+                                  </td>
+                                </tr>
                               </tbody>
                             </table>
                           </div>
