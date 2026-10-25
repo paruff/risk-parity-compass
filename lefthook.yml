@@ -1,0 +1,13 @@
+# Lefthook configuration — replaces Husky.
+# Repo gotcha: every Node subprocess needs NODE_OPTIONS unset (see AGENTS.md),
+# so the lint/commit hooks run through `env -u NODE_OPTIONS`.
+pre-commit:
+  parallel: true
+  commands:
+    lint-staged:
+      run: env -u NODE_OPTIONS npx lint-staged
+
+commit-msg:
+  commands:
+    commitlint:
+      run: env -u NODE_OPTIONS npx --no -- commitlint --edit {1}
