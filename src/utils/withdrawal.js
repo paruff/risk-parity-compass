@@ -1,0 +1,426 @@
+// ─── WITHDRAWAL ENGINE ────────────────────────────────────────────────────────
+// Pure functions for retirement drawdown, SWR/PWR, Monte Carlo with withdrawals,
+// RMD, guardrails, and cash buffer. No side effects, fully unit-testable.
+
+import { mulberry32, normalSampler } from './finance.js';
+import rmdTable from './rmd-tables.json';
+
+export const RMD_TABLE_VERSION = rmdTable.version;
+
+// US Uniform Lifetime Table. age: owner age at year end; balance: prior 12/31 balance.
+// Returns { age, distributionPeriod, rmd, eligible }
+export function requiredMinimumDistribution(age, priorYearEndBalance, options = {}) {
+  const { tableVersion, birthYear } = options;
+  // Eligibility age: 73 for born 1951-1959, 75 for 1960+
+  let eligibleAge = 73;
+  if (birthYear != null) {
+    eligibleAge = birthYear >= 1960 ? 75 : 73;
+  }
+
+  if (age < eligibleAge) {
+    return { age, distributionPeriod: null, rmd: 0, eligible: false };
+  }
+
+  const table = rmdTable.table;
+  const ageKey = String(age);
+  const distributionPeriod = table[ageKey];
+
+  if (distributionPeriod == null) {
+    // Age beyond table - use last entry
+    const lastAge = Math.max(...Object.keys(table).map(Number));
+    const fallbackPeriod = table[String(lastAge)];
+    return {
+      age,
+      distributionPeriod: fallbackPeriod,
+      rmd: priorYearEndBalance / fallbackPeriod,
+      eligible: true,
+    };
+  }
+
+  return {
+    age,
+    distributionPeriod,
+    rmd: priorYearEndBalance / distributionPeriod,
+    eligible: true,
+  };
+}
+
+// Withdraw a fixed real amount monthly from a portfolio path.
+// portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
+// monthlySpend: real monthly spend amount (constant in real terms)
+// options: { periodsPerYear = 12, inflationRate = 0 }
+// Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted }
+export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
+  const { periodsPerYear = 12, inflationRate = 0 } = options;
+  const n = portfolioValues.length;
+  if (n === 0) {
+    return { balances: [], depletedYear: null, maxDrawdown: 0, terminalReal: 0, yearsLasted: 0 };
+  }
+
+  const balances = new Array(n);
+  let depletedYear = null;
+  let peak = -Infinity;
+  let maxDrawdown = 0;
+  let cumulativeSpend = 0;
+
+  for (let i = 0; i < n; i++) {
+    // Real portfolio value at month i (divide by inflation factor)
+    const yearFraction = i / periodsPerYear;
+    const inflationFactor = (1 + inflationRate) ** yearFraction;
+    const realPortfolioValue = portfolioValues[i] / inflationFactor;
+
+    // Add this month's spend (spend is constant in real terms)
+    cumulativeSpend += monthlySpend;
+
+    // Real balance = real portfolio value - cumulative real spends
+    balances[i] = realPortfolioValue - cumulativeSpend;
+
+    // Track peak and drawdown on real balances
+    if (balances[i] > peak) {
+      peak = balances[i];
+    }
+    if (peak > 0 && balances[i] < peak) {
+      const dd = (peak - balances[i]) / peak;
+      if (dd > maxDrawdown) maxDrawdown = dd;
+    }
+
+    // Check depletion (balance <= 0)
+    if (depletedYear === null && balances[i] <= 0) {
+      depletedYear = yearFraction;
+    }
+  }
+
+  const terminalReal = balances[n - 1];
+  const yearsLasted = n / periodsPerYear;
+
+  return { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted };
+}
+
+// For every historical start period of length horizonYears, find the highest
+// constant real withdrawal rate that (a) never depletes the portfolio (SWR) and
+// (b) never ends below the original real principal (PWR).
+// portfolioValues: monthly real portfolio value series (from weights × prices)
+// Returns: { swr, pwr, successRate, worstStart, worstDepletionYear, maxDrawdown, samples }
+export function rollingWithdrawalRates(portfolioValues, options = {}) {
+  const { horizonYears = 30, periodsPerYear = 12, inflationRate = 0 } = options;
+  const horizonMonths = horizonYears * periodsPerYear;
+  const n = portfolioValues.length;
+
+  if (n < horizonMonths) {
+    return {
+      swr: 0,
+      pwr: 0,
+      successRate: 0,
+      worstStart: 0,
+      worstDepletionYear: null,
+      maxDrawdown: 0,
+      samples: [],
+    };
+  }
+
+  const samples = [];
+  let worstSwr = Infinity;
+  let worstPwr = Infinity;
+  let worstDepletionYear = null;
+  let overallMaxDrawdown = 0;
+
+  // For each possible start index
+  for (let start = 0; start + horizonMonths <= n; start++) {
+    const slice = portfolioValues.slice(start, start + horizonMonths);
+    const startValue = slice[0];
+
+    // Binary search for SWR (never depletes)
+    let low = 0;
+    let high = 0.2; // 20% annual withdrawal rate max
+    let swr = 0;
+
+    for (let iter = 0; iter < 30; iter++) {
+      // tolerance ~ 1e-4 on annual rate
+      const mid = (low + high) / 2;
+      const monthlySpend = (mid * startValue) / periodsPerYear;
+      const result = drawdownPath(slice, monthlySpend, { periodsPerYear, inflationRate });
+
+      if (result.depletedYear === null) {
+        // Not depleted, can try higher rate
+        swr = mid;
+        low = mid;
+      } else {
+        // Depleted, need lower rate
+        high = mid;
+      }
+    }
+
+    // Binary search for PWR (terminal >= start)
+    low = 0;
+    high = 0.2;
+    let pwr = 0;
+
+    for (let iter = 0; iter < 30; iter++) {
+      const mid = (low + high) / 2;
+      const monthlySpend = (mid * startValue) / periodsPerYear;
+      const result = drawdownPath(slice, monthlySpend, { periodsPerYear, inflationRate });
+
+      if (result.terminalReal >= startValue) {
+        pwr = mid;
+        low = mid;
+      } else {
+        high = mid;
+      }
+    }
+
+    // Evaluate at SWR for metrics
+    const monthlySpendSwr = (swr * startValue) / periodsPerYear;
+    const swrResult = drawdownPath(slice, monthlySpendSwr, { periodsPerYear, inflationRate });
+
+    samples.push({
+      startIndex: start,
+      swr,
+      pwr,
+      depleted: swrResult.depletedYear !== null,
+    });
+
+    if (swr < worstSwr) worstSwr = swr;
+    if (pwr < worstPwr) worstPwr = pwr;
+    if (
+      swrResult.depletedYear !== null &&
+      (worstDepletionYear === null || swrResult.depletedYear < worstDepletionYear)
+    ) {
+      worstDepletionYear = swrResult.depletedYear;
+    }
+    if (swrResult.maxDrawdown > overallMaxDrawdown) {
+      overallMaxDrawdown = swrResult.maxDrawdown;
+    }
+  }
+
+  const successRate = samples.filter(s => !s.depleted).length / samples.length;
+
+  return {
+    swr: worstSwr,
+    pwr: worstPwr,
+    successRate,
+    worstStart: samples.findIndex(s => s.swr === worstSwr),
+    worstDepletionYear,
+    maxDrawdown: overallMaxDrawdown,
+    samples,
+  };
+}
+
+// Cholesky decomposition (copied from finance.js for independence)
+function choleskyDecompose(covMatrix) {
+  const n = covMatrix.length;
+  const L = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j <= i; j++) {
+      let sum = 0;
+      for (let k = 0; k < j; k++) {
+        sum += L[i][k] * L[j][k];
+      }
+      if (i === j) {
+        const variance = covMatrix[i][i] - sum;
+        L[i][j] = variance > 0 ? Math.sqrt(variance) : 0;
+      } else {
+        L[i][j] = L[j][j] > 0 ? (covMatrix[i][j] - sum) / L[j][j] : 0;
+      }
+    }
+  }
+  return L;
+}
+
+// Percentile helper
+function percentile(sorted, p) {
+  if (sorted.length === 0) return 0;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * p)));
+  return sorted[idx];
+}
+
+// Monte Carlo with monthly withdrawals, inflation, and percentile bands.
+// allCloses: { ticker: closes[] } historical closes
+// weights: { ticker: weight }
+// vols: { ticker: annualizedVol }
+// corrMatrix: { ticker: { [ticker2]: correlation } }
+// options: { simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed }
+// Returns: { terminalValues, successRate, bands: { p10, p25, p50, p75, p90 }, stats, depletionYears }
+export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options = {}) {
+  const {
+    simulations = 1000,
+    steps = 360,
+    monthlySpend = 0,
+    inflationRate = 0.03,
+    driftMode = 'historical',
+    expectedReturns = null,
+    threshold = 0.05,
+    seed = 42,
+  } = options;
+
+  const tickers = Object.keys(weights);
+  const n = tickers.length;
+
+  if (n === 0 || simulations <= 0 || steps <= 0) {
+    return {
+      terminalValues: new Float64Array(0),
+      successRate: 0,
+      bands: { p10: [], p25: [], p50: [], p75: [], p90: [] },
+      stats: { mean: 0, median: 0, p10: 0, p90: 0, cagr: 0, sharpe: 0 },
+      depletionYears: [],
+    };
+  }
+
+  const dt = 1 / 12; // monthly steps
+
+  // Per-ticker annual drift
+  const annualDrift = {};
+  for (const t of tickers) {
+    if (driftMode === 'zero') {
+      annualDrift[t] = 0;
+    } else if (driftMode === 'custom' && expectedReturns?.[t] != null) {
+      annualDrift[t] = expectedReturns[t];
+    } else {
+      // historical: compute mean annual return from allCloses
+      const closes = allCloses[t] ?? [];
+      if (closes.length >= 2) {
+        const totalReturn = closes[closes.length - 1] / closes[0];
+        const years = closes.length / 12;
+        annualDrift[t] = years > 0 ? totalReturn ** (1 / years) - 1 : 0;
+      } else {
+        annualDrift[t] = 0;
+      }
+    }
+  }
+
+  // Daily covariance matrix (monthly): Cov(i,j) = ρ(i,j) × σ(i) × σ(j) / 12
+  const cov = [];
+  for (let i = 0; i < n; i++) {
+    cov[i] = [];
+    for (let j = 0; j < n; j++) {
+      const rho = corrMatrix[tickers[i]]?.[tickers[j]] ?? (i === j ? 1 : 0);
+      const sigmaI = vols[tickers[i]] ?? 0;
+      const sigmaJ = vols[tickers[j]] ?? 0;
+      cov[i][j] = (rho * sigmaI * sigmaJ) / 12;
+    }
+  }
+
+  const L = choleskyDecompose(cov);
+
+  // Current prices (latest close from historical data)
+  const currentPrices = {};
+  for (const t of tickers) {
+    const series = allCloses[t];
+    currentPrices[t] = series?.[series.length - 1] ?? 1;
+  }
+
+  // Per-step drift for GBM: (μ - σ²/2) · dt
+  const stepDrift = {};
+  for (const t of tickers) {
+    const sigma = vols[t] ?? 0;
+    stepDrift[t] = (annualDrift[t] - 0.5 * sigma * sigma) * dt;
+  }
+
+  // Seeded PRNG
+  const rng = mulberry32(seed);
+  const normal = normalSampler(rng);
+
+  const terminalValues = new Float64Array(simulations);
+  const depletionYears = new Array(simulations);
+  const pathValues = Array.from({ length: simulations }, () => new Float64Array(steps));
+
+  for (let sim = 0; sim < simulations; sim++) {
+    const currentWeights = { ...weights };
+    const pathPrices = { ...currentPrices };
+    let portfolioValue = 1; // normalized
+
+    for (let step = 0; step < steps; step++) {
+      // Correlated shocks: Z = L · X
+      const normals = Array.from({ length: n }, () => normal());
+      const correlated = Array(n).fill(0);
+      for (let i = 0; i < n; i++) {
+        let sum = 0;
+        for (let j = 0; j <= i; j++) sum += L[i][j] * normals[j];
+        correlated[i] = sum;
+      }
+
+      let rebalReturn = 0;
+      for (let i = 0; i < n; i++) {
+        const t = tickers[i];
+        const growth = Math.exp(stepDrift[t] + Math.sqrt(dt) * correlated[i]);
+        pathPrices[t] *= growth;
+        rebalReturn += currentWeights[t] * growth;
+        currentWeights[t] *= growth;
+      }
+
+      // Renormalize weights after price moves
+      let weightSum = 0;
+      for (const t of tickers) weightSum += currentWeights[t];
+      for (const t of tickers) currentWeights[t] /= weightSum;
+
+      // Rebalance if drift exceeds threshold
+      let needsRebal = false;
+      for (const t of tickers) {
+        if (Math.abs(currentWeights[t] - weights[t]) > threshold) {
+          needsRebal = true;
+          break;
+        }
+      }
+      if (needsRebal) {
+        for (const t of tickers) currentWeights[t] = weights[t];
+      }
+
+      // Apply monthly withdrawal (inflation-adjusted)
+      const yearFraction = step / 12;
+      const inflationFactor = (1 + inflationRate) ** yearFraction;
+      const realSpend = monthlySpend * inflationFactor;
+      portfolioValue = Math.max(0, portfolioValue * rebalReturn - realSpend);
+
+      pathValues[sim][step] = portfolioValue;
+
+      if (depletionYears[sim] === undefined && portfolioValue <= 0) {
+        depletionYears[sim] = yearFraction;
+      }
+    }
+
+    // If never depleted, record full horizon
+    if (depletionYears[sim] === undefined) {
+      depletionYears[sim] = steps / 12;
+    }
+
+    terminalValues[sim] = portfolioValue;
+  }
+
+  // Statistics
+  const sortedValues = Array.from(terminalValues).sort((a, b) => a - b);
+  const mean = sortedValues.reduce((a, b) => a + b, 0) / simulations;
+  const median = percentile(sortedValues, 0.5);
+  const p10 = percentile(sortedValues, 0.1);
+  const p90 = percentile(sortedValues, 0.9);
+  const variance = sortedValues.reduce((sum, v) => sum + (v - mean) ** 2, 0) / simulations;
+  const stdDev = Math.sqrt(variance);
+
+  const years = steps / 12;
+  const annualMeanReturn = years > 0 && mean > 0 ? Math.pow(mean, 1 / years) - 1 : 0;
+  const annualVol = years > 0 ? stdDev / Math.sqrt(years) : 0;
+  const sharpe = annualVol > 0 ? (annualMeanReturn - 0.02) / annualVol : 0; // 2% risk-free
+
+  // Percentile bands per step
+  const bands = { p10: [], p25: [], p50: [], p75: [], p90: [] };
+  for (let step = 0; step < steps; step++) {
+    const stepVals = [];
+    for (let sim = 0; sim < simulations; sim++) {
+      stepVals.push(pathValues[sim][step]);
+    }
+    stepVals.sort((a, b) => a - b);
+    bands.p10.push(percentile(stepVals, 0.1));
+    bands.p25.push(percentile(stepVals, 0.25));
+    bands.p50.push(percentile(stepVals, 0.5));
+    bands.p75.push(percentile(stepVals, 0.75));
+    bands.p90.push(percentile(stepVals, 0.9));
+  }
+
+  const successRate = depletionYears.filter(y => y >= steps / 12).length / simulations;
+
+  return {
+    terminalValues,
+    successRate,
+    bands,
+    stats: { mean, median, p10, p90, cagr: annualMeanReturn, sharpe },
+    depletionYears,
+  };
+}
