@@ -7,6 +7,8 @@ import {
   getTemplate,
   getTemplateList,
   normalizeTemplateWeights,
+  metricDifference,
+  weightRows,
 } from '../portfolios';
 
 describe('PORTFOLIO_TEMPLATES', () => {
@@ -222,5 +224,28 @@ describe('diversificationScore', () => {
     const r = diversificationScore(matrix);
     expect(r.avgPairwiseCorrelation).toBeCloseTo(0.2, 4);
     expect(r.maxPairwiseCorrelation).toBeCloseTo(0.3, 4);
+  });
+});
+
+describe('comparison helpers', () => {
+  it('metricDifference is template minus current (positive = template has more)', () => {
+    const d = metricDifference(
+      { swr: 0.04, pwr: 0.03, successRate: 0.9, maxDrawdown: 0.35 },
+      { swr: 0.05, pwr: 0.025, successRate: 0.95, maxDrawdown: 0.2 }
+    );
+    expect(d.swr).toBeCloseTo(0.01, 10);
+    expect(d.pwr).toBeCloseTo(-0.005, 10);
+    expect(d.successRate).toBeCloseTo(0.05, 10);
+    expect(d.maxDrawdown).toBeCloseTo(-0.15, 10);
+  });
+
+  it('weightRows covers the union of tickers with differences in percentage points', () => {
+    const rows = weightRows({ SPY: 0.6, TLT: 0.4 }, { VTI: 0.5, TLT: 0.5 });
+    const byTicker = Object.fromEntries(rows.map(r => [r.ticker, r]));
+    expect(rows).toHaveLength(3);
+    expect(byTicker.SPY).toMatchObject({ current: 0.6, template: 0 });
+    expect(byTicker.SPY.diffPp).toBeCloseTo(-60, 10);
+    expect(byTicker.VTI.diffPp).toBeCloseTo(50, 10);
+    expect(byTicker.TLT.diffPp).toBeCloseTo(10, 10);
   });
 });

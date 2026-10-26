@@ -43,6 +43,8 @@ import {
   withdrawalSequence,
 } from './utils/withdrawal';
 import { buildPortfolioPath } from './utils/portfolioPath';
+import { getTemplate } from './utils/portfolios';
+import PortfoliosTab from './PortfoliosTab';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -492,7 +494,11 @@ export default function App() {
   const [lastRunSignature, setLastRunSignature] = useState('');
 
   // ── UI tabs
-  const [tab, setTab] = useState('holdings'); // holdings | analysis | trades
+  const [tab, setTab] = useState('holdings'); // holdings | analysis | trades | retirement | portfolios
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [comparisonMode, setComparisonMode] = useState(true);
+  const [autoRun, setAutoRun] = useState(false);
+  const postRunTab = useRef(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isMobile = useMediaQuery('(max-width: 1023px)');
@@ -539,38 +545,39 @@ export default function App() {
     if (saved.accounts) setAccounts(saved.accounts);
     if (saved.currentHoldings) setCurrentHoldings(saved.currentHoldings);
     if (saved.retirement) setRetirement(saved.retirement);
+    if (saved.selectedTemplateId) setSelectedTemplateId(saved.selectedTemplateId);
+    if (typeof saved.comparisonMode === 'boolean') setComparisonMode(saved.comparisonMode);
   }, []);
 
   // ── Persist on change
   useEffect(() => {
-    saveState({ tickers, lookback, threshold, accounts, currentHoldings, retirement });
-  }, [tickers, lookback, threshold, accounts, currentHoldings, retirement]);
+    saveState({
+      tickers,
+      lookback,
+      threshold,
+      accounts,
+      currentHoldings,
+      retirement,
+      selectedTemplateId,
+      comparisonMode,
+    });
+  }, [
+    tickers,
+    lookback,
+    threshold,
+    accounts,
+    currentHoldings,
+    retirement,
+    selectedTemplateId,
+    comparisonMode,
+  ]);
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
   const canRun = tickers.length > 0 && totalValue > 0;
+  // Only inputs that feed Run Analysis; retirement inputs are applied by Calculate.
   const analysisSignature = useMemo(
-    () =>
-      JSON.stringify({
-        tickers,
-        lookback,
-        threshold,
-        accounts,
-        currentHoldings,
-        retirement: {
-          monthlySpend: retirement.monthlySpend,
-          inflationRate: retirement.inflationRate,
-          horizonYears: retirement.horizonYears,
-          birthYear: retirement.birthYear,
-          socialSecurityMonthly: retirement.socialSecurityMonthly,
-          pensionMonthly: retirement.pensionMonthly,
-          socialSecurityStartAge: retirement.socialSecurityStartAge,
-          pensionStartAge: retirement.pensionStartAge,
-          cashBufferMonths: retirement.cashBufferMonths,
-          guardrail: retirement.guardrail,
-          driftMode: retirement.driftMode,
-        },
-      }),
-    [tickers, lookback, threshold, accounts, currentHoldings, retirement]
+    () => JSON.stringify({ tickers, lookback, threshold, accounts, currentHoldings }),
+    [tickers, lookback, threshold, accounts, currentHoldings]
   );
   const isStale = analysisState === 'done' && lastRunSignature !== analysisSignature;
 
@@ -663,15 +670,15 @@ export default function App() {
       setPerfData(perf);
       setAnalysisState('done');
       setLastFetch(new Date().toISOString());
-      setLastRunSignature(
-        JSON.stringify({ tickers, lookback, threshold, accounts, currentHoldings })
-      );
-      setTab('analysis');
+      setLastRunSignature(analysisSignature);
+      setTab(postRunTab.current ?? 'analysis');
+      postRunTab.current = null;
     } catch (e) {
+      postRunTab.current = null;
       setErrorMsg(e.message ?? String(e));
       setAnalysisState('error');
     }
-  }, [tickers, lookback, accounts, currentHoldings, totalValue, threshold]);
+  }, [tickers, lookback, accounts, currentHoldings, totalValue, threshold, analysisSignature]);
 
   // ── Calculate Retirement
   const calculateRetirement = useCallback(async () => {
@@ -783,6 +790,22 @@ export default function App() {
       setRetirementCalculating(false);
     }
   }, [analysisState, tickers, targetWeights, vols, corrMatrix, accounts, totalValue, retirement]);
+
+  // ── Load a portfolio template: replace tickers, then re-run analysis once they apply
+  const loadTemplate = id => {
+    const template = getTemplate(id);
+    if (!template) return;
+    const next = Object.keys(template.allocations);
+    setTickers(next);
+    setTickerInput(next.join(', '));
+    postRunTab.current = 'portfolios';
+    setAutoRun(true);
+  };
+  useEffect(() => {
+    if (!autoRun || !canRun) return;
+    setAutoRun(false);
+    runAnalysis();
+  }, [autoRun, canRun, runAnalysis]);
 
   // ── UI helpers
   const updateAccount = (name, val) => {
@@ -1447,6 +1470,7 @@ export default function App() {
               { id: 'analysis', label: 'Risk Parity Targets' },
               { id: 'trades', label: `Trades${trades.length > 0 ? ` (${trades.length})` : ''}` },
               { id: 'retirement', label: 'Retirement' },
+              { id: 'portfolios', label: 'Portfolios' },
             ].map(t => (
               <button
                 key={t.id}
@@ -1460,7 +1484,7 @@ export default function App() {
                 onClick={() => setTab(t.id)}
                 onKeyDown={e => {
                   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-                  const ids = ['holdings', 'analysis', 'trades', 'retirement'];
+                  const ids = ['holdings', 'analysis', 'trades', 'retirement', 'portfolios'];
                   const index = ids.indexOf(t.id);
                   const nextId =
                     ids[(index + (e.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length];
@@ -2331,32 +2355,52 @@ export default function App() {
                             marginBottom: 18,
                           }}
                         >
-                          <div style={S.card}>
-                            <div style={S.metricVal}>
+                          <div className="sd-card" style={S.card}>
+                            <div
+                              className="sd-metricVal"
+                              style={S.metricVal}
+                              data-testid="metric-swr"
+                            >
                               {(retirementResults.swr * 100).toFixed(2)}%
                             </div>
                             <div style={S.metricLbl}>Safe Withdrawal Rate (SWR)</div>
                           </div>
-                          <div style={S.card}>
-                            <div style={S.metricVal}>
+                          <div className="sd-card" style={S.card}>
+                            <div
+                              className="sd-metricVal"
+                              style={S.metricVal}
+                              data-testid="metric-pwr"
+                            >
                               {(retirementResults.pwr * 100).toFixed(2)}%
                             </div>
                             <div style={S.metricLbl}>Perpetual Withdrawal Rate (PWR)</div>
                           </div>
-                          <div style={S.card}>
-                            <div style={S.metricVal}>
+                          <div className="sd-card" style={S.card}>
+                            <div
+                              className="sd-metricVal"
+                              style={S.metricVal}
+                              data-testid="metric-success"
+                            >
                               {(retirementResults.successRate * 100).toFixed(1)}%
                             </div>
                             <div style={S.metricLbl}>Success Probability</div>
                           </div>
-                          <div style={S.card}>
-                            <div style={S.metricVal}>
+                          <div className="sd-card" style={S.card}>
+                            <div
+                              className="sd-metricVal"
+                              style={S.metricVal}
+                              data-testid="metric-maxdd"
+                            >
                               {(retirementResults.maxDrawdown * 100).toFixed(1)}%
                             </div>
                             <div style={S.metricLbl}>Max Drawdown</div>
                           </div>
-                          <div style={S.card}>
-                            <div style={S.metricVal}>
+                          <div className="sd-card" style={S.card}>
+                            <div
+                              className="sd-metricVal"
+                              style={S.metricVal}
+                              data-testid="metric-horizon"
+                            >
                               {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
                             </div>
                             <div style={S.metricLbl}>Effective Horizon</div>
@@ -2622,6 +2666,25 @@ export default function App() {
                     )}
                   </div>
                 )}
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {tab === 'portfolios' && (
+            <ErrorBoundary>
+              <div role="tabpanel" id="panel-portfolios" aria-labelledby="tab-portfolios">
+                <PortfoliosTab
+                  S={S}
+                  analysisState={analysisState}
+                  targetWeights={targetWeights}
+                  totalValue={totalValue}
+                  retirement={retirement}
+                  selectedTemplateId={selectedTemplateId}
+                  setSelectedTemplateId={setSelectedTemplateId}
+                  comparisonMode={comparisonMode}
+                  setComparisonMode={setComparisonMode}
+                  onLoadTemplate={loadTemplate}
+                />
               </div>
             </ErrorBoundary>
           )}
