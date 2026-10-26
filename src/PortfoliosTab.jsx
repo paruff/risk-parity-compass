@@ -21,6 +21,8 @@ const METRICS = [
   { key: 'maxDrawdown', label: 'Max Drawdown', short: 'Drawdown', digits: 1 },
 ];
 
+const MIN_HISTORY_YEARS = 3;
+
 async function portfolioMetrics(weights, histories, retirement, totalValue) {
   const tickers = Object.keys(weights);
   const picked = {};
@@ -35,6 +37,7 @@ async function portfolioMetrics(weights, histories, retirement, totalValue) {
     horizonYears: retirement.horizonYears,
     periodsPerYear: 12,
     inflationRate: retirement.inflationRate,
+    monthlySpend: retirement.monthlySpend,
   });
   return { ...rolling, effectiveYears, corr: correlationMatrix(aligned) };
 }
@@ -330,39 +333,57 @@ export default function PortfoliosTab({
 
       {done && (
         <>
-          {METRICS.map(m => (
-            <div
-              key={m.key}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: 12,
-                marginBottom: 12,
-              }}
-            >
-              {metricCard(
-                `metric-${m.key}-current`,
-                pct(result.current[m.key], m.digits),
-                `${m.label} — Current`
-              )}
-              {compared.map(t => [
-                metricCard(
-                  `metric-${m.key}-${t.id}`,
-                  pct(result.templates[t.id][m.key], m.digits),
-                  `${m.label} — ${t.name}`
-                ),
-                comparisonMode &&
+          {METRICS.map(m => {
+            const enoughHistory =
+              result.current.windowCount >= MIN_HISTORY_YEARS &&
+              result.current.effectiveYears >= horizonYears &&
+              compared.every(t => result.templates[t.id].windowCount >= MIN_HISTORY_YEARS) &&
+              compared.every(t => result.templates[t.id].effectiveYears >= horizonYears);
+
+            const renderMetric = (value, label) => metricCard(`metric-${m.key}-current`, value, label);
+            const displayValue = enoughHistory ? pct(result.current[m.key], m.digits) : '—';
+            const valueWithHint = `${displayValue}${
+              !enoughHistory ? `\nneeds ≥ ${Math.max(MIN_HISTORY_YEARS, horizonYears)} years; have ${result.current.effectiveYears.toFixed(1)} yr` : ''
+            }`;
+
+            return (
+              <div
+                key={m.key}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                {renderMetric(
+                  valueWithHint,
+                  `${m.label} — Current` + (!enoughHistory ? `\nwindowCount: ${result.current.windowCount}` : '')
+                )}
+                {compared.map(t => [
                   metricCard(
-                    `metric-${m.key}-diff-${t.id}`,
-                    signedPp(
-                      metricDifference(result.current, result.templates[t.id])[m.key],
-                      m.digits
-                    ),
-                    `${m.short} Δ (${t.name} − current)`
+                    `metric-${m.key}-${t.id}`,
+                    enoughHistory
+                      ? pct(result.templates[t.id][m.key], m.digits)
+                      : '—',
+                    `${m.label} — ${t.name}` +
+                      (!enoughHistory ? `\nneeds ≥ ${Math.max(MIN_HISTORY_YEARS, horizonYears)} years; have ${result.templates[t.id].effectiveYears.toFixed(1)} yr` : '')
                   ),
-              ])}
-            </div>
-          ))}
+                  comparisonMode &&
+                    metricCard(
+                      `metric-${m.key}-diff-${t.id}`,
+                      enoughHistory
+                        ? signedPp(
+                            metricDifference(result.current, result.templates[t.id])[m.key],
+                            m.digits
+                          )
+                        : '—',
+                      `${m.short} Δ (${t.name} − current)`
+                    ),
+                ])}
+              </div>
+            );
+          })}
 
           {compared.map(t => {
             const score = diversificationScore(result.templates[t.id].corr);

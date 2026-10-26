@@ -139,6 +139,22 @@ describe('rollingWithdrawalRates', () => {
     expect(r.swr).toBeGreaterThan(0.06);
   });
 
+  it('reports success at the user spend and counts multiple historical windows', () => {
+    const synthetic = Array.from({ length: 360 }, (_, i) => {
+      const base = 100000 + i * 25;
+      return i < 180 ? base : base * 0.7;
+    });
+    const r = rollingWithdrawalRates(synthetic, {
+      horizonYears: 15,
+      monthlySpend: 5000,
+      inflationRate: 0,
+    });
+    expect(r.windowCount).toBeGreaterThan(1);
+    expect(r.effectiveYears).toBe(15);
+    expect(r.successRate).toBeGreaterThan(0);
+    expect(r.successRate).toBeLessThan(1);
+  });
+
   it('reports success at a fixed reference rate, not at the SWR', () => {
     const falling = flat.map((_, i) => flat[i] * (i > 200 ? 0.6 : 1));
     expect(rollingWithdrawalRates(falling, { referenceRate: 0.12 }).successRate).toBeLessThan(1);

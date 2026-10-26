@@ -36,6 +36,7 @@ import {
 } from './utils/finance';
 import {
   drawdownPath,
+  MIN_WINDOWS,
   rollingWithdrawalRates,
   monteCarloWithWithdrawals,
   requiredMinimumDistribution,
@@ -750,6 +751,7 @@ export default function App() {
         horizonYears: retirement.horizonYears,
         periodsPerYear: 12,
         inflationRate: retirement.inflationRate,
+        monthlySpend: netMonthlySpend,
       });
 
       // Current age for guardrails
@@ -2492,88 +2494,125 @@ export default function App() {
                     {/* Results */}
                     {retirementResults && (
                       <div>
-                        {/* Metric Cards */}
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: 12,
-                            marginBottom: 18,
-                          }}
-                        >
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-swr"
-                            >
-                              {(retirementResults.swr * 100).toFixed(2)}%
-                            </div>
-                            <div style={S.metricLbl}>Safe Withdrawal Rate (SWR)</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-pwr"
-                            >
-                              {(retirementResults.pwr * 100).toFixed(2)}%
-                            </div>
-                            <div style={S.metricLbl}>Perpetual Withdrawal Rate (PWR)</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-success"
-                            >
-                              {(retirementResults.successRate * 100).toFixed(1)}%
-                            </div>
-                            <div style={S.metricLbl}>Success Probability</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-maxdd"
-                            >
-                              {(retirementResults.maxDrawdown * 100).toFixed(1)}%
-                            </div>
-                            <div style={S.metricLbl}>Max Drawdown</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-horizon"
-                            >
-                              {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
-                            </div>
-                            <div style={S.metricLbl}>
-                              Effective Horizon
-                              {retirementResults.limitedBy
-                                ? ` (limited by ${retirementResults.limitedBy})`
-                                : ''}
-                            </div>
-                          </div>
-                          {retirementResults.bridgeYears != null &&
-                            retirementResults.bridgeYears > 0 && (
-                              <div style={S.card}>
-                                <div style={S.metricVal}>{retirementResults.bridgeYears}</div>
-                                <div style={S.metricLbl}>Bridge Years to Income</div>
+                        {(() => {
+                          const metricWindowDetails =
+                            !retirementResults ||
+                            retirementResults.windowCount == null ||
+                            retirementResults.windowCount < MIN_WINDOWS ||
+                            retirementResults.effectiveYears < retirement.horizonYears
+                              ? `needs ≥ ${Math.max(MIN_WINDOWS, retirement.horizonYears)} years; have ${retirementResults?.effectiveYears?.toFixed(1) ?? '0.0'} yr`
+                              : `windowCount: ${retirementResults.windowCount}`;
+                          const enoughHistory =
+                            retirementResults.windowCount >= MIN_WINDOWS &&
+                            retirementResults.effectiveYears >= retirement.horizonYears;
+                          const metricMetric = (label, value, testId, hint = '') => (
+                            <div className="sd-card" style={S.card} key={label}>
+                              <div className="sd-metricVal" style={S.metricVal} data-testid={testId}>
+                                {value}
                               </div>
-                            )}
-                          {retirementResults.bufferStatus && (
-                            <div style={S.card}>
-                              <div style={S.metricVal}>
-                                {retirementResults.bufferStatus.remainingMonths?.toFixed(1) ??
-                                  retirementResults.bufferStatus.months ??
-                                  '—'}
+                              <div style={S.metricLbl}>
+                                {label}
+                                {hint ? (
+                                  <span
+                                    style={{
+                                      display: 'block',
+                                      color: '#94a3b8',
+                                      fontSize: 11,
+                                      marginTop: 4,
+                                    }}
+                                  >
+                                    {hint}
+                                  </span>
+                                ) : null}
                               </div>
-                              <div style={S.metricLbl}>Cash Buffer Remaining (Mo)</div>
                             </div>
-                          )}
-                        </div>
+                          );
+                          const metricRenderer = (label, value, testId, shortValue) =>
+                            enoughHistory
+                              ? metricMetric(label, value, testId)
+                              : metricMetric(label, shortValue, testId, metricWindowDetails);
+
+                          return (
+                            <div>
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                                  gap: 12,
+                                  marginBottom: 18,
+                                }}
+                              >
+                                {metricRenderer(
+                                  'Safe Withdrawal Rate (SWR)',
+                                  `${(retirementResults.swr * 100).toFixed(2)}%`,
+                                  'metric-swr',
+                                  '—'
+                                )}
+                                {metricRenderer(
+                                  'Perpetual Withdrawal Rate (PWR)',
+                                  `${(retirementResults.pwr * 100).toFixed(2)}%`,
+                                  'metric-pwr',
+                                  '—'
+                                )}
+                                {metricRenderer(
+                                  'Success Probability',
+                                  `${(retirementResults.successRate * 100).toFixed(1)}%`,
+                                  'metric-success',
+                                  '—'
+                                )}
+                                <div className="sd-card" style={S.card}>
+                                  <div
+                                    className="sd-metricVal"
+                                    style={S.metricVal}
+                                    data-testid="metric-maxdd"
+                                  >
+                                    {(retirementResults.maxDrawdown * 100).toFixed(1)}%
+                                  </div>
+                                  <div style={S.metricLbl}>Max Drawdown</div>
+                                </div>
+                                <div className="sd-card" style={S.card}>
+                                  <div
+                                    className="sd-metricVal"
+                                    style={S.metricVal}
+                                    data-testid="metric-horizon"
+                                  >
+                                    {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
+                                  </div>
+                                  <div style={S.metricLbl}>
+                                    Effective Horizon
+                                    <span
+                                      style={{
+                                        display: 'block',
+                                        color: '#94a3b8',
+                                        fontSize: 11,
+                                        marginTop: 4,
+                                      }}
+                                    >
+                                      windows: {retirementResults.windowCount ?? 0}
+                                    </span>
+                                  </div>
+                                </div>
+                                {retirementResults.bridgeYears != null &&
+                                  retirementResults.bridgeYears > 0 && (
+                                    <div style={S.card}>
+                                      <div style={S.metricVal}>{retirementResults.bridgeYears}</div>
+                                      <div style={S.metricLbl}>Bridge Years to Income</div>
+                                    </div>
+                                  )}
+                                {retirementResults.bufferStatus && (
+                                  <div style={S.card}>
+                                    <div style={S.metricVal}>
+                                      {retirementResults.bufferStatus.remainingMonths?.toFixed(1) ??
+                                        retirementResults.bufferStatus.months ??
+                                        '—'}
+                                    </div>
+                                    <div style={S.metricLbl}>Cash Buffer Remaining (Mo)</div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
 
                         <button
                           type="button"

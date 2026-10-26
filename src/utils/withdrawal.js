@@ -196,18 +196,21 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   };
 }
 
+export const MIN_WINDOWS = 3;
+
 // For every historical start period of length horizonYears, find the highest
 // constant real withdrawal rate that (a) never depletes the portfolio (SWR) and
 // (b) never ends below the original real principal (PWR).
 // portfolioValues: monthly real portfolio value series (from weights × prices)
-// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, referenceRate = 0.04 }
-// Returns: { swr, pwr, successRate, effectiveYears, worstStart, worstDepletionYear, maxDrawdown, samples }
+// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, referenceRate = 0.04, monthlySpend?: number }
+// Returns: { swr, pwr, successRate, effectiveYears, windowCount, worstStart, worstDepletionYear, maxDrawdown, samples }
 export function rollingWithdrawalRates(portfolioValues, options = {}) {
   const {
     horizonYears = 30,
     periodsPerYear = 12,
     inflationRate = 0,
     referenceRate = 0.04,
+    monthlySpend,
   } = options;
   const horizonMonths = horizonYears * periodsPerYear;
   const n = portfolioValues.length;
@@ -223,6 +226,7 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
       pwr: 0,
       successRate: 0,
       effectiveYears,
+      windowCount: 0,
       worstStart: 0,
       worstDepletionYear: null,
       maxDrawdown: 0,
@@ -247,17 +251,14 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     let swr = 0;
 
     for (let iter = 0; iter < 30; iter++) {
-      // tolerance ~ 1e-4 on annual rate
       const mid = (low + high) / 2;
       const monthlySpend = (mid * startValue) / periodsPerYear;
       const result = drawdownPath(slice, monthlySpend, { periodsPerYear, inflationRate });
 
       if (result.depletedYear === null) {
-        // Not depleted, can try higher rate
         swr = mid;
         low = mid;
       } else {
-        // Depleted, need lower rate
         high = mid;
       }
     }
@@ -280,9 +281,11 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
       }
     }
 
-    // Evaluate at referenceRate for success rate (not at SWR)
-    const monthlySpendRef = (referenceRate * startValue) / periodsPerYear;
-    const refResult = drawdownPath(slice, monthlySpendRef, { periodsPerYear, inflationRate });
+    const spendTarget =
+      monthlySpend != null && monthlySpend > 0
+        ? monthlySpend
+        : (referenceRate * startValue) / periodsPerYear;
+    const refResult = drawdownPath(slice, spendTarget, { periodsPerYear, inflationRate });
 
     samples.push({
       startIndex: start,
@@ -304,13 +307,15 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     }
   }
 
-  const successRate = samples.filter(s => !s.depleted).length / samples.length;
+  const windowCount = samples.length;
+  const successRate = windowCount === 0 ? 0 : samples.filter(s => !s.depleted).length / windowCount;
 
   return {
     swr: worstSwr,
     pwr: worstPwr,
     successRate,
     effectiveYears,
+    windowCount,
     worstStart: samples.findIndex(s => s.swr === worstSwr),
     worstDepletionYear,
     maxDrawdown: overallMaxDrawdown,
