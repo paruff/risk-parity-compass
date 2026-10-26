@@ -368,6 +368,11 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     };
   }
 
+  // startingValue is required and must be in dollars
+  if (!startingValue || startingValue <= 0) {
+    throw new Error('startingValue is required (dollars)');
+  }
+
   const dt = 1 / 12; // monthly steps
 
   // Per-ticker annual drift
@@ -429,7 +434,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
   for (let sim = 0; sim < simulations; sim++) {
     const currentWeights = { ...weights };
     const pathPrices = { ...currentPrices };
-    let portfolioValue = startingValue || 1; // normalized if not provided
+    let portfolioValue = startingValue; // dollars
 
     for (let step = 0; step < steps; step++) {
       // Correlated shocks: Z = L · X

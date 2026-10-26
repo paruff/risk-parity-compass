@@ -158,6 +158,44 @@ describe('rollingWithdrawalRates', () => {
 });
 
 describe('monteCarloWithWithdrawals', () => {
+  // Oracle tests: Monte Carlo must run in dollars, not normalized
+  const closes = { SPY: Array.from({ length: 300 }, (_, i) => 100 * 1.007 ** i) };
+  const args = [closes, { SPY: 1 }, { SPY: 0.15 }, { SPY: { SPY: 1 } }];
+
+  it('requires a starting value in dollars', () => {
+    expect(() => monteCarloWithWithdrawals(...args, { simulations: 10, steps: 12 })).toThrow(
+      'startingValue is required'
+    );
+  });
+
+  it('succeeds with no spending', () => {
+    const r = monteCarloWithWithdrawals(...args, {
+      simulations: 50,
+      steps: 120,
+      startingValue: 1e6,
+      monthlySpend: 0,
+    });
+    expect(r.successRate).toBe(1);
+    expect(r.stats.median).toBeGreaterThan(1e6);
+  });
+
+  it('gets worse as spending rises', () => {
+    const low = monteCarloWithWithdrawals(...args, {
+      simulations: 200,
+      steps: 240,
+      startingValue: 1e6,
+      monthlySpend: 2000,
+    });
+    const high = monteCarloWithWithdrawals(...args, {
+      simulations: 200,
+      steps: 240,
+      startingValue: 1e6,
+      monthlySpend: 9000,
+    });
+    expect(high.successRate).toBeLessThan(low.successRate);
+    expect(high.successRate).toBeLessThan(1);
+  });
+
   it('is deterministic with fixed seed', () => {
     const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i * 0.1) * 2) };
     const weights = { SPY: 1 };
@@ -170,6 +208,7 @@ describe('monteCarloWithWithdrawals', () => {
       inflationRate: 0.03,
       driftMode: 'zero',
       seed: 42,
+      startingValue: 1e6,
     };
     const r1 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
     const r2 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
@@ -189,6 +228,7 @@ describe('monteCarloWithWithdrawals', () => {
       inflationRate: 0.03,
       driftMode: 'historical',
       seed: 123,
+      startingValue: 1e6,
     };
     const r = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
     expect(r.successRate).toBeGreaterThanOrEqual(0);
@@ -374,6 +414,7 @@ describe('monteCarloWithWithdrawals with guardrails', () => {
       monthlySpend: 400,
       guardrail: 'none',
       seed: 1,
+      startingValue: 1e6,
     });
     const guarded = monteCarloWithWithdrawals(allCloses, weights, vols, corr, {
       simulations: 200,
@@ -381,6 +422,7 @@ describe('monteCarloWithWithdrawals with guardrails', () => {
       monthlySpend: 400,
       guardrail: 'rpr-80',
       seed: 1,
+      startingValue: 1e6,
     });
     expect(guarded.successRate).toBeGreaterThanOrEqual(base.successRate);
   });
