@@ -25,6 +25,13 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 - **Historical backtest** — rolling safe and perpetual withdrawal rates
 - **Monte Carlo** — fan chart of simulated outcomes with withdrawals
 
+**Portfolio library**
+
+- **Templates** — Golden Butterfly, All Seasons, Golden Ratio, Permanent and more, transcribed from Risk Parity Radio
+- **Compare** — template vs your current weights, with SWR, PWR, success probability and max drawdown side by side
+- **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes
+- **Load Template** — replaces your tickers and re-runs analysis; your saved scenarios are untouched until you save
+
 > **Shannon's Demon is the strategy, not the product.** The name refers to the rebalancing result that harvesting volatility from a diversified, uncorrelated mix can add growth without extra return. Risk Parity Compass is the application built on it.
 
 ## Quick start
