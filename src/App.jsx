@@ -42,6 +42,7 @@ import {
   RMD_TABLE_VERSION,
   withdrawalSequence,
 } from './utils/withdrawal';
+import { buildPortfolioPath } from './utils/portfolioPath';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -675,21 +676,7 @@ export default function App() {
 
       // Build monthly portfolio values using target weights and aligned prices
       const tickersWithData = Object.keys(aligned);
-      const steps = aligned[tickersWithData[0]].length;
-      const portfolioValues = new Array(steps).fill(0);
-
-      for (let step = 0; step < steps; step++) {
-        let portfolioValue = 0;
-        for (const t of tickersWithData) {
-          const weight = targetWeights[t] ?? 0;
-          const price = aligned[t][step];
-          if (price) {
-            portfolioValue += weight * price;
-          }
-        }
-        // Scale to total portfolio value
-        portfolioValues[step] = portfolioValue * totalValue;
-      }
+      const portfolioValues = buildPortfolioPath(aligned, targetWeights, totalValue);
 
       // Apply income floor (SS/pension)
       const { netSpend } = await import('./utils/withdrawal');
