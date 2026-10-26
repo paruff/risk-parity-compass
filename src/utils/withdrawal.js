@@ -714,3 +714,43 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
   // other policies handled in future tasks
   return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
 }
+
+// Net spend after Social Security and pension income
+// grossSpend: total monthly spend needed
+// ssMonthly: Social Security monthly benefit
+// pensionMonthly: pension monthly benefit
+// ssStartAge: age when SS starts
+// pensionStartAge: age when pension starts
+// currentAge: current age of the person
+// Returns: { netMonthlySpend, bridgeYears, ssActive, pensionActive }
+export function netSpend(
+  grossSpend,
+  ssMonthly,
+  pensionMonthly,
+  ssStartAge,
+  pensionStartAge,
+  currentAge
+) {
+  let netMonthlySpend = grossSpend;
+  let ssActive = false;
+  let pensionActive = false;
+  let bridgeYears = 0;
+
+  if (ssMonthly > 0 && currentAge >= ssStartAge) {
+    netMonthlySpend -= ssMonthly;
+    ssActive = true;
+  } else if (ssMonthly > 0) {
+    bridgeYears = ssStartAge - currentAge;
+  }
+
+  if (pensionMonthly > 0 && currentAge >= pensionStartAge) {
+    netMonthlySpend -= pensionMonthly;
+    pensionActive = true;
+  } else if (pensionMonthly > 0) {
+    bridgeYears = Math.max(bridgeYears, pensionStartAge - currentAge);
+  }
+
+  netMonthlySpend = Math.max(0, netMonthlySpend);
+
+  return { netMonthlySpend, bridgeYears, ssActive, pensionActive };
+}

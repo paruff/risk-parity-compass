@@ -2338,6 +2338,13 @@ export default function App() {
                             </div>
                             <div style={S.metricLbl}>Effective Horizon</div>
                           </div>
+                          {retirementResults.bridgeYears != null &&
+                            retirementResults.bridgeYears > 0 && (
+                              <div style={S.card}>
+                                <div style={S.metricVal}>{retirementResults.bridgeYears}</div>
+                                <div style={S.metricLbl}>Bridge Years to Income</div>
+                              </div>
+                            )}
                           {retirementResults.bufferStatus && (
                             <div style={S.card}>
                               <div style={S.metricVal}>

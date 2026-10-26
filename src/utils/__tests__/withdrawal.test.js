@@ -7,6 +7,7 @@ import {
   RMD_TABLE_VERSION,
   withdrawalSequence,
   guardrailSpend,
+  netSpend,
 } from '../withdrawal';
 
 describe('drawdownPath', () => {
@@ -319,5 +320,28 @@ describe('monteCarloWithWithdrawals with guardrails', () => {
       seed: 1,
     });
     expect(guarded.successRate).toBeGreaterThanOrEqual(base.successRate);
+  });
+});
+
+describe('netSpend', () => {
+  it('subtracts SS when active', () => {
+    const r = netSpend(5000, 2000, 0, 67, 0, 70);
+    expect(r.netMonthlySpend).toBe(3000);
+    expect(r.ssActive).toBe(true);
+    expect(r.bridgeYears).toBe(0);
+  });
+
+  it('shows bridge years before SS starts', () => {
+    const r = netSpend(5000, 2000, 0, 67, 0, 62);
+    expect(r.netMonthlySpend).toBe(5000); // SS not started
+    expect(r.ssActive).toBe(false);
+    expect(r.bridgeYears).toBe(5);
+  });
+
+  it('handles both SS and pension', () => {
+    const r = netSpend(5000, 2000, 1500, 67, 65, 70);
+    expect(r.netMonthlySpend).toBe(1500);
+    expect(r.ssActive).toBe(true);
+    expect(r.pensionActive).toBe(true);
   });
 });
