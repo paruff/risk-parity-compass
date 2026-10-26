@@ -21,9 +21,18 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 - **Withdrawal sequencing** — taxable → traditional (with an RMD floor) → Roth
 - **RMD table** — IRS Uniform Lifetime Table, with the SECURE 2.0 73/75 eligibility split
 - **Spending guardrails** — RPR-80, Guyton-Klinger and VPW policies
+- **Static vs guardrail** — Monte Carlo success probability and terminal values side by side, on identical simulated markets
 - **Income floor** — Social Security and pension netting, with bridge-year awareness
 - **Historical backtest** — rolling safe and perpetual withdrawal rates
 - **Monte Carlo** — fan chart of simulated outcomes with withdrawals
+
+**Portfolio library**
+
+- **Templates** — Golden Butterfly, All Seasons, Golden Ratio, Permanent and more, transcribed from Risk Parity Radio
+- **Template cards** — each shows description, allocations and source, with its own Load button
+- **Compare** — up to 3 templates at once against your current weights, with SWR, PWR, success probability and max drawdown side by side
+- **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes
+- **Load Template** — replaces your tickers and re-runs analysis; your saved scenarios are untouched until you save
 
 > **Shannon's Demon is the strategy, not the product.** The name refers to the rebalancing result that harvesting volatility from a diversified, uncorrelated mix can add growth without extra return. Risk Parity Compass is the application built on it.
 

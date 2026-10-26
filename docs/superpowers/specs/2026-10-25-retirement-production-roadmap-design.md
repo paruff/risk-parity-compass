@@ -360,6 +360,7 @@ UI tests must assert **values, not labels**: a metric cell must match `/^\d+(\.\
 - `guardrailSpend` with `rpr-80`, `guyton-klinger`, `vpw`.
 - Social Security / pension netted against spending; bridge-year display.
 - **Exit:** user can compare static vs guardrail spending outcomes.
+- **Task 6 delivered 2026-10-26:** Retirement tab compares static vs guardrail Monte Carlo (success probability, median and P10 terminal value) on identical seeds. Also fixed: the Monte Carlo re-inflated guardrail spend (a never-tripping guardrail spent more than static), and `age` was never passed to VPW.
 
 ### M3.5 — Correctness remediation *(complete; blocked M4 until merged)*
 Findings: `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`.
@@ -374,10 +375,12 @@ Findings: `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`.
 - Tests: numeric-oracle table in §8; timestamped Yahoo mock; value assertions in E2E (partial).
 - **Exit:** every §8 oracle passes; the review's Critical list is closed; no metric is `NaN` on any reachable input; build, unit, a11y and Lighthouse are green.
 
-### M4 — Portfolio library & comparison
+### M4 — Portfolio library & comparison *(complete)*
 - `portfolios.js` templates + diversification score.
 - `Portfolios` tab with load and 3-way comparison.
 - **Exit:** user can load an RPR portfolio and compare it to their own on SWR/PWR/drawdown.
+- **Exit evidence:** 6 templates with oracle-tested allocations; 117 unit tests; 28 Playwright tests including 8 Portfolios specs (template cards, up to 3 templates side by side) asserting numeric values; lint 0 errors; build green.
+- Also fixed: the "Inputs changed" banner showed permanently because the last-run signature omitted fields the live signature included; analysis staleness now covers only analysis inputs.
 
 ### M5 — Production hardening & accessibility
 - `storage.js` v2 migration, export/import, backup reminder.

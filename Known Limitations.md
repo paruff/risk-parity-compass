@@ -10,6 +10,7 @@
 - **Volatility lookback sensitivity** — inverse-vol weights can shift meaningfully between 3mo and 2y, especially for assets like GLD or TLT. Worth being aware of which lookback you're anchoring to.
 - **Heuristic tax logic** — withdrawal sequencing uses a bracket heuristic (`~$44k/yr` for single filers) that is a simplification, not a full tax calculation. Verify with a qualified advisor.
 - **Constant inflation** — the retirement engine assumes a single, constant inflation rate over the entire horizon. Real inflation varies.
+- **Guardrail selector** — the Retirement tab offers None and RPR-80. Guyton-Klinger and VPW exist in `guardrailSpend` but are not selectable, and Guyton-Klinger's state is not carried between years inside the Monte Carlo.
 - **Guardrails are models, not guarantees** — RPR-80, Guyton-Klinger, and VPW are spending *rules*, not promises. They reduce sequence risk but don't eliminate it.
 
 ## Tax & Legal
@@ -23,7 +24,8 @@
 - **Social Security optimization** — claiming strategy (when to claim) is not modeled.
 - **Print/PDF export** — planned for M5; currently use browser Print → Save as PDF.
 - **Scenario export/import v2** — current localStorage schema is v1; v2 with versioned migration is planned for M5.
-- **Portfolio templates** — implemented in M4; not available in this M3.5 build.
+- **Template data fidelity** — template allocations are transcribed by hand from Risk Parity Radio pages (see each template's `lastReviewed`); they are not fetched live and can drift from the source.
+- **Template ETFs** — templates use specific ETFs (for example VTI, VGLT, GLDM); load a template to analyse exactly those tickers, or edit the ticker list afterwards.
 
 ## Browser & Environment
 - **localStorage only** — all state persists in `shannonsdemon_v1`. No cloud sync, no accounts.
