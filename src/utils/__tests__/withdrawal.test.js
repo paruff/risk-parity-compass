@@ -455,6 +455,24 @@ describe('guardrailSpend', () => {
 });
 
 describe('guardrailSpend oracle tests (realistic scale)', () => {
+  it('rpr-80 trip never raises spend at 3%, 4%, or 5% starting rates', () => {
+    const startingValue = 1_000_000;
+    const tripValue = 790_000;
+    const expectedCap = (0.06 / 12) * tripValue; // 3950
+    const scenarios = [
+      { currentSpend: (startingValue * 0.03) / 12 },
+      { currentSpend: (startingValue * 0.04) / 12 },
+      { currentSpend: (startingValue * 0.05) / 12 },
+    ];
+
+    scenarios.forEach(({ currentSpend }) => {
+      const r = guardrailSpend(currentSpend, tripValue, startingValue, 'rpr-80', { periodsPerYear: 12 });
+      expect(r.nextSpend).toBeCloseTo(Math.min(currentSpend, expectedCap), 6);
+      expect(r.nextSpend).toBeLessThanOrEqual(currentSpend);
+      expect(r.policyState).toBe('cut');
+    });
+  });
+
   it('rpr-80 cuts spending when the portfolio falls below 80%', () => {
     const r = guardrailSpend(4000, 790_000, 1_000_000, 'rpr-80', { periodsPerYear: 12 });
     // 6% annual of 790k = 47400/year = 3950/month

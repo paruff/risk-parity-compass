@@ -743,8 +743,9 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
     const cutRatePerPeriod = 0.06 / periodsPerYear;
 
     if (portfolioValue < threshold) {
+      const cutSpend = cutRatePerPeriod * portfolioValue;
       return {
-        nextSpend: cutRatePerPeriod * portfolioValue,
+        nextSpend: Math.min(currentSpend, cutSpend),
         policyState: 'cut',
         cutRate: cutRatePerPeriod,
       };

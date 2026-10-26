@@ -153,6 +153,13 @@ describe('module registry', () => {
     expect(truthOf(second('guardrail'))).toBeCloseTo(3500, 6);
   });
 
+  it('guardrail wording explains the lower-of rule', () => {
+    const worked = MODULES.guardrail.worked();
+    const result = MODULES.guardrail.result(first('guardrail'), truthOf(first('guardrail')));
+    expect(worked).toContain('lower of');
+    expect(result).toContain('lower of');
+  });
+
   it('sequencing: draws taxable first, traditional only for the gap or RMD floor', () => {
     expect(truthOf(first('sequencing'))).toBeCloseTo(2000, 6);
     expect(truthOf(second('sequencing'))).toBeCloseTo(5000, 6);
