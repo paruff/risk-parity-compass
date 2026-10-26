@@ -466,7 +466,9 @@ describe('guardrailSpend oracle tests (realistic scale)', () => {
     ];
 
     scenarios.forEach(({ currentSpend }) => {
-      const r = guardrailSpend(currentSpend, tripValue, startingValue, 'rpr-80', { periodsPerYear: 12 });
+      const r = guardrailSpend(currentSpend, tripValue, startingValue, 'rpr-80', {
+        periodsPerYear: 12,
+      });
       expect(r.nextSpend).toBeCloseTo(Math.min(currentSpend, expectedCap), 6);
       expect(r.nextSpend).toBeLessThanOrEqual(currentSpend);
       expect(r.policyState).toBe('cut');
