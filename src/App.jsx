@@ -45,6 +45,18 @@ import {
 import { buildPortfolioPath } from './utils/portfolioPath';
 import { getTemplate } from './utils/portfolios';
 import PortfoliosTab from './PortfoliosTab';
+import PlanTools from './components/PlanTools';
+import {
+  loadState,
+  saveState,
+  loadScenarios,
+  saveScenarios,
+  exportPlan,
+  importPlan,
+  backupDue,
+  getCachedQuote,
+  cacheQuote,
+} from './utils/storage';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -53,27 +65,6 @@ const DEFAULT_ACCOUNTS = {
   'Traditional IRA / 401k': 30000,
   'Roth IRA': 20000,
 };
-
-const STORAGE_KEY = 'shannonsdemon_v1';
-
-// ─── PERSISTENCE ──────────────────────────────────────────────────────────────
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-function saveState(state) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {
-    // ignore quota errors
-  }
-}
 
 // ─── FORMATTING HELPERS ───────────────────────────────────────────────────────
 
@@ -506,13 +497,13 @@ export default function App() {
   const lookbackRef = useRef(null);
   const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
   const [scenarioName, setScenarioName] = useState('');
-  const [scenarios, setScenarios] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('shannonsdemon_scenarios_v1') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [scenarios, setScenarios] = useState(loadScenarios);
+
+  // ── Display prefs, backup tracking, stale-price handling
+  const [prefs, setPrefs] = useState({ fontScale: 1, highContrast: false });
+  const [lastBackupAt, setLastBackupAt] = useState(null);
+  const [staleQuotes, setStaleQuotes] = useState({}); // { SPY: cachedAtMs }
+  const [priceOverrides, setPriceOverrides] = useState({}); // { SPY: number }
 
   // ── Retirement state
   const [retirement, setRetirement] = useState({
@@ -546,6 +537,8 @@ export default function App() {
     if (saved.accounts) setAccounts(saved.accounts);
     if (saved.currentHoldings) setCurrentHoldings(saved.currentHoldings);
     if (saved.retirement) setRetirement(saved.retirement);
+    if (saved.prefs) setPrefs(p => ({ ...p, ...saved.prefs }));
+    if (saved.lastBackupAt) setLastBackupAt(saved.lastBackupAt);
     if (saved.selectedTemplateId) setSelectedTemplateId(saved.selectedTemplateId);
     if (Array.isArray(saved.extraTemplateIds)) setExtraTemplateIds(saved.extraTemplateIds);
     if (typeof saved.comparisonMode === 'boolean') setComparisonMode(saved.comparisonMode);
@@ -563,6 +556,8 @@ export default function App() {
       selectedTemplateId,
       extraTemplateIds,
       comparisonMode,
+      prefs,
+      lastBackupAt,
     });
   }, [
     tickers,
@@ -574,6 +569,8 @@ export default function App() {
     selectedTemplateId,
     extraTemplateIds,
     comparisonMode,
+    prefs,
+    lastBackupAt,
   ]);
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
@@ -633,6 +630,17 @@ export default function App() {
     setErrorMsg('');
     try {
       const settled = await Promise.allSettled(tickers.map(t => fetchQuote(t, lookback)));
+      const stale = {};
+      settled.forEach((r, i) => {
+        const t = tickers[i];
+        if (r.status === 'fulfilled') return cacheQuote(r.value, lookback);
+        const cached = getCachedQuote(t, lookback);
+        if (cached) {
+          settled[i] = { status: 'fulfilled', value: cached };
+          stale[t] = cached.at;
+        }
+      });
+      setStaleQuotes(stale);
       const bad = tickers.filter((_, i) => settled[i].status === 'rejected');
       if (bad.length > 0) {
         setFailedTicker(bad[0]);
@@ -644,7 +652,8 @@ export default function App() {
       const newVols = {};
       const newCloses = {};
       for (const r of results) {
-        newPrices[r.ticker] = r.latestPrice;
+        newPrices[r.ticker] =
+          priceOverrides[r.ticker] > 0 ? priceOverrides[r.ticker] : r.latestPrice;
         newVols[r.ticker] = annualizedVol(r.closes);
         newCloses[r.ticker] = r.closes;
       }
@@ -682,7 +691,16 @@ export default function App() {
       setErrorMsg(e.message ?? String(e));
       setAnalysisState('error');
     }
-  }, [tickers, lookback, accounts, currentHoldings, totalValue, threshold, analysisSignature]);
+  }, [
+    tickers,
+    lookback,
+    accounts,
+    currentHoldings,
+    totalValue,
+    threshold,
+    analysisSignature,
+    priceOverrides,
+  ]);
 
   // ── Calculate Retirement
   const calculateRetirement = useCallback(async () => {
@@ -701,7 +719,7 @@ export default function App() {
       }
 
       // Compute overlap
-      const { aligned, effectiveYears } = computeOverlap(histories);
+      const { aligned, effectiveYears, limitedBy } = computeOverlap(histories);
       if (Object.keys(aligned).length === 0) {
         throw new Error('No overlapping price history across tickers');
       }
@@ -790,6 +808,7 @@ export default function App() {
       setRetirementResults({
         ...rolling,
         effectiveYears,
+        limitedBy,
         bridgeYears,
         netMonthlySpend,
         bands: mc.bands,
@@ -895,9 +914,49 @@ export default function App() {
     navigator.clipboard.writeText(JSON.stringify(state, null, 2));
   };
 
+  const currentState = () => ({
+    tickers,
+    lookback,
+    threshold,
+    accounts,
+    currentHoldings,
+    retirement,
+    selectedTemplateId,
+    extraTemplateIds,
+    comparisonMode,
+    prefs,
+  });
+
+  const downloadPlan = () => {
+    const url = URL.createObjectURL(
+      new Blob([exportPlan(currentState(), scenarios)], { type: 'application/json' })
+    );
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `shannonsdemon-plan-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setLastBackupAt(Date.now());
+  };
+
+  const importPlanText = text => {
+    const { state, scenarios: imported } = importPlan(text); // throws on invalid input
+    if (state.tickers) {
+      setTickers(state.tickers);
+      setTickerInput(state.tickers.join(', '));
+    }
+    if (state.lookback) setLookback(state.lookback);
+    if (state.threshold) setThreshold(state.threshold);
+    if (state.accounts) setAccounts(state.accounts);
+    if (state.currentHoldings) setCurrentHoldings(state.currentHoldings);
+    if (state.retirement) setRetirement(state.retirement);
+    if (state.prefs) setPrefs(p => ({ ...p, ...state.prefs }));
+    if (imported.length) persistScenarios(imported);
+  };
+
   const persistScenarios = ns => {
     setScenarios(ns);
-    localStorage.setItem('shannonsdemon_scenarios_v1', JSON.stringify(ns));
+    saveScenarios(ns);
   };
 
   const saveScenario = name => {
@@ -1122,7 +1181,10 @@ export default function App() {
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
-    <div style={S.app}>
+    <div
+      style={{ ...S.app, zoom: prefs.fontScale }}
+      className={prefs.highContrast ? 'sd-hc' : undefined}
+    >
       <style>{`
         .sd-table th:first-child, .sd-table td:first-child { position: sticky; left: 0; background: #0d1424; z-index: 1; }
         button:focus-visible, a:focus-visible, [role="tab"]:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #93c5fd; outline-offset: 2px; }
@@ -1137,6 +1199,17 @@ export default function App() {
           .sd-backdrop { position: fixed; inset: 68px 0 0 0; background: rgba(0,0,0,.5); z-index: 39; }
         }
         @media (min-width: 1024px) { .sd-backdrop { display: none; } }
+        /* ponytail: filter-based contrast; per-token palette if it falls short */
+        .sd-hc { filter: contrast(1.3) brightness(1.1); }
+        @media print {
+          .sd-sidebar, .sd-backdrop, .sd-noprint, header, [role="tablist"], button, details { display: none !important; }
+          .sd-hc { filter: none; }
+          body, div, main, section { background: #fff !important; color: #000 !important; box-shadow: none !important; }
+          main { padding: 0 !important; width: 100% !important; }
+          div, main { height: auto !important; overflow: visible !important; }
+          .sd-card, .sd-card * { border-color: #999 !important; }
+          svg text { fill: #000 !important; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .sd-confetti { animation: none; display: none; }
           .sd-sidebar { transition: none; }
@@ -1469,6 +1542,13 @@ export default function App() {
               </a>
             </div>
           </div>
+          <PlanTools
+            onExport={downloadPlan}
+            onImport={importPlanText}
+            backupDue={backupDue(lastBackupAt)}
+            prefs={prefs}
+            setPrefs={setPrefs}
+          />
         </aside>
 
         {/* MAIN CONTENT */}
@@ -1483,6 +1563,40 @@ export default function App() {
               >
                 Recalculate
               </button>
+            </div>
+          )}
+          {Object.keys(staleQuotes).length > 0 && (
+            <div style={S.staleBanner} role="status" className="sd-noprint">
+              <span>
+                Live prices unavailable for {Object.keys(staleQuotes).join(', ')}; using cached data
+                from {new Date(Math.min(...Object.values(staleQuotes))).toLocaleString()}. Override
+                a price:
+              </span>
+              {Object.keys(staleQuotes).map(t => (
+                <label key={t} style={{ fontSize: 13 }}>
+                  {t}{' '}
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    aria-label={`Override price for ${t}`}
+                    className="sd-input"
+                    style={{ ...S.input, width: 90, display: 'inline-block' }}
+                    value={priceOverrides[t] ?? ''}
+                    onChange={e =>
+                      setPriceOverrides(o => ({ ...o, [t]: parseFloat(e.target.value) || 0 }))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+          )}
+          {lastFetch && (
+            <div
+              style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}
+              data-testid="data-timestamp"
+            >
+              Price data as of {new Date(lastFetch).toLocaleString()}
             </div>
           )}
           <div style={S.tabs} role="tablist" aria-label="Portfolio views">
@@ -2424,7 +2538,12 @@ export default function App() {
                             >
                               {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
                             </div>
-                            <div style={S.metricLbl}>Effective Horizon</div>
+                            <div style={S.metricLbl}>
+                              Effective Horizon
+                              {retirementResults.limitedBy
+                                ? ` (limited by ${retirementResults.limitedBy})`
+                                : ''}
+                            </div>
                           </div>
                           {retirementResults.bridgeYears != null &&
                             retirementResults.bridgeYears > 0 && (
@@ -2445,8 +2564,22 @@ export default function App() {
                           )}
                         </div>
 
-                        {/* Disclaimer */}
+                        <button
+                          type="button"
+                          className="sd-noprint"
+                          style={{
+                            ...S.btn,
+                            width: 'auto',
+                            padding: '12px 16px',
+                            marginBottom: 12,
+                          }}
+                          onClick={() => window.print()}
+                        >
+                          Download PDF
+                        </button>
+                        {/* Disclaimer: directly beneath the metric cards */}
                         <div
+                          data-testid="metrics-disclaimer"
                           style={{
                             fontSize: 12,
                             color: '#94a3b8',

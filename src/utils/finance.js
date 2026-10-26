@@ -488,7 +488,11 @@ function computeOverlap(histories) {
   }
 
   const effectiveYears = sortedCommon.length / 12;
-  return { aligned, effectiveYears };
+  // Shortest raw history is what limits the overlap.
+  const limitedBy = tickers.reduce((a, b) =>
+    histories[b].dates.length < histories[a].dates.length ? b : a
+  );
+  return { aligned, effectiveYears, limitedBy };
 }
 
 // ─── SEEDED PRNG ────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 ## Data Source
 - **Yahoo Finance unofficial API** — works from browsers today but could break without notice. The `fetchQuote()` function is isolated so you can swap it for Alpha Vantage (free tier, 25 req/day) or Polygon.io easily.
 - **Short ETF history limits 30-year SWR** — the default ticker set (SPY, TLT, GLD, VNQ, EEM) only has ~22 years of overlapping monthly history. The app reports `effectiveYears` and computes rolling metrics over available history rather than returning zeros.
+- **Stale-price fallback** — if a live quote fails, the last good quote for that ticker and lookback is used, flagged with its timestamp, and prices can be overridden by hand. Cached data is never refreshed silently.
 - **Yahoo CORS from localhost** — the chart endpoint blocks requests from `localhost` due to CORS. This works on GitHub Pages but fails locally; the app surfaces an error banner rather than silently failing.
 
 ## Calculations
@@ -19,17 +20,16 @@
 - **State taxes ignored** — the engine only models federal tax brackets. State income taxes vary widely and can materially affect net withdrawals.
 
 ## Features Not Yet Implemented
+- **RMDs are implemented** (IRS Uniform Lifetime Table, versioned); they cover Traditional IRA/401k only and assume the account owner's own age.
 - **Tax-loss harvesting** — sell decisions don't optimize for capital loss harvesting.
 - **Roth conversion optimization** — no guidance on partial Roth conversions in low-income years.
 - **Social Security optimization** — claiming strategy (when to claim) is not modeled.
-- **Print/PDF export** — planned for M5; currently use browser Print → Save as PDF.
-- **Scenario export/import v2** — current localStorage schema is v1; v2 with versioned migration is planned for M5.
+- **PDF export** — "Download PDF" opens the browser print dialog (print stylesheet, light background); choose "Save as PDF". No PDF library is bundled.
 - **Template data fidelity** — template allocations are transcribed by hand from Risk Parity Radio pages (see each template's `lastReviewed`); they are not fetched live and can drift from the source.
 - **Template ETFs** — templates use specific ETFs (for example VTI, VGLT, GLDM); load a template to analyse exactly those tickers, or edit the ticker list afterwards.
 
 ## Browser & Environment
-- **localStorage only** — all state persists in `shannonsdemon_v1`. No cloud sync, no accounts.
+- **localStorage only** — all state persists in `shannonsdemon_v2` (v1 is migrated automatically and left in place as a backup). Use Export plan / Import plan to back up. No cloud sync, no accounts.
 - **Single-tab assumption** — concurrent edits in multiple tabs may overwrite each other.
 - **No mobile app** — responsive web only; touch targets meet 44px minimum but complex tables scroll horizontally on small screens.
 - **CORS on localhost** — Yahoo Finance blocks monthly history requests from `localhost` due to CORS. The app shows an error banner; on GitHub Pages it works.
-- **Print CSS not yet implemented** — dark theme is unreadable on paper; M5 will add a light-background print stylesheet.
