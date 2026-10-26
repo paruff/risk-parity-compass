@@ -293,3 +293,34 @@ export function normalizeTemplateWeights(templateAllocations, availableTickers) 
   }
   return normalized;
 }
+
+const COMPARED_METRICS = ['swr', 'pwr', 'successRate', 'maxDrawdown'];
+
+/**
+ * Template minus current for each retirement metric (positive = template has more).
+ * @param {Record<string, number>} current
+ * @param {Record<string, number>} template
+ * @returns {Record<string, number>}
+ */
+export function metricDifference(current, template) {
+  return Object.fromEntries(COMPARED_METRICS.map(k => [k, template[k] - current[k]]));
+}
+
+/**
+ * Rows for the weight comparison table over the union of tickers.
+ * diffPp is template minus current, in percentage points.
+ * @param {Record<string, number>} current
+ * @param {Record<string, number>} template
+ * @returns {Array<{ticker: string, current: number, template: number, diffPp: number}>}
+ */
+export function weightRows(current, template) {
+  const tickers = [...new Set([...Object.keys(current), ...Object.keys(template)])];
+  return tickers.map(ticker => {
+    const c = current[ticker] ?? 0;
+    const t = template[ticker] ?? 0;
+    return { ticker, current: c, template: t, diffPp: (t - c) * 100 };
+  });
+}
+
+/** Most templates the Portfolios tab compares side by side. */
+export const MAX_COMPARED_TEMPLATES = 3;

@@ -23,7 +23,8 @@
 - **Social Security optimization** — claiming strategy (when to claim) is not modeled.
 - **Print/PDF export** — planned for M5; currently use browser Print → Save as PDF.
 - **Scenario export/import v2** — current localStorage schema is v1; v2 with versioned migration is planned for M5.
-- **Portfolio templates** — implemented in M4; not available in this M3.5 build.
+- **Template data fidelity** — template allocations are transcribed by hand from Risk Parity Radio pages (see each template's `lastReviewed`); they are not fetched live and can drift from the source.
+- **Template ETFs** — templates use specific ETFs (for example VTI, VGLT, GLDM); load a template to analyse exactly those tickers, or edit the ticker list afterwards.
 
 ## Browser & Environment
 - **localStorage only** — all state persists in `shannonsdemon_v1`. No cloud sync, no accounts.
