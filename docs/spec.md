@@ -1,6 +1,6 @@
 # Spec — Risk Parity Compass
 
-**Status:** Current as of 2026-10-26 (M1–M4 built; M5–M6 planned)
+**Status:** Current as of 2026-10-26 (M1–M4 built and merged; M5–M6 planned)
 **Intent:** `docs/intent.md` · **Plan:** `docs/plan.md` · **Review rules:** `REVIEW.md` · **Design:** `DESIGN.md`
 **History and rationale:** `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (the long-form roadmap spec; this file is the working summary).
 
@@ -34,9 +34,9 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 | FR-4 | Seeded Monte Carlo with withdrawals, percentile fan chart | M1 | Built |
 | FR-5 | RMD table (73/75 eligibility), withdrawal sequencing taxable → traditional → Roth | M2 | Built |
 | FR-6 | Guardrails `rpr-80`, `guyton-klinger`, `vpw`; Social Security/pension netting; bridge years | M3 | Built |
-| FR-7 | **Static vs guardrail outcome comparison on the Retirement tab** | M3 (Task 6) | **Missing** |
+| FR-7 | Static vs guardrail outcome comparison on the Retirement tab | M3 (Task 6) | Built (PR #25) |
 | FR-8 | Correctness remediation of M1–M3 (compounding, units, honest success rate, guardrail periods) | M3.5 | Built |
-| FR-9 | Template library; compare up to 3 templates with the user's portfolio; diversification score | M4 | Built (PR #19, open) |
+| FR-9 | Template library; compare up to 3 templates with the user's portfolio; diversification score | M4 | Built (PR #19) |
 | FR-10 | Versioned storage v2, export/import, backup reminder | M5 | Planned |
 | FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Planned |
 | FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Planned |
@@ -76,7 +76,7 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 
 | Gap | Where tracked |
 |-----|---------------|
-| FR-7 missing (static vs guardrail comparison) | Issue #9 |
+| Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
 | Pages site broken by half-finished rename (repo `shannonsdemon`, base `/risk-parity-compass/`) | `docs/plan.md` §Housekeeping |
 | Yahoo unofficial API may break; CORS blocks localhost | `Known Limitations.md`; M5 resilience |
 | Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |

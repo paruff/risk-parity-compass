@@ -10,9 +10,9 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 |-----------|-------|-------|-------------|----------|-----------|
 | M1 | Withdrawal engine core | #7 | Closed | PR #12 merged | — |
 | M2 | Tax & account mechanics | #8 | Closed | PR #14 merged | — |
-| M3 | Dynamic spending & income floor | #9 | **Open** | Tasks 1–5 merged via #12/#14/#17 | **Task 6: static-vs-guardrail comparison view** (#21) |
+| M3 | Dynamic spending & income floor | #9 | Closed | Tasks 1–5 via #12/#14/#17; Task 6 via PR #25 | — |
 | M3.5 | Correctness remediation | #22 | Closed | PR #17 merged | — |
-| M4 | Portfolio library & comparison | #10 | Open | PR #18 merged at Task 1 only (`portfolios.js`); **PR #19 open** with the Portfolios tab | Human review + merge of #19; `Closes #10` is in its body |
+| M4 | Portfolio library & comparison | #10 | Closed | PR #18 (templates module) and PR #19 (Portfolios tab) merged | — |
 | M5 | Production hardening & accessibility | #11 | Open | Not started | Storage v2, resilience, a11y, print/PDF |
 | M6 | Learning journey | #23 | Open | Research only | Needs scoping before work |
 
@@ -31,7 +31,7 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 3. **Rename repo** → `risk-parity-compass` — done.
 4. **M3 Task 6** on its own branch from `main` → PR #25 → closes #9 and #21 on merge.
 5. **Chore commit** — `.gitignore` + `.claude/` — done (PR #20).
-6. Human merges PR #19 (M4), PR #25 (Task 6) and PR #20 (these docs).
+6. PRs #19 (M4) and #25 (Task 6) merged; PR #20 (these docs) pending.
 7. **M5** — plan in `docs/superpowers/plans/` before code (docs before code).
 8. **M6** — scope first; see `docs/superpowers/research/2026-10-26-investor-levels-and-learning-science.md`.
 
