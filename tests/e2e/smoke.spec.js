@@ -30,7 +30,7 @@ test.describe('Risk Parity Compass smoke', () => {
     // Wait until the persistence effect has written to localStorage before reloading.
     await page.waitForFunction(
       () =>
-        JSON.parse(localStorage.getItem('shannonsdemon_v1') || '{}')?.currentHoldings?.['Taxable']
+        JSON.parse(localStorage.getItem('shannonsdemon_v2') || '{}')?.currentHoldings?.['Taxable']
           ?.SPY === 50
     );
     await page.reload();

@@ -329,3 +329,20 @@ describe('normalSampler', () => {
     expect(variance).toBeCloseTo(1, 1);
   });
 });
+
+describe('computeOverlap reporting', () => {
+  it('names the shortest-history ticker as the limiting one', () => {
+    const mk = n => ({
+      dates: Array.from(
+        { length: n },
+        (_, i) => `2000-${String((i % 12) + 1).padStart(2, '0')}-${i}`
+      ),
+      closes: Array(n).fill(1),
+    });
+    const long = mk(36);
+    const short = { dates: long.dates.slice(12), closes: Array(24).fill(1) };
+    const r = computeOverlap({ AAA: long, BBB: short });
+    expect(r.effectiveYears).toBe(2);
+    expect(r.limitedBy).toBe('BBB');
+  });
+});

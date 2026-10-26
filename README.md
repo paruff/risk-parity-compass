@@ -52,7 +52,15 @@ npm run preview # preview the build on http://localhost:4173/risk-parity-compass
 3. **Run Analysis** — fetches prices, computes targets, and generates trades
 4. **Retirement** — enter spend, horizon, inflation, birth year and any Social Security or pension income, then run the projection
 
-State persists in `localStorage`. The storage keys keep their original `shannonsdemon_` prefix so saved portfolios survive the rename; a key migration lands with the storage v2 work.
+State persists in `localStorage` under `shannonsdemon_v2` (schemaVersion 2); older `shannonsdemon_v1` data is migrated on first load.
+
+**Retirement tab** — Safe/Perpetual Withdrawal Rate, Monte Carlo success probability, RMDs, guardrails (None, RPR-80) and a static-vs-guardrail comparison. Every metric block carries a planning-estimate disclaimer. **Download PDF** uses the browser print dialog with a print stylesheet (no sidebar, nav or dark theme).
+
+**Portfolios tab** — curated Risk Parity Radio templates you can load, compare and analyse.
+
+**Data resilience** — price data carries a visible timestamp on every tab. If Yahoo fails, the last good quote is used and flagged as cached, and you can override a price. The Retirement tab reports the effective history horizon and which ticker limits it.
+
+**Backup and accessibility** — Export plan / Import plan (versioned, validated JSON, includes scenarios); a reminder appears when a backup is over 30 days old or storage is nearly full. Text size (100/115/130%) and high contrast persist.
 
 ## Data source
 
