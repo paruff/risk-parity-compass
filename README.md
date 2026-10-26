@@ -50,7 +50,7 @@ Uses Yahoo Finance unofficial v8 chart endpoint (no API key). Works from browser
 - `npm run lint` — ESLint (React, hooks)
 - `npm run format` — Prettier check
 - `npm run format:fix` — Auto-format
-- Pre-commit: Husky + lint-staged runs both on staged files
+- Pre-commit: Lefthook + lint-staged runs both on staged files
 - CI: Runs all gates + build on every push/PR
 
 ## License

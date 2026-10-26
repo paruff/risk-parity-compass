@@ -1,1 +1,0 @@
-env -u NODE_OPTIONS npx lint-staged
