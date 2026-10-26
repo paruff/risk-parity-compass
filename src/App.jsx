@@ -496,6 +496,7 @@ export default function App() {
   // ── UI tabs
   const [tab, setTab] = useState('holdings'); // holdings | analysis | trades | retirement | portfolios
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [extraTemplateIds, setExtraTemplateIds] = useState([]);
   const [comparisonMode, setComparisonMode] = useState(true);
   const [autoRun, setAutoRun] = useState(false);
   const postRunTab = useRef(null);
@@ -546,6 +547,7 @@ export default function App() {
     if (saved.currentHoldings) setCurrentHoldings(saved.currentHoldings);
     if (saved.retirement) setRetirement(saved.retirement);
     if (saved.selectedTemplateId) setSelectedTemplateId(saved.selectedTemplateId);
+    if (Array.isArray(saved.extraTemplateIds)) setExtraTemplateIds(saved.extraTemplateIds);
     if (typeof saved.comparisonMode === 'boolean') setComparisonMode(saved.comparisonMode);
   }, []);
 
@@ -559,6 +561,7 @@ export default function App() {
       currentHoldings,
       retirement,
       selectedTemplateId,
+      extraTemplateIds,
       comparisonMode,
     });
   }, [
@@ -569,6 +572,7 @@ export default function App() {
     currentHoldings,
     retirement,
     selectedTemplateId,
+    extraTemplateIds,
     comparisonMode,
   ]);
 
@@ -2681,6 +2685,8 @@ export default function App() {
                   retirement={retirement}
                   selectedTemplateId={selectedTemplateId}
                   setSelectedTemplateId={setSelectedTemplateId}
+                  extraTemplateIds={extraTemplateIds}
+                  setExtraTemplateIds={setExtraTemplateIds}
                   comparisonMode={comparisonMode}
                   setComparisonMode={setComparisonMode}
                   onLoadTemplate={loadTemplate}

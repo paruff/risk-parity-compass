@@ -6,6 +6,7 @@ import {
   PORTFOLIO_TEMPLATES,
   diversificationScore,
   getTemplate,
+  MAX_COMPARED_TEMPLATES,
   metricDifference,
   weightRows,
 } from './utils/portfolios';
@@ -46,6 +47,8 @@ export default function PortfoliosTab({
   retirement,
   selectedTemplateId,
   setSelectedTemplateId,
+  extraTemplateIds,
+  setExtraTemplateIds,
   comparisonMode,
   setComparisonMode,
   onLoadTemplate,
@@ -54,27 +57,36 @@ export default function PortfoliosTab({
   const [result, setResult] = useState({ status: 'idle' });
   const historyCache = useRef(new Map());
 
-  const template = getTemplate(selectedTemplateId);
+  const compared = useMemo(
+    () =>
+      [selectedTemplateId, ...extraTemplateIds]
+        .filter((id, i, ids) => id && ids.indexOf(id) === i)
+        .map(getTemplate)
+        .filter(Boolean)
+        .slice(0, MAX_COMPARED_TEMPLATES),
+    [selectedTemplateId, extraTemplateIds]
+  );
+  const comparedKey = compared.map(t => t.id).join('|');
+  const primary = compared[0];
   const visibleTemplates = useMemo(
     () => PORTFOLIO_TEMPLATES.filter(t => t.name.toLowerCase().includes(filter.toLowerCase())),
     [filter]
-  );
-  const rows = useMemo(
-    () => (template ? weightRows(targetWeights, template.allocations) : []),
-    [template, targetWeights]
   );
 
   const horizonYears = retirement.horizonYears;
   const inflationRate = retirement.inflationRate;
   useEffect(() => {
-    if (!template || analysisState !== 'done' || totalValue <= 0) {
+    if (compared.length === 0 || analysisState !== 'done' || totalValue <= 0) {
       setResult({ status: 'idle' });
       return undefined;
     }
     let cancelled = false;
     setResult({ status: 'loading' });
     const needed = [
-      ...new Set([...Object.keys(targetWeights), ...Object.keys(template.allocations)]),
+      ...new Set([
+        ...Object.keys(targetWeights),
+        ...compared.flatMap(t => Object.keys(t.allocations)),
+      ]),
     ];
     for (const t of needed) {
       if (!historyCache.current.has(t)) historyCache.current.set(t, fetchMonthlyHistory(t));
@@ -94,8 +106,11 @@ export default function PortfoliosTab({
         if (failed.length > 0) throw new Error(`Could not load history for ${failed.join(', ')}`);
         const opts = { horizonYears, inflationRate };
         const current = await portfolioMetrics(targetWeights, histories, opts, totalValue);
-        const tmpl = await portfolioMetrics(template.allocations, histories, opts, totalValue);
-        if (!cancelled) setResult({ status: 'done', current, template: tmpl });
+        const templates = {};
+        for (const t of compared) {
+          templates[t.id] = await portfolioMetrics(t.allocations, histories, opts, totalValue);
+        }
+        if (!cancelled) setResult({ status: 'done', key: comparedKey, current, templates });
       } catch (e) {
         if (!cancelled) setResult({ status: 'error', message: e.message ?? String(e) });
       }
@@ -103,13 +118,30 @@ export default function PortfoliosTab({
     return () => {
       cancelled = true;
     };
-  }, [template, analysisState, targetWeights, totalValue, horizonYears, inflationRate]);
+    // comparedKey stands in for the compared array identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comparedKey, analysisState, targetWeights, totalValue, horizonYears, inflationRate]);
 
-  const done = result.status === 'done';
-  const diff = done ? metricDifference(result.current, result.template) : null;
-  const score = done ? diversificationScore(result.template.corr) : null;
-  const shortHistory =
-    done && Math.min(result.current.effectiveYears, result.template.effectiveYears) < horizonYears;
+  const toggleExtra = id => {
+    setExtraTemplateIds(prev =>
+      prev.includes(id)
+        ? prev.filter(x => x !== id)
+        : [...prev, id].slice(0, MAX_COMPARED_TEMPLATES - 1)
+    );
+  };
+  const onSelectPrimary = id => {
+    setSelectedTemplateId(id || null);
+    setExtraTemplateIds(prev => prev.filter(x => x !== id));
+  };
+
+  // A finished result is only valid for the template set it was computed for.
+  const done = result.status === 'done' && result.key === comparedKey;
+  const shortestHistory = done
+    ? Math.min(
+        result.current.effectiveYears,
+        ...compared.map(t => result.templates[t.id].effectiveYears)
+      )
+    : Infinity;
   const warnStyle = {
     background: '#451a03',
     border: '1px solid #b45309',
@@ -119,6 +151,14 @@ export default function PortfoliosTab({
     marginBottom: 12,
     fontSize: 13,
   };
+  const metricCard = (testId, value, label) => (
+    <div className="sd-card" style={S.card} key={testId}>
+      <div style={S.metricVal} data-testid={testId}>
+        {value}
+      </div>
+      <div style={S.metricLbl}>{label}</div>
+    </div>
+  );
 
   return (
     <div>
@@ -147,7 +187,7 @@ export default function PortfoliosTab({
               className="sd-input"
               style={S.input}
               value={selectedTemplateId ?? ''}
-              onChange={e => setSelectedTemplateId(e.target.value || null)}
+              onChange={e => onSelectPrimary(e.target.value)}
             >
               <option value="">— choose —</option>
               {visibleTemplates.map(t => (
@@ -167,34 +207,78 @@ export default function PortfoliosTab({
           </label>
           <button
             type="button"
-            style={{ ...S.btn, ...(!template ? S.btnDisabled : {}) }}
-            disabled={!template}
-            onClick={() => onLoadTemplate(template.id)}
+            style={{ ...S.btn, ...(!primary ? S.btnDisabled : {}) }}
+            disabled={!primary}
+            onClick={() => onLoadTemplate(primary.id)}
           >
             Load Template
           </button>
         </div>
       </div>
 
-      {!template && (
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: 12,
+          marginBottom: 12,
+        }}
+      >
+        {visibleTemplates.map(t => {
+          const isPrimary = t.id === selectedTemplateId;
+          const isExtra = extraTemplateIds.includes(t.id);
+          const full = compared.length >= MAX_COMPARED_TEMPLATES && !isPrimary && !isExtra;
+          return (
+            <div key={t.id} style={{ ...S.card, margin: 0 }} data-testid={`template-card-${t.id}`}>
+              <h3 style={{ ...S.cardTitle, margin: 0 }}>{t.name}</h3>
+              <p style={{ color: '#cbd5e1', fontSize: 13 }}>{t.description}</p>
+              <ul style={{ color: '#94a3b8', fontSize: 12, paddingLeft: 16 }}>
+                {Object.entries(t.allocations).map(([ticker, w]) => (
+                  <li key={ticker}>
+                    {ticker} {pct(w, 1)}
+                  </li>
+                ))}
+              </ul>
+              <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 8 }}>
+                {t.source} · Reviewed {t.lastReviewed}
+              </div>
+              <label style={{ ...S.label, display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input
+                  type="checkbox"
+                  checked={isPrimary || isExtra}
+                  disabled={isPrimary || full}
+                  onChange={() => toggleExtra(t.id)}
+                />
+                Add {t.name} to comparison
+              </label>
+              <button
+                type="button"
+                style={{ ...S.btn, width: 'auto', padding: '8px 14px', marginTop: 8 }}
+                onClick={() => {
+                  onSelectPrimary(t.id);
+                  onLoadTemplate(t.id);
+                }}
+              >
+                Load {t.name}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {!primary && (
         <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 40 }}>
-          Choose a template to compare it with your current portfolio.
+          Choose a template (up to {MAX_COMPARED_TEMPLATES}) to compare with your current portfolio.
         </div>
       )}
 
-      {template && (
-        <>
-          <div style={S.card}>
-            <h3 style={{ ...S.cardTitle, margin: 0 }}>{template.name}</h3>
-            <p style={{ color: '#cbd5e1', fontSize: 14 }}>{template.description}</p>
-            <div style={{ color: '#94a3b8', fontSize: 12 }}>
-              Source: {template.source} · Reviewed {template.lastReviewed}
-            </div>
-          </div>
-
-          <div style={S.card}>
+      {compared.map(t => {
+        const rows = weightRows(targetWeights, t.allocations);
+        return (
+          <div style={S.card} key={t.id}>
+            <h3 style={{ ...S.cardTitle, margin: 0, marginBottom: 8 }}>{t.name}</h3>
             <div style={S.tableWrap}>
-              <table style={S.table} aria-label="Weight comparison">
+              <table style={S.table} aria-label={`Weight comparison — ${t.name}`}>
                 <thead>
                   <tr>
                     <th style={S.th}>Ticker</th>
@@ -221,66 +305,71 @@ export default function PortfoliosTab({
               </table>
             </div>
           </div>
+        );
+      })}
 
-          {analysisState !== 'done' && (
-            <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 20 }}>
-              Run Analysis first to compare retirement metrics.
-            </div>
-          )}
-          {result.status === 'loading' && (
-            <div style={{ color: '#94a3b8' }}>Loading monthly history…</div>
-          )}
-          {result.status === 'error' && (
-            <div style={S.bannerError} role="alert">
-              {result.message}
-            </div>
-          )}
-          {shortHistory && (
-            <div style={warnStyle} role="status">
-              Available overlapping history (
-              {Math.min(result.current.effectiveYears, result.template.effectiveYears).toFixed(1)}{' '}
-              yr) is shorter than your {horizonYears}-year horizon; metrics use the shorter window.
-            </div>
-          )}
+      {primary && analysisState !== 'done' && (
+        <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 20 }}>
+          Run Analysis first to compare retirement metrics.
+        </div>
+      )}
+      {result.status === 'loading' && (
+        <div style={{ color: '#94a3b8' }}>Loading monthly history…</div>
+      )}
+      {result.status === 'error' && (
+        <div style={S.bannerError} role="alert">
+          {result.message}
+        </div>
+      )}
+      {done && shortestHistory < horizonYears && (
+        <div style={warnStyle} role="status">
+          Available overlapping history ({shortestHistory.toFixed(1)} yr) is shorter than your{' '}
+          {horizonYears}-year horizon; metrics use the shorter window.
+        </div>
+      )}
 
-          {done && (
-            <>
-              {METRICS.map(m => (
-                <div
-                  key={m.key}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                    gap: 12,
-                    marginBottom: 12,
-                  }}
-                >
-                  <div className="sd-card" style={S.card}>
-                    <div style={S.metricVal} data-testid={`metric-${m.key}-current`}>
-                      {pct(result.current[m.key], m.digits)}
-                    </div>
-                    <div style={S.metricLbl}>{m.label} — Current</div>
-                  </div>
-                  <div className="sd-card" style={S.card}>
-                    <div style={S.metricVal} data-testid={`metric-${m.key}-template`}>
-                      {pct(result.template[m.key], m.digits)}
-                    </div>
-                    <div style={S.metricLbl}>{m.label} — Template</div>
-                  </div>
-                  {comparisonMode && (
-                    <div className="sd-card" style={S.card}>
-                      <div style={S.metricVal} data-testid={`metric-${m.key}-diff`}>
-                        {signedPp(diff[m.key], m.digits)}
-                      </div>
-                      <div style={S.metricLbl}>{m.short} Δ (template − current)</div>
-                    </div>
-                  )}
-                </div>
-              ))}
+      {done && (
+        <>
+          {METRICS.map(m => (
+            <div
+              key={m.key}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              {metricCard(
+                `metric-${m.key}-current`,
+                pct(result.current[m.key], m.digits),
+                `${m.label} — Current`
+              )}
+              {compared.map(t => [
+                metricCard(
+                  `metric-${m.key}-${t.id}`,
+                  pct(result.templates[t.id][m.key], m.digits),
+                  `${m.label} — ${t.name}`
+                ),
+                comparisonMode &&
+                  metricCard(
+                    `metric-${m.key}-diff-${t.id}`,
+                    signedPp(
+                      metricDifference(result.current, result.templates[t.id])[m.key],
+                      m.digits
+                    ),
+                    `${m.short} Δ (${t.name} − current)`
+                  ),
+              ])}
+            </div>
+          ))}
 
-              <div style={S.card}>
+          {compared.map(t => {
+            const score = diversificationScore(result.templates[t.id].corr);
+            return (
+              <div style={S.card} key={t.id}>
                 <h3 style={{ ...S.cardTitle, margin: 0, marginBottom: 8 }}>
-                  Diversification Score
+                  Diversification Score — {t.name}
                 </h3>
                 <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
                   <div>
@@ -300,7 +389,7 @@ export default function PortfoliosTab({
                   <div
                     style={{ ...warnStyle, marginTop: 12, marginBottom: 0 }}
                     role="alert"
-                    data-testid="diversification-warnings"
+                    data-testid={`diversification-warnings-${t.id}`}
                   >
                     {score.warnings.map(w => (
                       <div key={w}>{w}</div>
@@ -308,8 +397,8 @@ export default function PortfoliosTab({
                   </div>
                 )}
               </div>
-            </>
-          )}
+            );
+          })}
         </>
       )}
     </div>

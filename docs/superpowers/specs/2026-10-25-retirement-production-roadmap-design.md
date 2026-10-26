@@ -378,7 +378,7 @@ Findings: `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`.
 - `portfolios.js` templates + diversification score.
 - `Portfolios` tab with load and 3-way comparison.
 - **Exit:** user can load an RPR portfolio and compare it to their own on SWR/PWR/drawdown.
-- **Exit evidence:** 6 templates with oracle-tested allocations; 117 unit tests; 32 Playwright tests including 6 Portfolios specs asserting numeric values; lint 0 errors; build green.
+- **Exit evidence:** 6 templates with oracle-tested allocations; 117 unit tests; 28 Playwright tests including 8 Portfolios specs (template cards, up to 3 templates side by side) asserting numeric values; lint 0 errors; build green.
 - Also fixed: the "Inputs changed" banner showed permanently because the last-run signature omitted fields the live signature included; analysis staleness now covers only analysis inputs.
 
 ### M5 — Production hardening & accessibility

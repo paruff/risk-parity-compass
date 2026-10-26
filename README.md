@@ -28,7 +28,8 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 **Portfolio library**
 
 - **Templates** — Golden Butterfly, All Seasons, Golden Ratio, Permanent and more, transcribed from Risk Parity Radio
-- **Compare** — template vs your current weights, with SWR, PWR, success probability and max drawdown side by side
+- **Template cards** — each shows description, allocations and source, with its own Load button
+- **Compare** — up to 3 templates at once against your current weights, with SWR, PWR, success probability and max drawdown side by side
 - **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes
 - **Load Template** — replaces your tickers and re-runs analysis; your saved scenarios are untouched until you save
 

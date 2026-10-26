@@ -31,7 +31,7 @@ async function pickGoldenButterfly(page) {
 test('Portfolios tab loads templates and shows comparison', async ({ page }) => {
   await expect(page.getByText('Portfolio Templates')).toBeVisible();
   await pickGoldenButterfly(page);
-  await expect(page.getByRole('heading', { name: /Golden Butterfly/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Golden Butterfly/ }).first()).toBeVisible();
   const table = page.getByRole('table', { name: /weight comparison/i });
   await expect(table.getByRole('columnheader', { name: 'Current' })).toBeVisible();
   await expect(table.getByRole('columnheader', { name: 'Template' })).toBeVisible();
@@ -51,10 +51,12 @@ test('Template comparison shows numeric metrics for current and template', async
   await pickGoldenButterfly(page);
   const swrCards = page.locator('.sd-card').filter({ hasText: 'Safe Withdrawal Rate (SWR)' });
   await expect(swrCards).toHaveCount(2, { timeout: 60000 });
-  const swr = page.getByTestId('metric-swr-template');
+  const swr = page.getByTestId('metric-swr-golden-butterfly');
   await expect(swr).toHaveText(/^\d+(\.\d+)?%$/);
   await expect(page.getByTestId('metric-swr-current')).toHaveText(/^\d+(\.\d+)?%$/);
-  await expect(page.getByTestId('metric-swr-diff')).toHaveText(/^[+-]\d+(\.\d+)? pp$/);
+  await expect(page.getByTestId('metric-swr-diff-golden-butterfly')).toHaveText(
+    /^[+-]\d+(\.\d+)? pp$/
+  );
 });
 
 test('Load template updates tickers and re-runs analysis', async ({ page }) => {
@@ -76,7 +78,7 @@ test('Portfolios tab shows diversification score and warnings', async ({ page })
   await expect(page.getByText(/Diversification Score/i)).toBeVisible();
   await expect(page.getByText(/Avg Pairwise Correlation/i)).toBeVisible({ timeout: 60000 });
   // Identical mock series are perfectly correlated, so the RPR warning must fire.
-  await expect(page.getByTestId('diversification-warnings')).toContainText(
+  await expect(page.getByTestId('diversification-warnings-golden-butterfly')).toContainText(
     /correlation exceeds 0\.6/i
   );
 });
@@ -91,4 +93,30 @@ test('Template selection and comparison mode persist across reload', async ({ pa
     'golden-butterfly'
   );
   await expect(page.getByRole('checkbox', { name: /compare/i })).not.toBeChecked();
+});
+
+test('Template cards compare up to three templates side by side', async ({ page }) => {
+  await expect(page.getByTestId('template-card-golden-butterfly')).toBeVisible();
+  await pickGoldenButterfly(page);
+  await page.getByRole('checkbox', { name: 'Add All Seasons (RPR Version) to comparison' }).check();
+  await page.getByRole('checkbox', { name: 'Add Permanent Portfolio to comparison' }).check();
+  // Three selected: the remaining cards cannot be added.
+  await expect(
+    page.getByRole('checkbox', { name: 'Add Aggressive 50/50 to comparison' })
+  ).toBeDisabled();
+  for (const id of ['golden-butterfly', 'all-seasons', 'permanent-portfolio']) {
+    await expect(page.getByTestId(`metric-swr-${id}`)).toHaveText(/^\d+(\.\d+)?%$/, {
+      timeout: 60000,
+    });
+  }
+  await expect(
+    page.locator('.sd-card').filter({ hasText: 'Safe Withdrawal Rate (SWR)' })
+  ).toHaveCount(4); // current + 3 templates
+});
+
+test('Load button on a template card loads that template', async ({ page }) => {
+  await page.getByRole('button', { name: 'Load Permanent Portfolio' }).click();
+  await page.getByRole('tab', { name: 'Risk Parity Targets' }).click();
+  await expect(page.getByText('Risk Parity Weights')).toBeVisible({ timeout: 60000 });
+  await expect(page.getByText('GLDM').first()).toBeVisible({ timeout: 60000 });
 });

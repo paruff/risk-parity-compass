@@ -321,3 +321,6 @@ export function weightRows(current, template) {
     return { ticker, current: c, template: t, diffPp: (t - c) * 100 };
   });
 }
+
+/** Most templates the Portfolios tab compares side by side. */
+export const MAX_COMPARED_TEMPLATES = 3;
