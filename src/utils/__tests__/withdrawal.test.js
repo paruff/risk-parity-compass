@@ -522,6 +522,51 @@ describe('monteCarloWithWithdrawals with guardrails', () => {
   });
 });
 
+describe('monteCarloWithWithdrawals guardrail oracles (realistic scale)', () => {
+  const run = (growth, vol, guardrail, extra = {}) => {
+    const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * growth ** i) };
+    return monteCarloWithWithdrawals(
+      allCloses,
+      { SPY: 1 },
+      { SPY: vol },
+      { SPY: { SPY: 1 } },
+      {
+        simulations: 100,
+        steps: 240,
+        monthlySpend: 4000,
+        inflationRate: 0.03,
+        guardrail,
+        seed: 7,
+        startingValue: 1_000_000,
+        ...extra,
+      }
+    );
+  };
+
+  it('a guardrail that never trips spends exactly what the static policy spends', () => {
+    // ~12.7%/yr drift vs 4.8%/yr spend at $1M: portfolio never falls below 80% of start.
+    const stat = run(1.01, 0.01, 'none');
+    const guarded = run(1.01, 0.01, 'rpr-80');
+    expect(Math.min(...stat.bands.p10)).toBeGreaterThan(0.8 * 1_000_000);
+    expect(Array.from(guarded.terminalValues)).toEqual(Array.from(stat.terminalValues));
+  });
+
+  it('in a falling market the rpr-80 cut keeps the portfolio alive where static spend depletes it', () => {
+    // -11%/yr drift, $4,000/mo (8%/yr) from $600k: static spend must deplete.
+    const stat = run(0.99, 0.02, 'none', { startingValue: 600_000 });
+    const guarded = run(0.99, 0.02, 'rpr-80', { startingValue: 600_000 });
+    expect(stat.successRate).toBe(0);
+    expect(guarded.successRate).toBe(1); // spending 0.5%/month of balance cannot reach zero
+    expect(guarded.stats.median).toBeGreaterThan(0);
+  });
+
+  it('vpw runs through the simulation when an age is supplied', () => {
+    const r = run(1.005, 0.1, 'vpw', { age: 65 });
+    expect(r.successRate).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(r.stats.median)).toBe(true);
+  });
+});
+
 describe('netSpend', () => {
   it('subtracts SS when active', () => {
     const r = netSpend(5000, 2000, 0, 67, 0, 70);

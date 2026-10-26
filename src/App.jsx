@@ -739,17 +739,33 @@ export default function App() {
       for (const t of tickersWithData) {
         allCloses[t] = aligned[t];
       }
-      const mc = monteCarloWithWithdrawals(allCloses, targetWeights, vols, corrMatrix, {
-        simulations: 200,
-        steps: retirement.horizonYears * 12,
-        monthlySpend: netMonthlySpend,
-        inflationRate: retirement.inflationRate,
-        driftMode: retirement.driftMode,
-        seed: 42,
-        startingValue: totalValue,
-        guardrail: retirement.guardrail,
-        age: currentAge,
+      // Same seed for every run, so static vs guardrail differ only by the spending rule.
+      const runMc = guardrail =>
+        monteCarloWithWithdrawals(allCloses, targetWeights, vols, corrMatrix, {
+          simulations: 200,
+          steps: retirement.horizonYears * 12,
+          monthlySpend: netMonthlySpend,
+          inflationRate: retirement.inflationRate,
+          driftMode: retirement.driftMode,
+          seed: 42,
+          startingValue: totalValue,
+          guardrail,
+          age: currentAge,
+        });
+      const summarize = r => ({
+        successRate: r.successRate,
+        median: r.stats.median,
+        p10: r.stats.p10,
       });
+      const mc = runMc(retirement.guardrail);
+      const guardrailComparison =
+        retirement.guardrail === 'none'
+          ? null
+          : {
+              policy: retirement.guardrail,
+              static: summarize(runMc('none')),
+              guardrail: summarize(mc),
+            };
 
       // Drawdown path with cash buffer and guardrails
       const bufferDrawdown = drawdownPath(portfolioValues, netMonthlySpend, {
@@ -768,6 +784,7 @@ export default function App() {
         bands: mc.bands,
         rmdTable,
         mcStats: mc.stats,
+        guardrailComparison,
         bufferStatus: {
           months: retirement.cashBufferMonths,
           remainingMonths:
@@ -2404,6 +2421,46 @@ export default function App() {
                             horizonYears={retirement.horizonYears}
                           />
                         </div>
+
+                        {retirementResults.guardrailComparison && (
+                          <div style={S.card} data-testid="guardrail-comparison">
+                            <div style={S.cardTitle}>
+                              Static vs Guardrail ({retirementResults.guardrailComparison.policy})
+                            </div>
+                            <div style={S.tableWrap}>
+                              <table style={S.table} aria-label="Static vs guardrail outcomes">
+                                <thead>
+                                  <tr>
+                                    <th style={S.th}>Outcome (Monte Carlo)</th>
+                                    <th style={S.th}>Static</th>
+                                    <th style={S.th}>Guardrail</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[
+                                    ['success', 'Success Probability', r => fmt.pct(r.successRate)],
+                                    ['median', 'Median terminal value', r => fmt.usd(r.median)],
+                                    ['p10', '10th percentile terminal value', r => fmt.usd(r.p10)],
+                                  ].map(([key, label, format]) => (
+                                    <tr key={key}>
+                                      <td style={S.td}>{label}</td>
+                                      <td style={S.td} data-testid={`cmp-${key}-static`}>
+                                        {format(retirementResults.guardrailComparison.static)}
+                                      </td>
+                                      <td style={S.td} data-testid={`cmp-${key}-guardrail`}>
+                                        {format(retirementResults.guardrailComparison.guardrail)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
+                              Both runs use the same simulated markets (seed 42); only the spending
+                              rule differs. Guardrails are models, not guarantees.
+                            </div>
+                          </div>
+                        )}
 
                         {/* Monte Carlo Fan Chart */}
                         <div style={S.card}>

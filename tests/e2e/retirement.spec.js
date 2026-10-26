@@ -8,7 +8,10 @@ const MOCK_TIMESTAMPS = Array.from({ length: 600 }, (_, i) =>
 test.describe.configure({ timeout: 120000 });
 
 async function clickRetirementCalculate(page) {
-  await page.locator('#panel-retirement button').filter({ hasText: /^▶ Calculate$/ }).click();
+  await page
+    .locator('#panel-retirement button')
+    .filter({ hasText: /^▶ Calculate$/ })
+    .click();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -119,4 +122,32 @@ test('Monte Carlo and Backtest charts render', async ({ page }) => {
   await expect(page.getByText(/Historical SWR\/PWR by Start Year/i)).toBeVisible({
     timeout: 90000,
   });
+});
+
+test('Retirement tab compares static spending with the selected guardrail', async ({ page }) => {
+  await page.click('button:has-text("Run Analysis")');
+  await expect(page.getByText('Risk Parity Weights')).toBeVisible({ timeout: 60000 });
+  await page.click('button:has-text("Retirement")');
+  await page.fill('#ret-monthly-spend', '4000');
+  await page.selectOption('#ret-guardrail', 'rpr-80');
+  await clickRetirementCalculate(page);
+
+  const panel = page.getByTestId('guardrail-comparison');
+  await expect(panel).toBeVisible({ timeout: 120000 });
+  await expect(panel).toContainText(/Static vs Guardrail/i);
+  for (const column of ['static', 'guardrail']) {
+    await expect(page.getByTestId(`cmp-success-${column}`)).toHaveText(/^\d+(\.\d+)?%$/);
+    await expect(page.getByTestId(`cmp-median-${column}`)).toHaveText(/^\$[\d,]+(\.\d{2})?$/);
+    await expect(page.getByTestId(`cmp-p10-${column}`)).toHaveText(/^\$[\d,]+(\.\d{2})?$/);
+  }
+  await expect(panel).not.toContainText('NaN');
+});
+
+test('No comparison is shown when the guardrail is None', async ({ page }) => {
+  await page.click('button:has-text("Run Analysis")');
+  await expect(page.getByText('Risk Parity Weights')).toBeVisible({ timeout: 60000 });
+  await page.click('button:has-text("Retirement")');
+  await clickRetirementCalculate(page);
+  await expect(page.getByText('Safe Withdrawal Rate (SWR)')).toBeVisible({ timeout: 120000 });
+  await expect(page.getByTestId('guardrail-comparison')).toHaveCount(0);
 });

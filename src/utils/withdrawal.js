@@ -492,12 +492,15 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
 
       // Apply guardrail if enabled
       if (guardrail !== 'none') {
+        // realSpend is already inflated and portfolioValue is nominal, so the
+        // guardrail's answer is used as-is (re-inflating it double-counted inflation).
         const gr = guardrailSpend(realSpend, portfolioValue, startingValue, guardrail, {
           wasCut: step > 0,
           periodsPerYear: 12,
           step,
+          age: age == null ? undefined : age + Math.floor(step / 12),
         });
-        realSpend = gr.nextSpend * inflationFactor;
+        realSpend = gr.nextSpend;
       }
 
       portfolioValue = Math.max(0, portfolioValue * rebalReturn - realSpend);
