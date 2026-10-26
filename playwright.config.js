@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  testIgnore: '**/debug*.spec.js',
   fullyParallel: true,
   retries: 1,
   use: { baseURL: 'http://localhost:4173', trace: 'on-first-retry' },
