@@ -2,7 +2,7 @@
   "ci": {
     "collect": {
       "startServerCommand": "npm run preview -- --port 4173",
-      "startServerReadyPattern": "Local:",
+      "startServerReadyPattern": "localhost",
       "startServerTimeout": 30,
       "url": ["http://localhost:4173/shannonsdemon/"],
       "numberOfRuns": 1,
