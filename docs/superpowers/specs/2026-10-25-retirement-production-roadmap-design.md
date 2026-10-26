@@ -361,18 +361,18 @@ UI tests must assert **values, not labels**: a metric cell must match `/^\d+(\.\
 - Social Security / pension netted against spending; bridge-year display.
 - **Exit:** user can compare static vs guardrail spending outcomes.
 
-### M3.5 — Correctness remediation *(next; blocks every other milestone)*
+### M3.5 — Correctness remediation *(complete; blocked M4 until merged)*
 Findings: `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`.
 
 - `drawdownPath`: compounding recursion, funded and refilled cash buffer, buffer state in the return value.
-- `monteCarloWithWithdrawals`: dollar-denominated paths; remove the normalised start.
-- `rollingWithdrawalRates`: honest `successRate`; compute over available history with `effectiveYears`.
-- `guardrailSpend`: annual-rate/period contract; per-policy realistic-scale tests; `vpw` age plumbed through both callers.
+- `monteCarloWithWithdrawals`: dollar-denominated paths; removed the normalised start; requires `startingValue`.
+- `rollingWithdrawalRates`: honest `successRate`; computes over available history with `effectiveYears`; uses `referenceRate` (default 4%).
+- `guardrailSpend`: annual-rate/period contract (`periodsPerYear`); per-policy realistic-scale oracle tests; `vpw` age plumbed through both callers.
 - `withdrawalSequence`: correct row shape in the UI, monthly RMD conversion, RMD surplus destination, no Roth RMD, single computation per render.
 - Portfolio path: weight-normalised series (`Σ w × p(t)/p(0)`), not `Σ w × p(t)`.
-- UI: render `retirementResults.error`, persist retirement inputs, clamp the horizon, resolve dead controls, include guardrail parameters in `analysisSignature`.
-- Tests: the numeric-oracle table in §8; timestamped Yahoo mock; value assertions in E2E.
-- **Exit:** every §8 oracle passes; the review's Critical list is closed; no metric is `NaN` on any reachable input; build, unit, E2E, a11y and Lighthouse are green.
+- UI: renders `retirementResults.error`, persists retirement inputs, clamps horizon, resolves dead controls, includes guardrail parameters in `analysisSignature`.
+- Tests: numeric-oracle table in §8; timestamped Yahoo mock; value assertions in E2E (partial).
+- **Exit:** every §8 oracle passes; the review's Critical list is closed; no metric is `NaN` on any reachable input; build, unit, a11y and Lighthouse are green.
 
 ### M4 — Portfolio library & comparison
 - `portfolios.js` templates + diversification score.
