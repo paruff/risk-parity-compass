@@ -124,7 +124,7 @@ export const MODULES = {
   guardrail: {
     title: 'The 80% spending guardrail',
     worked: () =>
-      `Start with $1,000,000 and spend $4,000 a month. If the portfolio falls below 80% ($800,000) it drops to $780,000: spending is cut to 6% a year of the current value, 0.06 ÷ 12 × $780,000 = ${usd(guardrailSpend(4000, 780000, 1000000, 'rpr-80').nextSpend)} a month.`,
+      `Start with $1,000,000 and spend $4,000 a month. If the portfolio falls below 80% ($800,000) it drops to $780,000: spending becomes the lower of current spending and 6% a year of current value, so lower($4,000, 0.06 ÷ 12 × $780,000) = ${usd(guardrailSpend(4000, 780000, 1000000, 'rpr-80').nextSpend)} a month.`,
     items: [
       { module: 'guardrail', spend: 4000, value: 750000, start: 1000000 },
       { module: 'guardrail', spend: 4000, value: 700000, start: 900000 },
@@ -135,7 +135,7 @@ export const MODULES = {
       `You started at ${usd(i.start)} and spend ${usd(i.spend)} a month. The portfolio is now ${usd(i.value)}. What monthly spending does the 80% guardrail allow, in dollars?`,
     goal: 'apply a spending rule before the market forces your hand',
     result: (i, t) =>
-      `${usd(i.value)} is below 80% of ${usd(i.start)}, so spending becomes 6% a year of the current value: ${usd(t)} a month.`,
+      `${usd(i.value)} is below 80% of ${usd(i.start)}, so spending becomes the lower of current spending and 6% a year of current value: ${usd(t)} a month.`,
     next: 'Decide the guardrail now, while calm, so a downturn triggers a rule instead of a panic.',
     intention: 'If my portfolio drops below 80% of its start, I will…',
     limits:
