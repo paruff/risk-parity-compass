@@ -29,18 +29,23 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 1. **Docs baseline** — `docs/intent.md`, `docs/spec.md`, `docs/plan.md`, `REVIEW.md` (this change).
 2. **Sync tracker** — done: #21 (Task 6), #22 (M3.5, closed), #23 (M6), #24 (Pages); #9 checklist ticked; #10 commented.
 3. **Rename repo** → `risk-parity-compass` — done.
-4. **M3 Task 6** on its own branch from `main` → own PR → closes #9 on merge.
+4. **M3 Task 6** on its own branch from `main` → PR #25 → closes #9 and #21 on merge.
 5. **Chore commit** — `.gitignore` + `.claude/` — done (PR #20).
-6. Human merges PR #19 (M4), then the Task 6 PR.
+6. Human merges PR #19 (M4), PR #25 (Task 6) and PR #20 (these docs).
 7. **M5** — plan in `docs/superpowers/plans/` before code (docs before code).
 8. **M6** — scope first; see `docs/superpowers/research/2026-10-26-investor-levels-and-learning-science.md`.
 
 ## M3 Task 6 — acceptance
 
-- Retirement tab shows static spending vs the selected guardrail side by side: success probability, median terminal value, and lowest spend reached.
+- Retirement tab shows static spending vs the selected guardrail side by side: success probability, median and P10 terminal value (delivered in PR #25; "lowest spend reached" deferred).
 - Both Monte Carlo runs use the **same seed** (fair comparison).
 - Numeric oracle: at $1M / $4,000 per month, a guardrail trip must reduce spend, never raise it; static vs guardrail terminal values are independently computed.
 - E2E asserts values (`/^\d+(\.\d+)?%$/`), not labels.
+
+## Deferred
+
+- Guyton-Klinger and VPW are not selectable in the Retirement tab; Guyton-Klinger state is not carried across years inside the Monte Carlo. Fix before exposing them.
+- "Lowest spend reached" metric for the guardrail comparison.
 
 ## M5 backlog (from spec)
 
