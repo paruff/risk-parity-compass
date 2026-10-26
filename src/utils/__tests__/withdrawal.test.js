@@ -128,6 +128,23 @@ describe('drawdownPath', () => {
 });
 
 describe('rollingWithdrawalRates', () => {
+  // Oracle tests: honest success rate and available history
+  const g = 1.06 ** (1 / 12);
+  const flat = Array.from({ length: 360 }, (_, i) => 1_000_000 * g ** i);
+
+  it('computes over available history instead of returning zeros', () => {
+    const short = flat.slice(0, 263); // ~21.9 years
+    const r = rollingWithdrawalRates(short, { horizonYears: 30 });
+    expect(r.effectiveYears).toBeCloseTo(21.9, 1);
+    expect(r.swr).toBeGreaterThan(0.06);
+  });
+
+  it('reports success at a fixed reference rate, not at the SWR', () => {
+    const falling = flat.map((_, i) => flat[i] * (i > 200 ? 0.6 : 1));
+    expect(rollingWithdrawalRates(falling, { referenceRate: 0.12 }).successRate).toBeLessThan(1);
+    expect(rollingWithdrawalRates(flat, { referenceRate: 0.04 }).successRate).toBe(1);
+  });
+
   it('rollingWithdrawalRates returns SWR and PWR for growing portfolio', () => {
     // 40 years with some volatility: 5% average but with down years
     const values = Array.from({ length: 480 }, (_, i) => {

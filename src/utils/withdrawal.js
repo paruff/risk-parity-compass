@@ -200,17 +200,29 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
 // constant real withdrawal rate that (a) never depletes the portfolio (SWR) and
 // (b) never ends below the original real principal (PWR).
 // portfolioValues: monthly real portfolio value series (from weights × prices)
-// Returns: { swr, pwr, successRate, worstStart, worstDepletionYear, maxDrawdown, samples }
+// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, referenceRate = 0.04 }
+// Returns: { swr, pwr, successRate, effectiveYears, worstStart, worstDepletionYear, maxDrawdown, samples }
 export function rollingWithdrawalRates(portfolioValues, options = {}) {
-  const { horizonYears = 30, periodsPerYear = 12, inflationRate = 0 } = options;
+  const {
+    horizonYears = 30,
+    periodsPerYear = 12,
+    inflationRate = 0,
+    referenceRate = 0.04,
+  } = options;
   const horizonMonths = horizonYears * periodsPerYear;
   const n = portfolioValues.length;
 
-  if (n < horizonMonths) {
+  // If insufficient history, compute over available data
+  const effectiveMonths = Math.min(horizonMonths, n);
+  const effectiveYears = effectiveMonths / periodsPerYear;
+
+  if (effectiveMonths < 12) {
+    // Need at least 1 year of data
     return {
       swr: 0,
       pwr: 0,
       successRate: 0,
+      effectiveYears,
       worstStart: 0,
       worstDepletionYear: null,
       maxDrawdown: 0,
@@ -225,8 +237,8 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
   let overallMaxDrawdown = 0;
 
   // For each possible start index
-  for (let start = 0; start + horizonMonths <= n; start++) {
-    const slice = portfolioValues.slice(start, start + horizonMonths);
+  for (let start = 0; start + effectiveMonths <= n; start++) {
+    const slice = portfolioValues.slice(start, start + effectiveMonths);
     const startValue = slice[0];
 
     // Binary search for SWR (never depletes)
@@ -268,27 +280,27 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
       }
     }
 
-    // Evaluate at SWR for metrics
-    const monthlySpendSwr = (swr * startValue) / periodsPerYear;
-    const swrResult = drawdownPath(slice, monthlySpendSwr, { periodsPerYear, inflationRate });
+    // Evaluate at referenceRate for success rate (not at SWR)
+    const monthlySpendRef = (referenceRate * startValue) / periodsPerYear;
+    const refResult = drawdownPath(slice, monthlySpendRef, { periodsPerYear, inflationRate });
 
     samples.push({
       startIndex: start,
       swr,
       pwr,
-      depleted: swrResult.depletedYear !== null,
+      depleted: refResult.depletedYear !== null,
     });
 
     if (swr < worstSwr) worstSwr = swr;
     if (pwr < worstPwr) worstPwr = pwr;
     if (
-      swrResult.depletedYear !== null &&
-      (worstDepletionYear === null || swrResult.depletedYear < worstDepletionYear)
+      refResult.depletedYear !== null &&
+      (worstDepletionYear === null || refResult.depletedYear < worstDepletionYear)
     ) {
-      worstDepletionYear = swrResult.depletedYear;
+      worstDepletionYear = refResult.depletedYear;
     }
-    if (swrResult.maxDrawdown > overallMaxDrawdown) {
-      overallMaxDrawdown = swrResult.maxDrawdown;
+    if (refResult.maxDrawdown > overallMaxDrawdown) {
+      overallMaxDrawdown = refResult.maxDrawdown;
     }
   }
 
@@ -298,6 +310,7 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     swr: worstSwr,
     pwr: worstPwr,
     successRate,
+    effectiveYears,
     worstStart: samples.findIndex(s => s.swr === worstSwr),
     worstDepletionYear,
     maxDrawdown: overallMaxDrawdown,
