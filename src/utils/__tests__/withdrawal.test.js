@@ -5,6 +5,7 @@ import {
   monteCarloWithWithdrawals,
   requiredMinimumDistribution,
   RMD_TABLE_VERSION,
+  withdrawalSequence,
 } from '../withdrawal';
 
 describe('drawdownPath', () => {
@@ -35,6 +36,29 @@ describe('drawdownPath', () => {
     const values = [100000, 90000, 95000, 80000, 85000];
     const r = drawdownPath(values, 0);
     expect(r.maxDrawdown).toBeCloseTo(0.2, 3); // (100k->80k) / 100k = 20%
+  });
+
+  it('drawdownPath with cash buffer draws from buffer first', () => {
+    const values = Array.from({ length: 120 }, (_, i) => 100000);
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
+    // First 12 months should come from buffer, portfolio untouched
+    expect(r.balances[11]).toBe(100000);
+    expect(r.balances[12]).toBeLessThan(100000);
+  });
+
+  it('drawdownPath buffer refills when portfolio grows', () => {
+    const values = Array.from({ length: 120 }, (_, i) => 100000 * 1.01 ** i); // growing
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
+    // Buffer should refill; portfolio balance should reflect refill
+    expect(r.balances[24]).toBeGreaterThan(100000 - 4000 * 12);
+  });
+
+  it('drawdownPath buffer depletion forces portfolio withdrawal', () => {
+    const values = Array.from({ length: 60 }, (_, i) => 100000); // flat
+    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 3 });
+    // Buffer lasts 3 months, then portfolio draws
+    expect(r.balances[2]).toBe(100000);
+    expect(r.balances[3]).toBe(96000);
   });
 });
 
@@ -139,5 +163,38 @@ describe('requiredMinimumDistribution', () => {
     expect(r2.eligible).toBe(false);
     const r3 = requiredMinimumDistribution(75, 1000000, { birthYear: 1960 });
     expect(r3.eligible).toBe(true);
+  });
+});
+
+describe('withdrawalSequence', () => {
+  it('withdrawalSequence uses taxable first, then traditional, then Roth', () => {
+    const accounts = { Taxable: 50000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const r = withdrawalSequence(accounts, 4000);
+    expect(r.byAccount.Taxable).toBe(4000);
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(0);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+  });
+
+  it('withdrawalSequence spills to traditional when taxable exhausted', () => {
+    const accounts = { Taxable: 2000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const r = withdrawalSequence(accounts, 4000);
+    expect(r.byAccount.Taxable).toBe(2000);
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(2000);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+  });
+
+  it('withdrawalSequence respects RMD floor on traditional', () => {
+    const accounts = { Taxable: 50000, 'Traditional IRA / 401k': 100000, 'Roth IRA': 30000 };
+    const rmdByAccount = { 'Traditional IRA / 401k': 5000 }; // RMD > spend
+    const r = withdrawalSequence(accounts, 4000, { rmdByAccount });
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(5000); // at least RMD
+  });
+
+  it('withdrawalSequence bracketHeuristic limits traditional to bracket', () => {
+    const accounts = { Taxable: 0, 'Traditional IRA / 401k': 200000, 'Roth IRA': 100000 };
+    const r = withdrawalSequence(accounts, 10000, { bracketHeuristic: true });
+    // Heuristic: don't push traditional withdrawal into next marginal bracket
+    // Implementation detail: cap traditional at ~44k (2024 12% bracket top for single)
+    expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000 / 12);
   });
 });

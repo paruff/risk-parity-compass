@@ -48,10 +48,10 @@ export function requiredMinimumDistribution(age, priorYearEndBalance, options = 
 // Withdraw a fixed real amount monthly from a portfolio path.
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
 // monthlySpend: real monthly spend amount (constant in real terms)
-// options: { periodsPerYear = 12, inflationRate = 0 }
+// options: { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 }
 // Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted }
 export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
-  const { periodsPerYear = 12, inflationRate = 0 } = options;
+  const { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 } = options;
   const n = portfolioValues.length;
   if (n === 0) {
     return { balances: [], depletedYear: null, maxDrawdown: 0, terminalReal: 0, yearsLasted: 0 };
@@ -63,6 +63,10 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   let maxDrawdown = 0;
   let cumulativeSpend = 0;
 
+  // Cash buffer
+  const bufferSize = monthlySpend * (cashBufferMonths || 0);
+  let bufferBalance = bufferSize;
+
   for (let i = 0; i < n; i++) {
     // Real portfolio value at month i (divide by inflation factor)
     const yearFraction = i / periodsPerYear;
@@ -72,8 +76,18 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
     // Add this month's spend (spend is constant in real terms)
     cumulativeSpend += monthlySpend;
 
-    // Real balance = real portfolio value - cumulative real spends
-    balances[i] = realPortfolioValue - cumulativeSpend;
+    // Draw from cash buffer first
+    const fromBuffer = Math.min(bufferBalance, monthlySpend);
+    bufferBalance -= fromBuffer;
+
+    // Remaining spend comes from portfolio
+    const fromPortfolio = monthlySpend - fromBuffer;
+
+    // Portfolio withdrawals = total spend - buffer used
+    const portfolioWithdrawals = cumulativeSpend - (bufferSize - bufferBalance);
+
+    // Real balance = real portfolio value - cumulative portfolio withdrawals
+    balances[i] = realPortfolioValue - portfolioWithdrawals;
 
     // Track peak and drawdown on real balances
     if (balances[i] > peak) {
@@ -422,5 +436,67 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     bands,
     stats: { mean, median, p10, p90, cagr: annualMeanReturn, sharpe },
     depletionYears,
+  };
+}
+
+// Withdrawal sequencing: determine which account to draw from each month.
+// Order: Taxable → Traditional (max of needed and RMD) → Roth
+// accounts: { "Taxable": balance, "Traditional IRA / 401k": balance, "Roth IRA": balance }
+// monthlySpend: total monthly spend needed
+// options: { bracketHeuristic?: boolean, rmdByAccount?: Record<string, number>, traditionalBracketCap?: number }
+// rmdByAccount and traditionalBracketCap are MONTHLY values (not annual)
+// Returns: { byAccount (monthly), totalSpend (monthly), bracketUsed (monthly), shortfall (monthly) }
+export function withdrawalSequence(accounts, monthlySpend, options = {}) {
+  const {
+    bracketHeuristic = false,
+    rmdByAccount = {},
+    traditionalBracketCap = 44000 / 12,
+  } = options;
+
+  const taxableBalance = accounts.Taxable ?? 0;
+  const traditionalBalance = accounts['Traditional IRA / 401k'] ?? 0;
+  const rothBalance = accounts['Roth IRA'] ?? 0;
+
+  // RMD floor for traditional (monthly)
+  const rmdMonthly = rmdByAccount['Traditional IRA / 401k'] ?? 0;
+
+  // Monthly spending
+  let remainingSpend = monthlySpend;
+
+  // 1. Taxable first
+  const taxableUsed = Math.min(taxableBalance, remainingSpend);
+  remainingSpend -= taxableUsed;
+
+  // 2. Traditional (max of needed and RMD, capped by bracket heuristic)
+  // RMD applies even if taxable covered the spend
+  let traditionalUsed = 0;
+  if (traditionalBalance > 0) {
+    const neededFromTraditional = Math.max(remainingSpend, rmdMonthly);
+    const maxFromTraditional = bracketHeuristic
+      ? Math.min(traditionalBracketCap, traditionalBalance)
+      : traditionalBalance;
+    traditionalUsed = Math.min(neededFromTraditional, maxFromTraditional);
+    remainingSpend -= traditionalUsed;
+  }
+
+  // 3. Roth
+  let rothUsed = 0;
+  if (remainingSpend > 0 && rothBalance > 0) {
+    rothUsed = Math.min(rothBalance, remainingSpend);
+    remainingSpend -= rothUsed;
+  }
+
+  // Shortfall if all accounts exhausted
+  const shortfall = Math.max(0, remainingSpend);
+
+  return {
+    byAccount: {
+      Taxable: taxableUsed,
+      'Traditional IRA / 401k': traditionalUsed,
+      'Roth IRA': rothUsed,
+    },
+    totalSpend: monthlySpend - shortfall,
+    bracketUsed: bracketHeuristic ? traditionalUsed : 0,
+    shortfall,
   };
 }
