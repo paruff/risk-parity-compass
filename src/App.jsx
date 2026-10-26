@@ -1102,12 +1102,12 @@ export default function App() {
         <div style={S.logo}>⚖</div>
         <div>
           <h1 style={S.title}>
-            <Tooltip tip="Shannon's Demon: rebalance to harvest volatility variance, not chase returns">
-              Shannon's Demon
+            <Tooltip tip="Shannon's Demon (the strategy): rebalance to harvest volatility, not to chase returns">
+              Risk Parity Compass
             </Tooltip>
           </h1>
           <div style={{ ...S.subtitle, display: isMobile ? 'none' : 'block' }}>
-            Risk parity rebalancer · tax-efficient · retirement
+            Risk parity rebalancing · retirement drawdown · tax-aware
           </div>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 14, color: '#94a3b8', whiteSpace: 'nowrap' }}>
@@ -1397,7 +1397,7 @@ export default function App() {
             <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
               v{__VERSION__} ·{' '}
               <a
-                href={`https://github.com/paruff/shannonsdemon/commit/${__COMMIT__}`}
+                href={`https://github.com/paruff/risk-parity-compass/commit/${__COMMIT__}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: '#94a3b8' }}

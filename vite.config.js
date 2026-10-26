@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 const commit = process.env.GITHUB_SHA || 'local';
 
 export default defineConfig({
-  base: '/shannonsdemon/',
+  base: '/risk-parity-compass/',
   plugins: [react()],
   define: {
     __VERSION__: JSON.stringify(process.env.npm_package_version),

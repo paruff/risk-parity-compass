@@ -1,58 +1,94 @@
-# Shannon's Demon — Risk Parity Rebalancer
+# Risk Parity Compass
 
-A React + Vite static site for portfolio optimization using risk parity principles and tax-efficient asset location strategies. Deploys free to GitHub Pages.
+A React + Vite static site for **risk parity portfolio rebalancing** and **retirement drawdown planning**. It tells you what to trade to reach your target risk allocation tax-efficiently, and then how much you can spend from that portfolio once you stop earning.
 
-## Overview
+Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
-- **Risk Parity Allocation**: Inverse volatility weighting with live market data
-- **Tax-Efficient Placement**: Waterfall algorithm (bonds → IRAs, stocks → taxable)
-- **Rebalancing Guidance**: Shannon's Demon — trade only when drift exceeds threshold
-- **Three Tabs**: Current Holdings → Risk Parity Targets → Trades
-- **Persistence**: localStorage survives page refresh
+> **Not financial advice.** This is educational planning software. Every projection depends on assumptions you supply, and historical and simulated returns do not predict the future.
 
-## Quick Start
+## What it does
+
+**Accumulation / rebalancing**
+
+- **Risk parity allocation** — inverse volatility weighting from live market data
+- **Tax-efficient placement** — waterfall algorithm (bonds → IRAs, stocks → taxable)
+- **Rebalancing guidance** — Shannon's Demon: trade only when drift exceeds your threshold
+- **Risk contribution and correlation** views for the chosen mix
+- **Scenarios** — save and compare portfolio configurations
+
+**Drawdown / retirement**
+
+- **Withdrawal sequencing** — taxable → traditional (with an RMD floor) → Roth
+- **RMD table** — IRS Uniform Lifetime Table, with the SECURE 2.0 73/75 eligibility split
+- **Spending guardrails** — RPR-80, Guyton-Klinger and VPW policies
+- **Income floor** — Social Security and pension netting, with bridge-year awareness
+- **Historical backtest** — rolling safe and perpetual withdrawal rates
+- **Monte Carlo** — fan chart of simulated outcomes with withdrawals
+
+> **Shannon's Demon is the strategy, not the product.** The name refers to the rebalancing result that harvesting volatility from a diversified, uncorrelated mix can add growth without extra return. Risk Parity Compass is the application built on it.
+
+## Quick start
 
 ```bash
-# Install dependencies
-npm ci
-
-# Dev server
-npm run dev
-
-# Production build
-npm run build
-
-# Preview build locally
-npm run preview
+npm ci          # install
+npm run dev     # dev server on http://localhost:5173/risk-parity-compass/
+npm run build   # production build to dist/
+npm run preview # preview the build on http://localhost:4173/risk-parity-compass/
 ```
 
-## Deployment
+## Using it
 
-Automatic via GitHub Actions on push to `main`:
-1. CI runs (lint, format, build)
-2. CD deploys `dist/` to GitHub Pages at `https://paruff.github.io/shannonsdemon/`
+1. **Assets** — enter tickers (comma-separated), pick a volatility lookback, set a rebalance threshold
+2. **Accounts** — enter Taxable, Traditional IRA/401k and Roth IRA balances, plus current share counts
+3. **Run Analysis** — fetches prices, computes targets, and generates trades
+4. **Retirement** — enter spend, horizon, inflation, birth year and any Social Security or pension income, then run the projection
 
-Configure in repository Settings → Pages → Source: GitHub Actions.
+State persists in `localStorage`. The storage keys keep their original `shannonsdemon_` prefix so saved portfolios survive the rename; a key migration lands with the storage v2 work.
 
-## Configuration
+## Data source
 
-1. **Assets Tab**: Enter tickers (comma-separated), select volatility lookback (3mo/6mo/1y/2y), set rebalance threshold (1–20%)
-2. **Account Balances Tab**: Enter Taxable, Traditional IRA/401k, Roth IRA balances
-3. **Current Holdings Tab**: Enter share counts per ticker per account
-4. Click **Run Analysis** to fetch live prices, compute targets, and generate trades
+Yahoo Finance's unofficial v8 chart endpoint (no API key). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
 
-## Data Source
+## Quality gates
 
-Uses Yahoo Finance unofficial v8 chart endpoint (no API key). Works from browsers but may break without notice — see `Known Limitations.md`.
+| Gate | Command | Budget |
+|---|---|---|
+| Unit / integration | `npm test` | must pass |
+| End-to-end | `npm run test:e2e` | must pass |
+| Lint | `npm run lint` | 0 errors |
+| Format | `npm run format` | Prettier clean |
+| Build | `npm run build` | must succeed |
+| Lighthouse | CI | perf ≥ 0.9, a11y ≥ 0.95, best practices ≥ 0.9, SEO ≥ 0.9 |
 
-## Quality Gates
+Pre-commit runs Lefthook + lint-staged on staged files. CI runs every gate plus the build on each push and pull request. A human reviews and merges; agents never merge.
 
-- `npm run lint` — ESLint (React, hooks)
-- `npm run format` — Prettier check
-- `npm run format:fix` — Auto-format
-- Pre-commit: Lefthook + lint-staged runs both on staged files
-- CI: Runs all gates + build on every push/PR
+> **Environment note:** this repository's tooling requires `env -u NODE_OPTIONS <command>` for Node subprocesses, because a broken `NODE_OPTIONS` shim in the development environment breaks vitest, Playwright, hooks and Lighthouse.
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [`DESIGN.md`](DESIGN.md) | Design tokens, component rules and UI do's/don'ts (designmd.app / Google design.md format) |
+| [`AGENTS.md`](AGENTS.md) | Repository context and conventions for AI agents |
+| [`docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md`](docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md) | Approved roadmap spec: M1–M6 |
+| [`docs/superpowers/plans/`](docs/superpowers/plans) | Implementation plans, one per milestone |
+| [`docs/superpowers/reviews/`](docs/superpowers/reviews) | Code review records |
+| [`Known Limitations.md`](Known%20Limitations.md) | Known constraints and open risks |
+
+## Roadmap
+
+| Milestone | Scope | State |
+|---|---|---|
+| M1 | Withdrawal engine core (drawdown, SWR/PWR, Monte Carlo, RMD) | shipped, **defective** |
+| M2 | Tax & account mechanics (sequencing, RMD UI, cash buffer) | shipped, **defective** |
+| M3 | Dynamic spending guardrails + income floor | shipped, **defective** |
+| **M3.5** | **Correctness remediation** — the engine's arithmetic, guardrail period contract, and a numeric test oracle | **next** |
+| M4 | Portfolio templates, diversification view, comparison | planned |
+| M5 | Storage v2, print/PDF, accessibility preferences | planned |
+| M6 | Learning journey: investor-level progression and distance learning | research complete, unscoped |
+
+The 2026-10-26 review found that M1–M3 shipped arithmetic defects that make the headline retirement numbers optimistic by roughly 2× (withdrawals were never compounded) plus a unit mismatch in the Monte Carlo and guardrail policies applied monthly as if annual. **No new feature milestone starts until M3.5 closes those findings.** See [`docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`](docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md).
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [`LICENSE`](LICENSE).

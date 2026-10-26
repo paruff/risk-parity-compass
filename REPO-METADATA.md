@@ -1,13 +1,16 @@
 # Repo Metadata (for GitHub)
 
 ## Name
-shannonsdemon
+risk-parity-compass
 
 ## Description
-Risk parity portfolio rebalancer based on Shannon's Demon. Harvest volatility by periodically rebalancing toward equal-risk allocations across asset classes. Tax-efficient placement across brokerage, IRA, and Roth accounts. React SPA with Yahoo Finance data.
+Risk parity rebalancing and retirement drawdown planner. Harvest volatility by rebalancing toward equal-risk allocations, locate assets tax-efficiently across taxable/IRA/Roth, then plan withdrawals with RMDs, spending guardrails, withdrawal sequencing, historical backtests and Monte Carlo. React SPA, Yahoo Finance data, runs entirely in the browser.
+
+## Homepage
+https://paruff.github.io/risk-parity-compass/
 
 ## Topics
-risk-parity, portfolio-rebalancing, volatility-harvesting, tax-efficient-investing, shannons-demon, personal-finance, react, fintech
+risk-parity, portfolio-rebalancing, volatility-harvesting, tax-efficient-investing, retirement-planning, safe-withdrawal-rate, monte-carlo, required-minimum-distribution, shannons-demon, personal-finance, react, fintech
 
 ## License
 MIT (existing LICENSE file)
