@@ -99,7 +99,9 @@ test.describe('Usability and accessibility', () => {
       .click();
     await expect(page.getByText('Risk Parity Weights')).toBeVisible({ timeout: 15000 });
 
-    await expect(page.locator('[role="status"]')).toContainText(/Analysis complete/i);
+    await expect(page.locator('[role="status"][aria-live="polite"]')).toContainText(
+      /Analysis complete/i
+    );
   });
 
   test('interactive controls meet a 44px minimum height', async ({ page }) => {

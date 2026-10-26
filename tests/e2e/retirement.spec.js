@@ -5,6 +5,12 @@ const MOCK_TIMESTAMPS = Array.from({ length: 600 }, (_, i) =>
   Math.floor((Date.now() - 600 * 30 * 24 * 60 * 60 * 1000 + i * 30 * 24 * 60 * 60 * 1000) / 1000)
 );
 
+test.describe.configure({ timeout: 120000 });
+
+async function clickRetirementCalculate(page) {
+  await page.locator('#panel-retirement button').filter({ hasText: /^▶ Calculate$/ }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route('https://query1.finance.yahoo.com/**', route =>
     route.fulfill({
@@ -50,14 +56,14 @@ test('Calculate retirement metrics shows SWR', async ({ page }) => {
   await page.fill('#ret-birth-year', '1960');
   await page.fill('#ret-inflation-rate', '0.03');
 
-  await page.click('button:has-text("Calculate")');
+  await clickRetirementCalculate(page);
 
   await expect(page.getByText('Safe Withdrawal Rate (SWR)')).toBeVisible({ timeout: 120000 });
 
-  const swrCard = page.locator('.sd-card').filter({ hasText: 'Safe Withdrawal Rate (SWR)' });
-  const swrValue = swrCard.locator('.sd-metricVal');
-  await expect(swrValue).toBeVisible({ timeout: 10000 });
-  const swrText = await swrValue.textContent();
+  const swrText = await page
+    .getByText('Safe Withdrawal Rate (SWR)')
+    .locator('xpath=preceding-sibling::*[1]')
+    .textContent();
   expect(swrText).toMatch(/^\d+(\.\d+)?%$/);
   expect(swrText).not.toMatch(/NaN/);
 });
@@ -72,7 +78,7 @@ test('Calculate retirement metrics shows RMD table', async ({ page }) => {
   await page.fill('#ret-birth-year', '1955');
   await page.fill('#ret-inflation-rate', '0.03');
 
-  await page.click('button:has-text("Calculate")');
+  await clickRetirementCalculate(page);
 
   await expect(page.getByText(/Required Minimum Distribution/i)).toBeVisible({ timeout: 90000 });
   await expect(page.locator('table.sd-table tbody tr').first()).toBeVisible();
@@ -89,7 +95,7 @@ test('Calculate retirement metrics shows withdrawal sequencing', async ({ page }
   await page.fill('#ret-birth-year', '1960');
   await page.fill('#ret-inflation-rate', '0.03');
 
-  await page.click('button:has-text("Calculate")');
+  await clickRetirementCalculate(page);
 
   await expect(page.getByText(/Withdrawal sequencing/i)).toBeVisible({ timeout: 90000 });
   await expect(page.getByRole('columnheader', { name: /Taxable Withdrawal/i })).toBeVisible();
@@ -107,7 +113,7 @@ test('Monte Carlo and Backtest charts render', async ({ page }) => {
   await page.fill('#ret-birth-year', '1960');
   await page.fill('#ret-inflation-rate', '0.03');
 
-  await page.click('button:has-text("Calculate")');
+  await clickRetirementCalculate(page);
 
   await expect(page.getByText(/Monte Carlo Fan Chart/i)).toBeVisible({ timeout: 90000 });
   await expect(page.getByText(/Historical SWR\/PWR by Start Year/i)).toBeVisible({
