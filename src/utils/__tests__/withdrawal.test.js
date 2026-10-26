@@ -262,4 +262,25 @@ describe('guardrailSpend', () => {
       expect(r.nextSpend).toBeGreaterThanOrEqual(1000000 * 0.05 * 0.8);
     });
   });
+
+  describe('vpw', () => {
+    it('returns age-based percentage', () => {
+      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70 });
+      // VPW at 70 ~ 5-6%
+      expect(r.nextSpend).toBeGreaterThan(0);
+      expect(r.nextSpend / 100000).toBeGreaterThan(0.04);
+      expect(r.nextSpend / 100000).toBeLessThan(0.1);
+    });
+
+    it('increases with age', () => {
+      const r70 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70 });
+      const r80 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 80 });
+      expect(r80.nextSpend).toBeGreaterThan(r70.nextSpend);
+    });
+
+    it('caps at 100% for very old ages', () => {
+      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 110 });
+      expect(r.nextSpend).toBeLessThanOrEqual(100000);
+    });
+  });
 });

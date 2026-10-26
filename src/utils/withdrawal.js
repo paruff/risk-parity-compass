@@ -501,6 +501,97 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
   };
 }
 
+// VPW (Variable Percentage Withdrawal) table based on standard mortality tables
+// Age -> withdrawal percentage (annual rate)
+const VPW_TABLE = {
+  65: 0.046,
+  66: 0.047,
+  67: 0.048,
+  68: 0.049,
+  69: 0.05,
+  70: 0.051,
+  71: 0.052,
+  72: 0.053,
+  73: 0.054,
+  74: 0.055,
+  75: 0.056,
+  76: 0.057,
+  77: 0.058,
+  78: 0.059,
+  79: 0.06,
+  80: 0.061,
+  81: 0.062,
+  82: 0.063,
+  83: 0.064,
+  84: 0.065,
+  85: 0.067,
+  86: 0.069,
+  87: 0.071,
+  88: 0.073,
+  89: 0.075,
+  90: 0.077,
+  91: 0.08,
+  92: 0.083,
+  93: 0.086,
+  94: 0.089,
+  95: 0.092,
+  96: 0.096,
+  97: 0.1,
+  98: 0.104,
+  99: 0.108,
+  100: 0.113,
+  101: 0.118,
+  102: 0.123,
+  103: 0.128,
+  104: 0.133,
+  105: 0.138,
+  106: 0.143,
+  107: 0.148,
+  108: 0.153,
+  109: 0.158,
+  110: 0.163,
+  111: 0.168,
+  112: 0.173,
+  113: 0.178,
+  114: 0.183,
+  115: 0.188,
+  116: 0.193,
+  117: 0.198,
+  118: 0.203,
+  119: 0.208,
+  120: 0.213,
+  121: 0.218,
+  122: 0.223,
+  123: 0.228,
+  124: 0.233,
+  125: 0.238,
+  126: 0.243,
+  127: 0.248,
+  128: 0.253,
+  129: 0.258,
+  130: 0.263,
+  131: 0.268,
+  132: 0.273,
+  133: 0.278,
+  134: 0.283,
+  135: 0.288,
+  136: 0.293,
+  137: 0.298,
+  138: 0.303,
+  139: 0.308,
+  140: 0.313,
+  141: 0.318,
+  142: 0.323,
+  143: 0.328,
+  144: 0.333,
+  145: 0.338,
+  146: 0.343,
+  147: 0.348,
+  148: 0.353,
+  149: 0.358,
+  150: 0.363,
+};
+
 // Guardrail spending policies: rpr-80, guyton-klinger, vpw
 export function guardrailSpend(currentSpend, portfolioValue, startingValue, policy, opts = {}) {
   if (policy === 'rpr-80') {
@@ -561,6 +652,31 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
     return { nextSpend, policyState, cutRate: 0, gkState: prevState };
   }
 
-  // other policies handled in Tasks 3-4
+  if (policy === 'vpw') {
+    const { age, vpwTable } = opts;
+    if (age == null) {
+      throw new Error('VPW policy requires age parameter');
+    }
+    const table = vpwTable ?? VPW_TABLE;
+    // Get the withdrawal percentage for the given age
+    // Clamp age to table bounds
+    const ageKeys = Object.keys(table).map(Number);
+    const minAge = Math.min(...ageKeys);
+    const maxAge = Math.max(...ageKeys);
+    const clampedAge = Math.max(minAge, Math.min(maxAge, age));
+    const withdrawalRate = table[clampedAge] ?? table[maxAge];
+
+    // Cap at 100% of portfolio
+    const nextSpend = Math.min(currentSpend, portfolioValue * withdrawalRate, portfolioValue);
+
+    return {
+      nextSpend,
+      policyState: 'normal',
+      cutRate: 0,
+      withdrawalRate,
+    };
+  }
+
+  // other policies handled in future tasks
   return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
 }
