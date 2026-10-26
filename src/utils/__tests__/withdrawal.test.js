@@ -140,9 +140,11 @@ describe('rollingWithdrawalRates', () => {
   });
 
   it('reports success at the user spend and counts multiple historical windows', () => {
+    // The path rises for 15 years, then collapses; enough windows remain to show a mixed
+    // historical success rate instead of the all-0/all-100 single-window behavior.
     const synthetic = Array.from({ length: 360 }, (_, i) => {
-      const base = 100000 + i * 25;
-      return i < 180 ? base : base * 0.7;
+      const base = 150000 * (1.008 ** i);
+      return i < 180 ? base : base * 0.8;
     });
     const r = rollingWithdrawalRates(synthetic, {
       horizonYears: 15,
@@ -153,6 +155,7 @@ describe('rollingWithdrawalRates', () => {
     expect(r.effectiveYears).toBe(15);
     expect(r.successRate).toBeGreaterThan(0);
     expect(r.successRate).toBeLessThan(1);
+    expect(r.samples).toHaveLength(r.windowCount);
   });
 
   it('reports success at a fixed reference rate, not at the SWR', () => {
