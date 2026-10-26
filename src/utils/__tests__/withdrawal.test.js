@@ -231,4 +231,35 @@ describe('guardrailSpend', () => {
       expect(r.policyState).toBe('normal');
     });
   });
+
+  describe('guyton-klinger', () => {
+    it('cuts when portfolio drops below lower guardrail', () => {
+      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      // Starting value 1M, initial rate 5% = 50000 initial spend
+      // Portfolio dropped 20% to 800k, rate = 50000/800000 = 6.25% > upper (6%) → cut
+      const r = guardrailSpend(50000, 800000, 1000000, 'guyton-klinger', opts);
+      expect(r.nextSpend).toBeLessThan(50000); // cut by 10%
+      expect(r.policyState).toBe('cut');
+    });
+
+    it('increases when portfolio above upper guardrail', () => {
+      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      // Portfolio up enough that rate < lower guardrail (4%)
+      // 50000 / 1500000 = 0.0333 < 0.04
+      const r = guardrailSpend(50000, 1500000, 1000000, 'guyton-klinger', opts);
+      expect(r.nextSpend).toBeGreaterThan(50000); // increase by 10%
+      expect(r.policyState).toBe('prosperity');
+    });
+
+    it('respects floor/ceiling', () => {
+      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      // Many cuts — should not go below floor (initialRate * 0.8) * startingValue
+      let r = guardrailSpend(50000, 500000, 1000000, 'guyton-klinger', opts);
+      for (let i = 0; i < 10; i++) {
+        r = guardrailSpend(r.nextSpend, 400000, 1000000, 'guyton-klinger', opts);
+      }
+      // Floor = initialRate * 0.8 * startingValue = 0.05 * 0.8 * 1000000 = 40000
+      expect(r.nextSpend).toBeGreaterThanOrEqual(1000000 * 0.05 * 0.8);
+    });
+  });
 });

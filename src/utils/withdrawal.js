@@ -515,6 +515,52 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
     }
     return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
   }
-  // other policies handled in Tasks 2-3
+
+  if (policy === 'guyton-klinger') {
+    const { initialRate = 0.05, upperGuardrail = 0.06, lowerGuardrail = 0.04 } = opts;
+    const currentRate = currentSpend / portfolioValue;
+    const floor = initialRate * 0.8;
+    const ceiling = initialRate * 1.2;
+
+    // Get previous state from opts
+    const prevState = opts.gkState ?? {
+      rate: currentRate,
+      spend: currentSpend,
+      consecutiveCuts: 0,
+      consecutiveIncreases: 0,
+    };
+
+    let nextSpend = currentSpend;
+    let policyState = 'normal';
+
+    if (currentRate > upperGuardrail) {
+      // Cut spending by 10%
+      nextSpend = Math.max(currentSpend * 0.9, startingValue * floor);
+      policyState = 'cut';
+      prevState.consecutiveCuts += 1;
+      prevState.consecutiveIncreases = 0;
+    } else if (currentRate < lowerGuardrail) {
+      // Increase spending by 10%
+      nextSpend = Math.min(currentSpend * 1.1, startingValue * ceiling);
+      policyState = 'prosperity';
+      prevState.consecutiveIncreases += 1;
+      prevState.consecutiveCuts = 0;
+    } else {
+      policyState = 'normal';
+      prevState.consecutiveCuts = 0;
+      prevState.consecutiveIncreases = 0;
+    }
+
+    // Apply floor/ceiling
+    nextSpend = Math.max(Math.min(nextSpend, startingValue * ceiling), startingValue * floor);
+
+    // Update state
+    prevState.rate = nextSpend / portfolioValue;
+    prevState.spend = nextSpend;
+
+    return { nextSpend, policyState, cutRate: 0, gkState: prevState };
+  }
+
+  // other policies handled in Tasks 3-4
   return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
 }
