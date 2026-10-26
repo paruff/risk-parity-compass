@@ -538,18 +538,39 @@ export default function App() {
     if (saved.threshold) setThreshold(saved.threshold);
     if (saved.accounts) setAccounts(saved.accounts);
     if (saved.currentHoldings) setCurrentHoldings(saved.currentHoldings);
+    if (saved.retirement) setRetirement(saved.retirement);
   }, []);
 
   // ── Persist on change
   useEffect(() => {
-    saveState({ tickers, lookback, threshold, accounts, currentHoldings });
-  }, [tickers, lookback, threshold, accounts, currentHoldings]);
+    saveState({ tickers, lookback, threshold, accounts, currentHoldings, retirement });
+  }, [tickers, lookback, threshold, accounts, currentHoldings, retirement]);
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
   const canRun = tickers.length > 0 && totalValue > 0;
   const analysisSignature = useMemo(
-    () => JSON.stringify({ tickers, lookback, threshold, accounts, currentHoldings }),
-    [tickers, lookback, threshold, accounts, currentHoldings]
+    () =>
+      JSON.stringify({
+        tickers,
+        lookback,
+        threshold,
+        accounts,
+        currentHoldings,
+        retirement: {
+          monthlySpend: retirement.monthlySpend,
+          inflationRate: retirement.inflationRate,
+          horizonYears: retirement.horizonYears,
+          birthYear: retirement.birthYear,
+          socialSecurityMonthly: retirement.socialSecurityMonthly,
+          pensionMonthly: retirement.pensionMonthly,
+          socialSecurityStartAge: retirement.socialSecurityStartAge,
+          pensionStartAge: retirement.pensionStartAge,
+          cashBufferMonths: retirement.cashBufferMonths,
+          guardrail: retirement.guardrail,
+          driftMode: retirement.driftMode,
+        },
+      }),
+    [tickers, lookback, threshold, accounts, currentHoldings, retirement]
   );
   const isStale = analysisState === 'done' && lastRunSignature !== analysisSignature;
 
@@ -696,7 +717,24 @@ export default function App() {
         inflationRate: retirement.inflationRate,
       });
 
-      // Monte Carlo with withdrawals
+      // Current age for guardrails
+      const currentAge = new Date().getFullYear() - (retirement.birthYear ?? 1960);
+
+      // RMD for each traditional account (exclude Roth IRA)
+      const RMD_ACCOUNT_TYPES = ['Traditional IRA / 401k'];
+      const rmdTable = {};
+      for (const acct of RMD_ACCOUNT_TYPES) {
+        if (accounts[acct] != null) {
+          rmdTable[acct] = {};
+          for (let age = 73; age <= 90; age++) {
+            rmdTable[acct][age] = requiredMinimumDistribution(age, accounts[acct] ?? 0, {
+              birthYear: retirement.birthYear,
+            });
+          }
+        }
+      }
+
+      // Monte Carlo with withdrawals (dollars, with guardrails)
       const allCloses = {};
       for (const t of tickersWithData) {
         allCloses[t] = aligned[t];
@@ -708,39 +746,33 @@ export default function App() {
         inflationRate: retirement.inflationRate,
         driftMode: retirement.driftMode,
         seed: 42,
+        startingValue: totalValue,
+        guardrail: retirement.guardrail,
+        age: currentAge,
       });
 
-      // RMD for each traditional account
-      const rmdTable = {};
-      for (const acct of ACCOUNT_TYPES) {
-        if (acct.includes('IRA') || acct.includes('401k')) {
-          rmdTable[acct] = {};
-          for (let age = 73; age <= 90; age++) {
-            rmdTable[acct][age] = requiredMinimumDistribution(age, accounts[acct] ?? 0, {
-              birthYear: retirement.birthYear,
-            });
-          }
-        }
-      }
-
-      // Drawdown path with cash buffer
+      // Drawdown path with cash buffer and guardrails
       const bufferDrawdown = drawdownPath(portfolioValues, netMonthlySpend, {
         inflationRate: retirement.inflationRate,
         cashBufferMonths: retirement.cashBufferMonths,
+        guardrail: retirement.guardrail,
+        startingValue: totalValue,
+        age: currentAge,
       });
 
       setRetirementResults({
         ...rolling,
         effectiveYears,
         bridgeYears,
+        netMonthlySpend,
         bands: mc.bands,
         rmdTable,
         mcStats: mc.stats,
         bufferStatus: {
           months: retirement.cashBufferMonths,
           remainingMonths:
-            bufferDrawdown.balances.length > 0
-              ? Math.max(0, bufferDrawdown.balances[0] / netMonthlySpend) // Simplified: assume first balance shows buffer
+            bufferDrawdown.bufferBalance != null && netMonthlySpend > 0
+              ? Math.max(0, bufferDrawdown.bufferBalance / netMonthlySpend)
               : 0,
         },
       });
@@ -2011,6 +2043,10 @@ export default function App() {
                 {analysisState !== 'done' ? (
                   <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
                     Run Analysis first to generate retirement projections.
+                  </div>
+                ) : retirementResults?.error ? (
+                  <div style={S.bannerError} role="alert">
+                    {retirementResults.error}
                   </div>
                 ) : (
                   <div>
