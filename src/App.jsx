@@ -45,6 +45,8 @@ import {
 import { buildPortfolioPath } from './utils/portfolioPath';
 import { getTemplate } from './utils/portfolios';
 import PortfoliosTab from './PortfoliosTab';
+import LearnTab from './LearnTab';
+import { dueModules } from './utils/learning';
 import PlanTools from './components/PlanTools';
 import {
   loadState,
@@ -485,7 +487,7 @@ export default function App() {
   const [lastRunSignature, setLastRunSignature] = useState('');
 
   // ── UI tabs
-  const [tab, setTab] = useState('holdings'); // holdings | analysis | trades | retirement | portfolios
+  const [tab, setTab] = useState('holdings'); // holdings | analysis | trades | retirement | portfolios | learn
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [extraTemplateIds, setExtraTemplateIds] = useState([]);
   const [comparisonMode, setComparisonMode] = useState(true);
@@ -501,6 +503,7 @@ export default function App() {
 
   // ── Display prefs, backup tracking, stale-price handling
   const [prefs, setPrefs] = useState({ fontScale: 1, highContrast: false });
+  const [learning, setLearning] = useState({ rubricChoice: null, modules: {} });
   const [lastBackupAt, setLastBackupAt] = useState(null);
   const [staleQuotes, setStaleQuotes] = useState({}); // { SPY: cachedAtMs }
   const [priceOverrides, setPriceOverrides] = useState({}); // { SPY: number }
@@ -539,6 +542,7 @@ export default function App() {
     if (saved.retirement) setRetirement(saved.retirement);
     if (saved.prefs) setPrefs(p => ({ ...p, ...saved.prefs }));
     if (saved.lastBackupAt) setLastBackupAt(saved.lastBackupAt);
+    if (saved.learning) setLearning(saved.learning);
     if (saved.selectedTemplateId) setSelectedTemplateId(saved.selectedTemplateId);
     if (Array.isArray(saved.extraTemplateIds)) setExtraTemplateIds(saved.extraTemplateIds);
     if (typeof saved.comparisonMode === 'boolean') setComparisonMode(saved.comparisonMode);
@@ -558,6 +562,7 @@ export default function App() {
       comparisonMode,
       prefs,
       lastBackupAt,
+      learning,
     });
   }, [
     tickers,
@@ -571,6 +576,7 @@ export default function App() {
     comparisonMode,
     prefs,
     lastBackupAt,
+    learning,
   ]);
 
   const totalValue = Object.values(accounts).reduce((a, b) => a + (b || 0), 0);
@@ -951,6 +957,7 @@ export default function App() {
     if (state.currentHoldings) setCurrentHoldings(state.currentHoldings);
     if (state.retirement) setRetirement(state.retirement);
     if (state.prefs) setPrefs(p => ({ ...p, ...state.prefs }));
+    if (state.learning) setLearning(state.learning);
     if (imported.length) persistScenarios(imported);
   };
 
@@ -1606,6 +1613,10 @@ export default function App() {
               { id: 'trades', label: `Trades${trades.length > 0 ? ` (${trades.length})` : ''}` },
               { id: 'retirement', label: 'Retirement' },
               { id: 'portfolios', label: 'Portfolios' },
+              {
+                id: 'learn',
+                label: `Learn${dueModules(learning).length > 0 ? ' (refresher due)' : ''}`,
+              },
             ].map(t => (
               <button
                 key={t.id}
@@ -2860,6 +2871,14 @@ export default function App() {
                     )}
                   </div>
                 )}
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {tab === 'learn' && (
+            <ErrorBoundary>
+              <div role="tabpanel" id="panel-learn" aria-labelledby="tab-learn">
+                <LearnTab S={S} learning={learning} setLearning={setLearning} />
               </div>
             </ErrorBoundary>
           )}

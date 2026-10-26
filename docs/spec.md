@@ -1,6 +1,6 @@
 # Spec — Risk Parity Compass
 
-**Status:** Current as of 2026-10-26 (M1–M4 built and merged; M5–M6 planned)
+**Status:** Current as of 2026-10-26 (M1–M5 merged; M6 in review)
 **Intent:** `docs/intent.md` · **Plan:** `docs/plan.md` · **Review rules:** `REVIEW.md` · **Design:** `DESIGN.md`
 **History and rationale:** `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (the long-form roadmap spec; this file is the working summary).
 
@@ -40,7 +40,7 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 | FR-10 | Versioned storage v2, export/import, backup reminder | M5 | Planned |
 | FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Planned |
 | FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Planned |
-| FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Unscoped (research only) |
+| FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Built (PR #28) |
 
 ## 3. Calculation contracts (normative)
 
