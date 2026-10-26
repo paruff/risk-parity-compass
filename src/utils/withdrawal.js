@@ -563,7 +563,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
 // monthlySpend: total monthly spend needed
 // options: { bracketHeuristic?: boolean, rmdByAccount?: Record<string, number>, traditionalBracketCap?: number }
 // rmdByAccount and traditionalBracketCap are MONTHLY values (not annual)
-// Returns: { byAccount (monthly), totalSpend (monthly), bracketUsed (monthly), shortfall (monthly) }
+// Returns: { byAccount (monthly), totalSpend (monthly), bracketUsed (monthly), shortfall (monthly), rmdSurplus }
 export function withdrawalSequence(accounts, monthlySpend, options = {}) {
   const {
     bracketHeuristic = false,
@@ -593,7 +593,12 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
     const maxFromTraditional = bracketHeuristic
       ? Math.min(traditionalBracketCap, traditionalBalance)
       : traditionalBalance;
-    traditionalUsed = Math.min(neededFromTraditional, maxFromTraditional);
+    // RMD floor must not be truncated by bracket cap
+    // RMD is paid in full; bracket cap only applies to voluntary withdrawals above RMD
+    const voluntaryNeeded = Math.max(0, neededFromTraditional - rmdMonthly);
+    const voluntaryCap = Math.max(0, maxFromTraditional - rmdMonthly);
+    const voluntaryUsed = Math.min(voluntaryNeeded, voluntaryCap);
+    traditionalUsed = rmdMonthly + voluntaryUsed;
     remainingSpend -= traditionalUsed;
   }
 
@@ -607,15 +612,22 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
   // Shortfall if all accounts exhausted
   const shortfall = Math.max(0, remainingSpend);
 
+  // RMD surplus: amount by which RMD exceeds what was needed for spending
+  const rmdSurplus = Math.max(0, rmdMonthly - (monthlySpend - taxableUsed));
+
+  // Actual total spend is sum of all account withdrawals
+  const totalSpend = taxableUsed + traditionalUsed + rothUsed;
+
   return {
     byAccount: {
       Taxable: taxableUsed,
       'Traditional IRA / 401k': traditionalUsed,
       'Roth IRA': rothUsed,
     },
-    totalSpend: monthlySpend - shortfall,
+    totalSpend,
     bracketUsed: bracketHeuristic ? traditionalUsed : 0,
     shortfall,
+    rmdSurplus,
   };
 }
 

@@ -319,6 +319,30 @@ describe('withdrawalSequence', () => {
     // Implementation detail: cap traditional at ~44k (2024 12% bracket top for single)
     expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000 / 12);
   });
+
+  // Oracle tests for withdrawalSequence
+  it('never truncates an RMD below its floor', () => {
+    const r = withdrawalSequence(
+      { Taxable: 100_000, 'Traditional IRA / 401k': 500_000, 'Roth IRA': 0 },
+      1000,
+      {
+        bracketHeuristic: true,
+        traditionalBracketCap: 500,
+        rmdByAccount: { 'Traditional IRA / 401k': 2000 },
+      }
+    );
+    expect(r.byAccount['Traditional IRA / 401k']).toBe(2000);
+  });
+
+  it('reports the RMD surplus so the columns foot', () => {
+    const r = withdrawalSequence(
+      { Taxable: 0, 'Traditional IRA / 401k': 500_000, 'Roth IRA': 0 },
+      1000,
+      { rmdByAccount: { 'Traditional IRA / 401k': 2500 } }
+    );
+    expect(r.totalSpend).toBe(2500);
+    expect(r.rmdSurplus).toBe(1500);
+  });
 });
 
 describe('guardrailSpend', () => {
