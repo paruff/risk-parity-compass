@@ -18,7 +18,7 @@ test.beforeEach(async ({ page }) => {
       },
     })
   );
-  await page.goto('/shannonsdemon/');
+  await page.goto('/risk-parity-compass/');
   await page.waitForSelector('#root');
 });
 

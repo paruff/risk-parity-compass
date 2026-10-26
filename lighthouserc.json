@@ -4,7 +4,7 @@
       "startServerCommand": "npm run preview -- --port 4173",
       "startServerReadyPattern": "localhost",
       "startServerTimeout": 30,
-      "url": ["http://localhost:4173/shannonsdemon/"],
+      "url": ["http://localhost:4173/risk-parity-compass/"],
       "numberOfRuns": 1,
       "settings": {
         "chromeFlags": "--no-sandbox",

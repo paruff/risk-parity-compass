@@ -11,11 +11,11 @@ test.beforeEach(async ({ page }) => {
       },
     })
   );
-  await page.goto('/shannonsdemon/');
+  await page.goto('/risk-parity-compass/');
   await page.waitForSelector('#root');
 });
 
-test.describe("Shannon's Demon smoke", () => {
+test.describe('Risk Parity Compass smoke', () => {
   test('runs analysis with default tickers and shows targets', async ({ page }) => {
     await page.click('button:has-text("Run Analysis")');
     await expect(page.locator('text=Risk Parity Weights')).toBeVisible({ timeout: 15000 });

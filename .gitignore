@@ -230,3 +230,4 @@ playwright-report/
 
 # Subagent-driven-development scratch workspace (ledgers, briefs, reports)
 .superpowers/
+.playwright-mcp/

@@ -42,6 +42,7 @@ import {
   RMD_TABLE_VERSION,
   withdrawalSequence,
 } from './utils/withdrawal';
+import { buildPortfolioPath } from './utils/portfolioPath';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -675,21 +676,7 @@ export default function App() {
 
       // Build monthly portfolio values using target weights and aligned prices
       const tickersWithData = Object.keys(aligned);
-      const steps = aligned[tickersWithData[0]].length;
-      const portfolioValues = new Array(steps).fill(0);
-
-      for (let step = 0; step < steps; step++) {
-        let portfolioValue = 0;
-        for (const t of tickersWithData) {
-          const weight = targetWeights[t] ?? 0;
-          const price = aligned[t][step];
-          if (price) {
-            portfolioValue += weight * price;
-          }
-        }
-        // Scale to total portfolio value
-        portfolioValues[step] = portfolioValue * totalValue;
-      }
+      const portfolioValues = buildPortfolioPath(aligned, targetWeights, totalValue);
 
       // Apply income floor (SS/pension)
       const { netSpend } = await import('./utils/withdrawal');
@@ -1102,12 +1089,12 @@ export default function App() {
         <div style={S.logo}>⚖</div>
         <div>
           <h1 style={S.title}>
-            <Tooltip tip="Shannon's Demon: rebalance to harvest volatility variance, not chase returns">
-              Shannon's Demon
+            <Tooltip tip="Shannon's Demon (the strategy): rebalance to harvest volatility, not to chase returns">
+              Risk Parity Compass
             </Tooltip>
           </h1>
           <div style={{ ...S.subtitle, display: isMobile ? 'none' : 'block' }}>
-            Risk parity rebalancer · tax-efficient · retirement
+            Risk parity rebalancing · retirement drawdown · tax-aware
           </div>
         </div>
         <div style={{ marginLeft: 'auto', fontSize: 14, color: '#94a3b8', whiteSpace: 'nowrap' }}>
@@ -1397,7 +1384,7 @@ export default function App() {
             <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
               v{__VERSION__} ·{' '}
               <a
-                href={`https://github.com/paruff/shannonsdemon/commit/${__COMMIT__}`}
+                href={`https://github.com/paruff/risk-parity-compass/commit/${__COMMIT__}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: '#94a3b8' }}
@@ -2338,6 +2325,13 @@ export default function App() {
                             </div>
                             <div style={S.metricLbl}>Effective Horizon</div>
                           </div>
+                          {retirementResults.bridgeYears != null &&
+                            retirementResults.bridgeYears > 0 && (
+                              <div style={S.card}>
+                                <div style={S.metricVal}>{retirementResults.bridgeYears}</div>
+                                <div style={S.metricLbl}>Bridge Years to Income</div>
+                              </div>
+                            )}
                           {retirementResults.bufferStatus && (
                             <div style={S.card}>
                               <div style={S.metricVal}>
