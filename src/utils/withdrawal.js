@@ -49,7 +49,7 @@ export function requiredMinimumDistribution(age, priorYearEndBalance, options = 
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
 // monthlySpend: real monthly spend amount (constant in real terms)
 // options: { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0, guardrail = 'none', startingValue = 0 }
-// Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted }
+// Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted, bufferBalance, bufferRefills }
 export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   const {
     periodsPerYear = 12,
@@ -60,7 +60,15 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   } = options;
   const n = portfolioValues.length;
   if (n === 0) {
-    return { balances: [], depletedYear: null, maxDrawdown: 0, terminalReal: 0, yearsLasted: 0 };
+    return {
+      balances: [],
+      depletedYear: null,
+      maxDrawdown: 0,
+      terminalReal: 0,
+      yearsLasted: 0,
+      bufferBalance: 0,
+      bufferRefills: 0,
+    };
   }
   const effectiveStartingValue = startingValue ?? portfolioValues[0];
 
@@ -68,69 +76,114 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   let depletedYear = null;
   let peak = -Infinity;
   let maxDrawdown = 0;
-  let cumulativeSpend = 0;
 
-  // Cash buffer
-  const bufferSize = monthlySpend * (cashBufferMonths || 0);
-  let bufferBalance = bufferSize;
+  // Cash buffer: number of months of spend that can be covered without touching portfolio
+  let bufferMonthsRemaining = cashBufferMonths || 0;
+  let bufferRefills = 0;
+  let portfolioPeak = 0;
+  let bufferHasBeenExhausted = false;
 
   // Guardrail state
   let currentSpend = monthlySpend;
-  let guardrailState = {};
+
+  // Track nominal balance (portfolio value without withdrawals minus portfolio withdrawals)
+  // Start with the first portfolio value (no withdrawal yet at month 0 start)
+  let nominalBalance = portfolioValues[0];
 
   for (let i = 0; i < n; i++) {
-    // Real portfolio value at month i (divide by inflation factor)
+    // Inflation factor for this month
     const yearFraction = i / periodsPerYear;
     const inflationFactor = (1 + inflationRate) ** yearFraction;
-    const realPortfolioValue = portfolioValues[i] / inflationFactor;
 
-    // Apply guardrail if enabled
+    // Apply guardrail if enabled (guardrailSpend expects real spend, real portfolio value)
     if (guardrail !== 'none') {
+      const realPortfolioValue = nominalBalance / inflationFactor;
       const gr = guardrailSpend(
         currentSpend,
         realPortfolioValue,
         effectiveStartingValue,
         guardrail,
-        { wasCut: i > 0 }
+        { wasCut: i > 0, originalSpend: monthlySpend }
       );
       currentSpend = gr.nextSpend;
     }
 
-    // Add this month's spend (spend is constant in real terms)
-    cumulativeSpend += currentSpend;
+    // This month's nominal spend from portfolio (real spend * inflation, unless buffer covers it)
+    let nominalFromPortfolio = 0;
+    if (bufferMonthsRemaining > 0) {
+      // Buffer covers this month's spend
+      bufferMonthsRemaining--;
+    } else {
+      // Buffer exhausted, draw from portfolio
+      if (!bufferHasBeenExhausted && cashBufferMonths > 0) {
+        bufferHasBeenExhausted = true;
+      }
+      nominalFromPortfolio = currentSpend * inflationFactor;
+    }
 
-    // Draw from cash buffer first
-    const fromBuffer = Math.min(bufferBalance, currentSpend);
-    bufferBalance -= fromBuffer;
+    // Withdraw from nominal balance
+    nominalBalance = Math.max(0, nominalBalance - nominalFromPortfolio);
 
-    // Remaining spend comes from portfolio
-    const fromPortfolio = currentSpend - fromBuffer;
-
-    // Portfolio withdrawals = total spend - buffer used
-    const portfolioWithdrawals = cumulativeSpend - (bufferSize - bufferBalance);
-
-    // Real balance = real portfolio value - cumulative portfolio withdrawals
-    balances[i] = realPortfolioValue - portfolioWithdrawals;
+    // Real balance for reporting (at this time point, before growth for next month)
+    const realBalance = nominalBalance / inflationFactor;
+    balances[i] = realBalance;
 
     // Track peak and drawdown on real balances
-    if (balances[i] > peak) {
-      peak = balances[i];
+    if (realBalance > peak) {
+      peak = realBalance;
     }
-    if (peak > 0 && balances[i] < peak) {
-      const dd = (peak - balances[i]) / peak;
+    if (peak > 0 && realBalance < peak) {
+      const dd = (peak - realBalance) / peak;
       if (dd > maxDrawdown) maxDrawdown = dd;
     }
 
     // Check depletion (balance <= 0)
-    if (depletedYear === null && balances[i] <= 0) {
+    if (depletedYear === null && realBalance <= 0) {
       depletedYear = yearFraction;
+    }
+
+    // Apply portfolio growth for next month (if not last month)
+    if (i < n - 1) {
+      const growthFactor = portfolioValues[i + 1] / portfolioValues[i];
+      nominalBalance *= growthFactor;
+
+      // Track portfolio peak for buffer refill (nominal)
+      if (nominalBalance > portfolioPeak) {
+        portfolioPeak = nominalBalance;
+      }
+
+      // Refill buffer when portfolio exceeds 90% of its running peak AND buffer was previously exhausted
+      // Refill adds 1 month of buffer at a time (simplified)
+      if (
+        bufferHasBeenExhausted &&
+        bufferMonthsRemaining < (cashBufferMonths || 0) &&
+        portfolioPeak > 0 &&
+        nominalBalance > 0.9 * portfolioPeak
+      ) {
+        bufferMonthsRemaining++;
+        bufferRefills++;
+      }
+    } else {
+      // Last month - still track peak
+      if (nominalBalance > portfolioPeak) {
+        portfolioPeak = nominalBalance;
+      }
     }
   }
 
   const terminalReal = balances[n - 1];
   const yearsLasted = n / periodsPerYear;
 
-  return { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted };
+  // Return remaining buffer in real spend months
+  return {
+    balances,
+    depletedYear,
+    maxDrawdown,
+    terminalReal,
+    yearsLasted,
+    bufferBalance: bufferMonthsRemaining * monthlySpend,
+    bufferRefills,
+  };
 }
 
 // For every historical start period of length horizonYears, find the highest
@@ -275,7 +328,7 @@ function percentile(sorted, p) {
 // weights: { ticker: weight }
 // vols: { ticker: annualizedVol }
 // corrMatrix: { ticker: { [ticker2]: correlation } }
-// options: { simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed }
+// options: { simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed, guardrail, startingValue, age }
 // Returns: { terminalValues, successRate, bands: { p10, p25, p50, p75, p90 }, stats, depletionYears }
 export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options = {}) {
   const {
@@ -289,6 +342,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     seed = 42,
     guardrail = 'none',
     startingValue = 0,
+    age,
   } = options;
 
   const tickers = Object.keys(weights);
@@ -365,7 +419,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
   for (let sim = 0; sim < simulations; sim++) {
     const currentWeights = { ...weights };
     const pathPrices = { ...currentPrices };
-    let portfolioValue = 1; // normalized
+    let portfolioValue = startingValue || 1; // normalized if not provided
 
     for (let step = 0; step < steps; step++) {
       // Correlated shocks: Z = L · X

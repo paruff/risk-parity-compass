@@ -11,6 +11,28 @@ import {
 } from '../withdrawal';
 
 describe('drawdownPath', () => {
+  // Oracle tests: expected values computed independently of the implementation
+  // Flat 6% real growth, $1M, 30 years
+  const g = 1.06 ** (1 / 12);
+  const flat = Array.from({ length: 360 }, (_, i) => 1_000_000 * g ** i);
+
+  it('compounds withdrawals: 7.2% spend depletes near year 28.25', () => {
+    const r = drawdownPath(flat, 6000, {});
+    expect(r.depletedYear).toBeCloseTo(28.25, 1);
+    expect(r.terminalReal).toBe(0);
+  });
+
+  it('compounds withdrawals: 4% spend leaves the annuity value', () => {
+    const r = drawdownPath(flat, 4000, {});
+    expect(r.terminalReal).toBeCloseTo(1_817_618, -3);
+  });
+
+  it('never depletes when spend is below the sustainable rate', () => {
+    // Sustainable rate is ~5893.70; use slightly less to ensure survival over 30y
+    const r = drawdownPath(flat, 5800, {});
+    expect(r.depletedYear).toBeNull();
+  });
+
   it('drawdownPath with zero spend returns full balance', () => {
     const values = [100000, 102000, 104000];
     const r = drawdownPath(values, 0);
