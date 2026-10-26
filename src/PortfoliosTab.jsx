@@ -143,9 +143,9 @@ export default function PortfoliosTab({
       )
     : Infinity;
   const warnStyle = {
-    background: '#451a03',
-    border: '1px solid #b45309',
-    color: '#fde68a',
+    background: '#1c1200', // DESIGN.md colors.warning-surface
+    border: '1px solid #92400e', // colors.warning-border
+    color: '#fbbf24', // colors.warning
     borderRadius: 8,
     padding: '10px 14px',
     marginBottom: 12,
