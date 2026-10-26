@@ -324,30 +324,32 @@ describe('withdrawalSequence', () => {
 describe('guardrailSpend', () => {
   describe('rpr-80', () => {
     it('cuts to 6% when portfolio < 80% of starting', () => {
-      const r = guardrailSpend(50000, 70000, 100000, 'rpr-80');
+      const r = guardrailSpend(50000, 70000, 100000, 'rpr-80', { periodsPerYear: 1 });
       expect(r.nextSpend).toBeCloseTo(0.06 * 70000, 0); // 6% of current value
       expect(r.policyState).toBe('cut');
       expect(r.cutRate).toBe(0.06);
     });
 
     it('stays at 6% until recovery above 80%', () => {
-      let r = guardrailSpend(50000, 70000, 100000, 'rpr-80');
+      let r = guardrailSpend(50000, 70000, 100000, 'rpr-80', { periodsPerYear: 1 });
       expect(r.policyState).toBe('cut');
       r = guardrailSpend(r.nextSpend, 75000, 100000, 'rpr-80', {
         wasCut: true,
         originalSpend: 50000,
+        periodsPerYear: 1,
       });
       expect(r.policyState).toBe('cut');
       r = guardrailSpend(r.nextSpend, 85000, 100000, 'rpr-80', {
         wasCut: true,
         originalSpend: 50000,
+        periodsPerYear: 1,
       });
       expect(r.policyState).toBe('recovering'); // or 'normal'
       expect(r.nextSpend).toBeGreaterThan(0.06 * 85000); // back to normal rate
     });
 
     it('normal when portfolio >= 80%', () => {
-      const r = guardrailSpend(50000, 90000, 100000, 'rpr-80');
+      const r = guardrailSpend(50000, 90000, 100000, 'rpr-80', { periodsPerYear: 1 });
       expect(r.nextSpend).toBe(50000);
       expect(r.policyState).toBe('normal');
     });
@@ -355,7 +357,13 @@ describe('guardrailSpend', () => {
 
   describe('guyton-klinger', () => {
     it('cuts when portfolio drops below lower guardrail', () => {
-      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      const opts = {
+        initialRate: 0.05,
+        upperGuardrail: 0.06,
+        lowerGuardrail: 0.04,
+        periodsPerYear: 1,
+        step: 1,
+      };
       // Starting value 1M, initial rate 5% = 50000 initial spend
       // Portfolio dropped 20% to 800k, rate = 50000/800000 = 6.25% > upper (6%) → cut
       const r = guardrailSpend(50000, 800000, 1000000, 'guyton-klinger', opts);
@@ -364,7 +372,13 @@ describe('guardrailSpend', () => {
     });
 
     it('increases when portfolio above upper guardrail', () => {
-      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      const opts = {
+        initialRate: 0.05,
+        upperGuardrail: 0.06,
+        lowerGuardrail: 0.04,
+        periodsPerYear: 1,
+        step: 1,
+      };
       // Portfolio up enough that rate < lower guardrail (4%)
       // 50000 / 1500000 = 0.0333 < 0.04
       const r = guardrailSpend(50000, 1500000, 1000000, 'guyton-klinger', opts);
@@ -373,11 +387,20 @@ describe('guardrailSpend', () => {
     });
 
     it('respects floor/ceiling', () => {
-      const opts = { initialRate: 0.05, upperGuardrail: 0.06, lowerGuardrail: 0.04 };
+      const opts = {
+        initialRate: 0.05,
+        upperGuardrail: 0.06,
+        lowerGuardrail: 0.04,
+        periodsPerYear: 1,
+        step: 1,
+      };
       // Many cuts — should not go below floor (initialRate * 0.8) * startingValue
       let r = guardrailSpend(50000, 500000, 1000000, 'guyton-klinger', opts);
       for (let i = 0; i < 10; i++) {
-        r = guardrailSpend(r.nextSpend, 400000, 1000000, 'guyton-klinger', opts);
+        r = guardrailSpend(r.nextSpend, 400000, 1000000, 'guyton-klinger', {
+          ...opts,
+          gkState: r.gkState,
+        });
       }
       // Floor = initialRate * 0.8 * startingValue = 0.05 * 0.8 * 1000000 = 40000
       expect(r.nextSpend).toBeGreaterThanOrEqual(1000000 * 0.05 * 0.8);
@@ -386,23 +409,53 @@ describe('guardrailSpend', () => {
 
   describe('vpw', () => {
     it('returns age-based percentage', () => {
-      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70 });
-      // VPW at 70 ~ 5-6%
+      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70, periodsPerYear: 12 });
+      // VPW at 70 ~ 5.1% annual = ~0.425% monthly
       expect(r.nextSpend).toBeGreaterThan(0);
-      expect(r.nextSpend / 100000).toBeGreaterThan(0.04);
-      expect(r.nextSpend / 100000).toBeLessThan(0.1);
+      expect(r.nextSpend / 100000).toBeGreaterThan(0.004);
+      expect(r.nextSpend / 100000).toBeLessThan(0.01);
     });
 
     it('increases with age', () => {
-      const r70 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70 });
-      const r80 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 80 });
+      const r70 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 70, periodsPerYear: 12 });
+      const r80 = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 80, periodsPerYear: 12 });
       expect(r80.nextSpend).toBeGreaterThan(r70.nextSpend);
     });
 
-    it('caps at 100% for very old ages', () => {
-      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 110 });
-      expect(r.nextSpend).toBeLessThanOrEqual(100000);
+    it('caps at 100% of portfolio per period for very old ages', () => {
+      const r = guardrailSpend(50000, 100000, 100000, 'vpw', { age: 110, periodsPerYear: 12 });
+      // Cap is portfolioValue / periodsPerYear = 100000/12 ≈ 8333
+      expect(r.nextSpend).toBeLessThanOrEqual(100000 / 12);
     });
+  });
+});
+
+describe('guardrailSpend oracle tests (realistic scale)', () => {
+  it('rpr-80 cuts spending when the portfolio falls below 80%', () => {
+    const r = guardrailSpend(4000, 790_000, 1_000_000, 'rpr-80', { periodsPerYear: 12 });
+    // 6% annual of 790k = 47400/year = 3950/month
+    expect(r.nextSpend).toBeCloseTo(3950, 0);
+    expect(r.nextSpend).toBeLessThan(4000);
+  });
+
+  it('guyton-klinger does not raise spending at a sustainable rate', () => {
+    const r = guardrailSpend(4000, 1_000_000, 1_000_000, 'guyton-klinger', {
+      periodsPerYear: 12,
+      initialRate: 0.048,
+    });
+    expect(r.nextSpend).toBe(4000);
+    expect(r.policyState).toBe('normal');
+  });
+
+  it('vpw tracks the age percentage', () => {
+    const r = guardrailSpend(4000, 1_000_000, 1_000_000, 'vpw', { age: 70, periodsPerYear: 12 });
+    // VPW at 70 ~ 5.1% annual
+    expect(r.nextSpend).toBeCloseTo((1_000_000 * 0.051) / 12, 0);
+  });
+
+  it('never spends more than the portfolio in a period', () => {
+    const r = guardrailSpend(4000, 1000, 1_000_000, 'rpr-80', { periodsPerYear: 12 });
+    expect(r.nextSpend).toBeLessThanOrEqual(1000);
   });
 });
 

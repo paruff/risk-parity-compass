@@ -105,7 +105,7 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
         realPortfolioValue,
         effectiveStartingValue,
         guardrail,
-        { wasCut: i > 0, originalSpend: monthlySpend }
+        { wasCut: i > 0, originalSpend: monthlySpend, periodsPerYear, step: i }
       );
       currentSpend = gr.nextSpend;
     }
@@ -492,8 +492,10 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
 
       // Apply guardrail if enabled
       if (guardrail !== 'none') {
-        const gr = guardrailSpend(realSpend, portfolioValue, startingValue || 1, guardrail, {
+        const gr = guardrailSpend(realSpend, portfolioValue, startingValue, guardrail, {
           wasCut: step > 0,
+          periodsPerYear: 12,
+          step,
         });
         realSpend = gr.nextSpend * inflationFactor;
       }
@@ -709,11 +711,28 @@ const VPW_TABLE = {
 };
 
 // Guardrail spending policies: rpr-80, guyton-klinger, vpw
+// currentSpend: per-period spend (e.g., monthly)
+// portfolioValue: current portfolio value
+// startingValue: portfolio value at start (for floor/ceiling calculations)
+// policy: 'rpr-80' | 'guyton-klinger' | 'vpw'
+// opts: { periodsPerYear = 12, initialRate, upperGuardrail, lowerGuardrail, age, vpwTable, originalSpend, wasCut, step }
+// Returns: { nextSpend, policyState, cutRate, gkState, withdrawalRate }
 export function guardrailSpend(currentSpend, portfolioValue, startingValue, policy, opts = {}) {
+  const periodsPerYear = opts.periodsPerYear ?? 12;
+  const step = opts.step ?? 0; // current step (month) for year-boundary evaluation
+  const isYearBoundary = step > 0 && step % periodsPerYear === 0;
+
   if (policy === 'rpr-80') {
     const threshold = 0.8 * startingValue;
+    // Annual cut rate = 6%, per-period = 6% / periodsPerYear
+    const cutRatePerPeriod = 0.06 / periodsPerYear;
+
     if (portfolioValue < threshold) {
-      return { nextSpend: 0.06 * portfolioValue, policyState: 'cut', cutRate: 0.06 };
+      return {
+        nextSpend: cutRatePerPeriod * portfolioValue,
+        policyState: 'cut',
+        cutRate: cutRatePerPeriod,
+      };
     }
     // Recovery: if previously cut and now above threshold, return to normal
     if (opts.wasCut && portfolioValue >= threshold) {
@@ -725,13 +744,21 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
 
   if (policy === 'guyton-klinger') {
     const { initialRate = 0.05, upperGuardrail = 0.06, lowerGuardrail = 0.04 } = opts;
-    const currentRate = currentSpend / portfolioValue;
+
+    // Only evaluate guardrails on year boundaries
+    if (!isYearBoundary) {
+      return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0, gkState: opts.gkState };
+    }
+
+    // Annualized current withdrawal rate
+    const currentAnnualSpend = currentSpend * periodsPerYear;
+    const currentRate = currentAnnualSpend / portfolioValue;
     const floor = initialRate * 0.8;
     const ceiling = initialRate * 1.2;
 
     // Get previous state from opts
     const prevState = opts.gkState ?? {
-      rate: currentRate,
+      rate: (currentSpend * periodsPerYear) / portfolioValue,
       spend: currentSpend,
       consecutiveCuts: 0,
       consecutiveIncreases: 0,
@@ -741,14 +768,14 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
     let policyState = 'normal';
 
     if (currentRate > upperGuardrail) {
-      // Cut spending by 10%
-      nextSpend = Math.max(currentSpend * 0.9, startingValue * floor);
+      // Cut spending by 10% (per period)
+      nextSpend = Math.max(currentSpend * 0.9, (startingValue * floor) / periodsPerYear);
       policyState = 'cut';
       prevState.consecutiveCuts += 1;
       prevState.consecutiveIncreases = 0;
     } else if (currentRate < lowerGuardrail) {
-      // Increase spending by 10%
-      nextSpend = Math.min(currentSpend * 1.1, startingValue * ceiling);
+      // Increase spending by 10% (per period)
+      nextSpend = Math.min(currentSpend * 1.1, (startingValue * ceiling) / periodsPerYear);
       policyState = 'prosperity';
       prevState.consecutiveIncreases += 1;
       prevState.consecutiveCuts = 0;
@@ -758,11 +785,14 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
       prevState.consecutiveIncreases = 0;
     }
 
-    // Apply floor/ceiling
-    nextSpend = Math.max(Math.min(nextSpend, startingValue * ceiling), startingValue * floor);
+    // Apply floor/ceiling (per period)
+    nextSpend = Math.max(
+      Math.min(nextSpend, (startingValue * ceiling) / periodsPerYear),
+      (startingValue * floor) / periodsPerYear
+    );
 
     // Update state
-    prevState.rate = nextSpend / portfolioValue;
+    prevState.rate = (nextSpend * periodsPerYear) / portfolioValue;
     prevState.spend = nextSpend;
 
     return { nextSpend, policyState, cutRate: 0, gkState: prevState };
@@ -774,22 +804,25 @@ export function guardrailSpend(currentSpend, portfolioValue, startingValue, poli
       throw new Error('VPW policy requires age parameter');
     }
     const table = vpwTable ?? VPW_TABLE;
-    // Get the withdrawal percentage for the given age
-    // Clamp age to table bounds
+    // Get the withdrawal percentage for the given age (annual rate)
     const ageKeys = Object.keys(table).map(Number);
     const minAge = Math.min(...ageKeys);
     const maxAge = Math.max(...ageKeys);
     const clampedAge = Math.max(minAge, Math.min(maxAge, age));
-    const withdrawalRate = table[clampedAge] ?? table[maxAge];
+    const annualWithdrawalRate = table[clampedAge] ?? table[maxAge];
 
-    // Cap at 100% of portfolio
-    const nextSpend = Math.min(currentSpend, portfolioValue * withdrawalRate, portfolioValue);
+    // Per-period withdrawal rate
+    const perPeriodRate = annualWithdrawalRate / periodsPerYear;
+
+    // VPW recalculates spend each period based on portfolio value and age
+    // Cap at 100% of portfolio per period
+    const nextSpend = Math.min(portfolioValue * perPeriodRate, portfolioValue / periodsPerYear);
 
     return {
       nextSpend,
       policyState: 'normal',
       cutRate: 0,
-      withdrawalRate,
+      withdrawalRate: annualWithdrawalRate,
     };
   }
 
