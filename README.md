@@ -102,7 +102,7 @@ Pre-commit runs Lefthook + lint-staged on staged files. CI runs every gate plus 
 | **M3.5** | **Correctness remediation** — the engine's arithmetic, guardrail period contract, and a numeric test oracle | **next** |
 | M4 | Portfolio templates, diversification view, comparison | planned |
 | M5 | Storage v2, print/PDF, accessibility preferences | planned |
-| M6 | Learning journey: investor-level progression and distance learning | v1 built (rubric, cost-literacy module, spaced refresher); modules 2–5 pending |
+| M6 | Learning journey: investor-level progression and distance learning | built: rubric, five engine-graded modules, spaced refresher (PR #28) |
 
 The 2026-10-26 review found that M1–M3 shipped arithmetic defects that make the headline retirement numbers optimistic by roughly 2× (withdrawals were never compounded) plus a unit mismatch in the Monte Carlo and guardrail policies applied monthly as if annual. **No new feature milestone starts until M3.5 closes those findings.** See [`docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`](docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md).
 

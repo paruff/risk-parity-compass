@@ -64,7 +64,45 @@ test('a due refresher shows passively on the tab, with no push', async ({ page }
   await page.reload();
   await expect(page.getByRole('tab', { name: /Learn \(refresher due\)/ })).toBeVisible();
   await page.getByRole('tab', { name: /^Learn/ }).click();
-  await expect(page.getByText(/refresher on fund costs is due/)).toBeVisible();
+  await expect(page.getByText(/refresher on this topic is due/)).toBeVisible();
   // second attempt rotates to the second variant
   await expect(page.getByText(/\$250,000 grows 5%/)).toBeVisible();
+});
+
+// Oracles are hand-computed, independent of the app (see learning.test.js).
+const MODULE_ANSWERS = [
+  ['Correlation and diversification', '11.31', /11\.31%/],
+  ['Required minimum distributions', '24390', /\$24,390/],
+  ['The 80% spending guardrail', '3750', /\$3,750 a month/],
+  ['Which account to draw from', '2000', /\$2,000 this month/],
+];
+
+for (const [title, , shown] of MODULE_ANSWERS) {
+  test(`module "${title}" grades against its oracle`, async ({ page }) => {
+    await page.getByRole('button', { name: new RegExp(title) }).click();
+    await expect(page.getByRole('button', { name: new RegExp(title) })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    await page.getByLabel(/Your estimate in/).fill('1');
+    await page.getByRole('button', { name: 'Check my answer' }).click();
+    await expect(page.getByText('Not quite.')).toBeVisible();
+    await expect(page.getByText(shown)).toBeVisible();
+
+    await page.getByRole('button', { name: 'Try another' }).click();
+    await expect(page.getByText('Not quite.')).toBeHidden();
+  });
+}
+
+test('exact oracle answer on the first guardrail item is correct', async ({ page }) => {
+  await page.getByRole('button', { name: /80% spending guardrail/ }).click();
+  await page.getByLabel(/Your estimate in/).fill('3750');
+  await page.getByRole('button', { name: 'Check my answer' }).click();
+  await expect(page.getByText('Correct.')).toBeVisible();
+});
+
+test('module picker is axe-clean', async ({ page }) => {
+  await page.getByRole('button', { name: /Required minimum distributions/ }).click();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
 });

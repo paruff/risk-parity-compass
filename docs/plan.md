@@ -14,7 +14,7 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 | M3.5 | Correctness remediation | #22 | Closed | PR #17 merged | — |
 | M4 | Portfolio library & comparison | #10 | Closed | PR #18 (templates module) and PR #19 (Portfolios tab) merged | — |
 | M5 | Production hardening & accessibility | #11 | Open | In review | Storage v2, resilience, a11y, print/PDF |
-| M6 | Learning journey | #23 | Open | Scope: `docs/superpowers/specs/2026-10-26-m6-learning-journey-scope.md` | Slices A–C built on `m6-learning-journey` (PR open); modules 2–5 pending |
+| M6 | Learning journey | #23 | Open | Scope: `docs/superpowers/specs/2026-10-26-m6-learning-journey-scope.md` | Built on `m6-learning-journey` (PR #28 open); contextual field links deferred |
 
 ## Housekeeping items (not milestones)
 

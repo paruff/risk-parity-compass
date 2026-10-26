@@ -19,7 +19,7 @@ Storage: one `learning` object inside storage v2 (`rubricChoice`, per-module `{c
 
 ## Out of scope
 
-Gating, levels-as-badges, streaks, points, certificates, AI tutor/profiling, learning-styles, accounts, notifications, any outcome claim. Modules 2–5 (correlation, withdrawal-rate arithmetic, guardrails, tax sequencing) follow the Slice B pattern in later PRs once B is reviewed.
+Gating, levels-as-badges, streaks, points, certificates, AI tutor/profiling, learning-styles, accounts, notifications, any outcome claim. Built in the same PR after review feedback: modules 2–5 (correlation, required minimum distributions, 80% guardrail, withdrawal sequencing), each graded by the app’s own engine function (RMD, `guardrailSpend`, `withdrawalSequence`) or a closed form, with hand-computed test oracles. Deferred: contextual links from the fee/RMD/allocation fields.
 
 ## Acceptance
 

@@ -8,6 +8,9 @@ import {
   itemFor,
   recordAttempt,
   dueModules,
+  MODULES,
+  MODULE_IDS,
+  truthOf,
 } from '../learning';
 
 const DAY = 864e5;
@@ -116,5 +119,59 @@ describe('RUBRIC', () => {
       expect(r.id).toBe(i + 1);
       expect(r.name && r.can && r.error).toBeTruthy();
     });
+  });
+});
+
+describe('module registry', () => {
+  const first = id => MODULES[id].items[0];
+  const second = id => MODULES[id].items[1];
+
+  it('has five modules, each with two items, worked example, title and honest limits', () => {
+    expect(MODULE_IDS).toEqual(['cost', 'correlation', 'withdrawal', 'guardrail', 'sequencing']);
+    MODULE_IDS.forEach(id => {
+      const m = MODULES[id];
+      expect(m.items.length).toBeGreaterThanOrEqual(2);
+      expect(m.title && m.worked && m.limits && m.next).toBeTruthy();
+      m.items.forEach(i => expect(i.module).toBe(id));
+    });
+  });
+
+  it('correlation: two-asset volatility at zero correlation (hand-computed)', () => {
+    // 50/50, 16% each, ρ=0: √(2·0.25·0.0256)=11.3137%
+    expect(truthOf(first('correlation'))).toBeCloseTo(11.3137, 3);
+    // 60/40, 12% and 20%: √(0.36·0.0144 + 0.16·0.04)=10.7629%
+    expect(truthOf(second('correlation'))).toBeCloseTo(10.7629, 3);
+  });
+
+  it('withdrawal: RMD from the IRS table (75 → 24.6, 73 → 26.5)', () => {
+    expect(truthOf(first('withdrawal'))).toBeCloseTo(600000 / 24.6, 2);
+    expect(truthOf(second('withdrawal'))).toBeCloseTo(500000 / 26.5, 2);
+  });
+
+  it('guardrail: rpr-80 cuts to 6%/12 of current value below 80% of start', () => {
+    expect(truthOf(first('guardrail'))).toBeCloseTo(3750, 6);
+    expect(truthOf(second('guardrail'))).toBeCloseTo(3500, 6);
+  });
+
+  it('sequencing: draws taxable first, traditional only for the gap or RMD floor', () => {
+    expect(truthOf(first('sequencing'))).toBeCloseTo(2000, 6);
+    expect(truthOf(second('sequencing'))).toBeCloseTo(5000, 6);
+  });
+
+  it('every module grades, gives three-part feedback, and rejects blanks', () => {
+    MODULE_IDS.forEach(id => {
+      const item = first(id);
+      const t = truthOf(item);
+      expect(gradeAnswer(item, t).correct).toBe(true);
+      expect(gradeAnswer(item, '').correct).toBe(false);
+      expect(gradeAnswer(item, t * 1.2).correct).toBe(false);
+      expect(Object.keys(feedback(item, t * 1.2, 5))).toEqual(['where', 'how', 'next']);
+    });
+  });
+
+  it('itemFor rotates within the chosen module', () => {
+    expect(itemFor(null, 'guardrail')).toBe(first('guardrail'));
+    const l = recordAttempt(null, 'guardrail', { correct: true, confidence: 3, now: T0 });
+    expect(itemFor(l, 'guardrail')).toBe(second('guardrail'));
   });
 });
