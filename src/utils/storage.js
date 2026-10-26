@@ -85,6 +85,15 @@ export function importPlan(json) {
   if (s.accounts !== undefined && (typeof s.accounts !== 'object' || s.accounts === null)) {
     throw new Error('Plan accounts are invalid.');
   }
+  if (
+    s.learning !== undefined &&
+    (typeof s.learning !== 'object' ||
+      s.learning === null ||
+      Array.isArray(s.learning) ||
+      (s.learning.modules != null && typeof s.learning.modules !== 'object'))
+  ) {
+    throw new Error('Plan learning progress is invalid.');
+  }
   const scenarios = doc.scenarios ?? [];
   if (!Array.isArray(scenarios)) throw new Error('Plan scenarios are invalid.');
   return { state: { ...s, schemaVersion: SCHEMA_VERSION }, scenarios };

@@ -104,3 +104,23 @@ describe('price cache', () => {
     expect(getCachedQuote('SPY', '3mo')).toBeNull();
   });
 });
+
+describe('learning progress in plan files', () => {
+  const wrap = state => JSON.stringify({ app: 'shannonsdemon', schemaVersion: 2, state });
+
+  it('round-trips learning state through export/import', () => {
+    const learning = { rubricChoice: 3, modules: { cost: { attempts: 1, nextDue: 5 } } };
+    const out = importPlan(exportPlan({ tickers: ['SPY'], learning }));
+    expect(out.state.learning).toEqual(learning);
+  });
+
+  it('rejects malformed learning state', () => {
+    expect(() => importPlan(wrap({ learning: 'x' }))).toThrow(/learning/i);
+    expect(() => importPlan(wrap({ learning: [] }))).toThrow(/learning/i);
+    expect(() => importPlan(wrap({ learning: { modules: 5 } }))).toThrow(/learning/i);
+  });
+
+  it('accepts plans saved before M6 (no learning key)', () => {
+    expect(importPlan(wrap({ tickers: ['SPY'] })).state.learning).toBeUndefined();
+  });
+});
