@@ -736,6 +736,12 @@ export default function App() {
         }
       }
 
+      // Drawdown path with cash buffer
+      const bufferDrawdown = drawdownPath(portfolioValues, netMonthlySpend, {
+        inflationRate: retirement.inflationRate,
+        cashBufferMonths: retirement.cashBufferMonths,
+      });
+
       setRetirementResults({
         ...rolling,
         effectiveYears,
@@ -743,6 +749,13 @@ export default function App() {
         bands: mc.bands,
         rmdTable,
         mcStats: mc.stats,
+        bufferStatus: {
+          months: retirement.cashBufferMonths,
+          remainingMonths:
+            bufferDrawdown.balances.length > 0
+              ? Math.max(0, bufferDrawdown.balances[0] / netMonthlySpend) // Simplified: assume first balance shows buffer
+              : 0,
+        },
       });
     } catch (e) {
       console.error('Retirement calculation failed:', e);
@@ -2325,6 +2338,16 @@ export default function App() {
                             </div>
                             <div style={S.metricLbl}>Effective Horizon</div>
                           </div>
+                          {retirementResults.bufferStatus && (
+                            <div style={S.card}>
+                              <div style={S.metricVal}>
+                                {retirementResults.bufferStatus.remainingMonths?.toFixed(1) ??
+                                  retirementResults.bufferStatus.months ??
+                                  '—'}
+                              </div>
+                              <div style={S.metricLbl}>Cash Buffer Remaining (Mo)</div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Disclaimer */}
