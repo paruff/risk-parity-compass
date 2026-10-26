@@ -13,8 +13,9 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 | M3 | Dynamic spending & income floor | #9 | Closed | Tasks 1–5 via #12/#14/#17; Task 6 via PR #25 | — |
 | M3.5 | Correctness remediation | #22 | Closed | PR #17 merged | — |
 | M4 | Portfolio library & comparison | #10 | Closed | PR #18 (templates module) and PR #19 (Portfolios tab) merged | — |
-| M5 | Production hardening & accessibility | #11 | Open | In review | Storage v2, resilience, a11y, print/PDF |
-| M6 | Learning journey | #23 | Open | Scope: `docs/superpowers/specs/2026-10-26-m6-learning-journey-scope.md` | Built on `m6-learning-journey` (PR #28 open); contextual field links deferred |
+| M5 | Production hardening & accessibility | #11 | Closed | PR #27 merged | — |
+| M6 | Learning journey | #23 | Closed | PR #28 merged | Contextual field links deferred; guardrail and sequencing modules corrected under M7 (#29, #35) |
+| M7 | Expert review remediation | #37 | Open | Plan: `docs/superpowers/plans/2026-10-26-m7-expert-review-remediation.md` | #29–#36, in order; #29 and #30 are Critical |
 
 ## Housekeeping items (not milestones)
 
@@ -33,7 +34,8 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 5. **Chore commit** — `.gitignore` + `.claude/` — done (PR #20).
 6. PRs #19 (M4) and #25 (Task 6) merged; PR #20 (these docs) pending.
 7. **M5** — plan in `docs/superpowers/plans/` before code (docs before code).
-8. **M6** — scope first; see `docs/superpowers/research/2026-10-26-investor-levels-and-learning-science.md`.
+8. **M6** — scope first; see `docs/superpowers/research/2026-10-26-investor-levels-and-learning-science.md`. Done (PR #28).
+9. **M7** — fix the expert-review findings before further features: #29 guardrail cap and #30 honest historical metrics first.
 
 ## M3 Task 6 — acceptance
 

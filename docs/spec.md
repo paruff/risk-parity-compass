@@ -81,7 +81,12 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 | Yahoo unofficial API may break; CORS blocks localhost | `Known Limitations.md`; M5 resilience |
 | Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
 | `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
-| Heuristic tax model; federal only | `Known Limitations.md` |
+| Heuristic tax model; federal only | `Known Limitations.md`; M7 #35 |
+| **Critical:** `rpr-80` trip can raise spending (starting rate < 4.8%) | M7 #29 |
+| **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 |
+| Templates diverge from published sources (All Seasons, Golden Ratio, `risk-parity-core`) | M7 #31 |
+| No pre-2004 history; Gaussian constant-correlation Monte Carlo | M7 #32, #33 |
+| "Risk parity" weights are inverse-volatility | M7 #34 |
 
 ## 7. Definition of done (roadmap)
 
