@@ -77,18 +77,20 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   let peak = -Infinity;
   let maxDrawdown = 0;
 
-  // Cash buffer: number of months of spend that can be covered without touching portfolio
-  let bufferMonthsRemaining = cashBufferMonths || 0;
+  // Cash buffer: funded from portfolio at month 0, tracked as separate nominal balance
+  const bufferTarget = monthlySpend * (cashBufferMonths || 0);
+  let bufferBalance = bufferTarget;
   let bufferRefills = 0;
   let portfolioPeak = 0;
   let bufferHasBeenExhausted = false;
+  let drawdownOccurred = false; // Track if portfolio fell below 90% of peak
 
   // Guardrail state
   let currentSpend = monthlySpend;
 
   // Track nominal balance (portfolio value without withdrawals minus portfolio withdrawals)
-  // Start with the first portfolio value (no withdrawal yet at month 0 start)
-  let nominalBalance = portfolioValues[0];
+  // Start with first portfolio value MINUS the buffer funding
+  let nominalBalance = portfolioValues[0] - bufferTarget;
 
   for (let i = 0; i < n; i++) {
     // Inflation factor for this month
@@ -108,20 +110,20 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
       currentSpend = gr.nextSpend;
     }
 
-    // This month's nominal spend from portfolio (real spend * inflation, unless buffer covers it)
-    let nominalFromPortfolio = 0;
-    if (bufferMonthsRemaining > 0) {
-      // Buffer covers this month's spend
-      bufferMonthsRemaining--;
-    } else {
-      // Buffer exhausted, draw from portfolio
-      if (!bufferHasBeenExhausted && cashBufferMonths > 0) {
-        bufferHasBeenExhausted = true;
-      }
-      nominalFromPortfolio = currentSpend * inflationFactor;
+    // This month's nominal spend
+    const nominalSpend = currentSpend * inflationFactor;
+
+    // Draw from cash buffer first (in nominal terms)
+    const fromBuffer = Math.min(bufferBalance, nominalSpend);
+    bufferBalance -= fromBuffer;
+    if (fromBuffer > 0 && bufferBalance === 0) {
+      bufferHasBeenExhausted = true;
     }
 
-    // Withdraw from nominal balance
+    // Remaining spend comes from portfolio
+    const nominalFromPortfolio = nominalSpend - fromBuffer;
+
+    // Withdraw from portfolio nominal balance
     nominalBalance = Math.max(0, nominalBalance - nominalFromPortfolio);
 
     // Real balance for reporting (at this time point, before growth for next month)
@@ -135,6 +137,10 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
     if (peak > 0 && realBalance < peak) {
       const dd = (peak - realBalance) / peak;
       if (dd > maxDrawdown) maxDrawdown = dd;
+      // Mark that a drawdown has occurred (fell below 90% of peak)
+      if (dd > 0.1) {
+        drawdownOccurred = true;
+      }
     }
 
     // Check depletion (balance <= 0)
@@ -153,14 +159,18 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
       }
 
       // Refill buffer when portfolio exceeds 90% of its running peak AND buffer was previously exhausted
+      // AND a drawdown has occurred (portfolio fell below 90% of peak at some point)
       // Refill adds 1 month of buffer at a time (simplified)
       if (
         bufferHasBeenExhausted &&
-        bufferMonthsRemaining < (cashBufferMonths || 0) &&
+        drawdownOccurred &&
+        bufferBalance < bufferTarget &&
         portfolioPeak > 0 &&
         nominalBalance > 0.9 * portfolioPeak
       ) {
-        bufferMonthsRemaining++;
+        const refillAmount = Math.min(bufferTarget - bufferBalance, nominalBalance * 0.1);
+        bufferBalance += refillAmount;
+        nominalBalance -= refillAmount;
         bufferRefills++;
       }
     } else {
@@ -181,7 +191,7 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
     maxDrawdown,
     terminalReal,
     yearsLasted,
-    bufferBalance: bufferMonthsRemaining * monthlySpend,
+    bufferBalance: bufferBalance,
     bufferRefills,
   };
 }

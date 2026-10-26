@@ -65,24 +65,65 @@ describe('drawdownPath', () => {
   it('drawdownPath with cash buffer draws from buffer first', () => {
     const values = Array.from({ length: 120 }, (_, i) => 100000);
     const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
-    // First 12 months should come from buffer, portfolio untouched
-    expect(r.balances[11]).toBe(100000);
-    expect(r.balances[12]).toBeLessThan(100000);
+    // Buffer funded at month 0: 100000 - 48000 = 52000
+    // First 12 months (indices 0-11) draw from buffer, portfolio stays at 52000
+    expect(r.balances[0]).toBe(52000);
+    expect(r.balances[11]).toBe(52000);
+    // Month 12: buffer exhausted, portfolio draws
+    expect(r.balances[12]).toBeLessThan(52000);
   });
 
-  it('drawdownPath buffer refills when portfolio grows', () => {
-    const values = Array.from({ length: 120 }, (_, i) => 100000 * 1.01 ** i); // growing
-    const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
-    // Buffer should refill; portfolio balance should reflect refill
-    expect(r.balances[24]).toBeGreaterThan(100000 - 4000 * 12);
+  it('drawdownPath buffer refills when portfolio recovers after drawdown', () => {
+    // Portfolio: grows, drops 20%, then recovers past previous peak
+    const values = [
+      1000000,
+      1010000,
+      1020000,
+      1030000,
+      1040000,
+      1050000,
+      1060000,
+      1070000,
+      1080000,
+      1090000, // growth
+      872000,
+      906880,
+      943155,
+      980881,
+      1020116,
+      1060921,
+      1103358,
+      1147492,
+      1193392,
+      1241128, // drop 20%, recover 4%/month past peak
+      1253539,
+      1266074,
+      1278735,
+      1291522,
+      1304438,
+      1317482,
+      1330657,
+      1343963,
+      1357403,
+      1370977, // continued growth
+    ];
+    const r = drawdownPath(values, 5000, { inflationRate: 0, cashBufferMonths: 3 });
+    // Buffer funded at month 0: 1M - 15k = 985k
+    // Buffer lasts 3 months, then portfolio draws during drop
+    // When portfolio recovers past 90% of peak, buffer should refill
+    expect(r.bufferRefills).toBeGreaterThan(0);
+    expect(r.bufferBalance).toBeGreaterThan(0);
   });
 
   it('drawdownPath buffer depletion forces portfolio withdrawal', () => {
     const values = Array.from({ length: 60 }, (_, i) => 100000); // flat
     const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 3 });
-    // Buffer lasts 3 months, then portfolio draws
-    expect(r.balances[2]).toBe(100000);
-    expect(r.balances[3]).toBe(96000);
+    // Buffer funded at month 0: 100000 - 12000 = 88000
+    // Buffer lasts 3 months (indices 0, 1, 2), portfolio stays at 88000
+    expect(r.balances[0]).toBe(88000);
+    expect(r.balances[2]).toBe(88000);
+    // Month 3: buffer exhausted, portfolio draws
+    expect(r.balances[3]).toBe(84000);
   });
 });
 
