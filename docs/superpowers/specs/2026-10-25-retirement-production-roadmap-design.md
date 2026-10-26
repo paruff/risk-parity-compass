@@ -360,6 +360,7 @@ UI tests must assert **values, not labels**: a metric cell must match `/^\d+(\.\
 - `guardrailSpend` with `rpr-80`, `guyton-klinger`, `vpw`.
 - Social Security / pension netted against spending; bridge-year display.
 - **Exit:** user can compare static vs guardrail spending outcomes.
+- **Task 6 delivered 2026-10-26:** Retirement tab compares static vs guardrail Monte Carlo (success probability, median and P10 terminal value) on identical seeds. Also fixed: the Monte Carlo re-inflated guardrail spend (a never-tripping guardrail spent more than static), and `age` was never passed to VPW.
 
 ### M3.5 — Correctness remediation *(complete; blocked M4 until merged)*
 Findings: `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`.

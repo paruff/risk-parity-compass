@@ -21,6 +21,7 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 - **Withdrawal sequencing** — taxable → traditional (with an RMD floor) → Roth
 - **RMD table** — IRS Uniform Lifetime Table, with the SECURE 2.0 73/75 eligibility split
 - **Spending guardrails** — RPR-80, Guyton-Klinger and VPW policies
+- **Static vs guardrail** — Monte Carlo success probability and terminal values side by side, on identical simulated markets
 - **Income floor** — Social Security and pension netting, with bridge-year awareness
 - **Historical backtest** — rolling safe and perpetual withdrawal rates
 - **Monte Carlo** — fan chart of simulated outcomes with withdrawals
