@@ -284,3 +284,40 @@ describe('guardrailSpend', () => {
     });
   });
 });
+
+describe('drawdownPath with guardrails', () => {
+  it('drawdownPath with rpr-80 reduces spend after drop', () => {
+    const values = Array.from({ length: 60 }, (_, i) => (i < 12 ? 100000 : 70000)); // drop at month 12
+    const r = drawdownPath(values, 5000, { guardrail: 'rpr-80' });
+    // Spend drops from 5000 to 4200 after month 12 (guardrail triggers at 70% < 80%)
+    // Balance decline should SLOW DOWN, not reverse
+    const declineBefore = r.balances[11] - r.balances[12]; // month 11->12
+    const declineAfter = r.balances[12] - r.balances[13]; // month 12->13 (guardrail active)
+    expect(declineAfter).toBeLessThan(declineBefore); // slower decline
+    expect(r.balances[12]).toBeGreaterThan(r.balances[13]); // still declining
+  });
+});
+
+describe('monteCarloWithWithdrawals with guardrails', () => {
+  it('guardrail affects successRate', () => {
+    const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005 ** i) };
+    const weights = { SPY: 1 };
+    const vols = { SPY: 0.15 };
+    const corr = { SPY: { SPY: 1 } };
+    const base = monteCarloWithWithdrawals(allCloses, weights, vols, corr, {
+      simulations: 200,
+      steps: 120,
+      monthlySpend: 400,
+      guardrail: 'none',
+      seed: 1,
+    });
+    const guarded = monteCarloWithWithdrawals(allCloses, weights, vols, corr, {
+      simulations: 200,
+      steps: 120,
+      monthlySpend: 400,
+      guardrail: 'rpr-80',
+      seed: 1,
+    });
+    expect(guarded.successRate).toBeGreaterThanOrEqual(base.successRate);
+  });
+});

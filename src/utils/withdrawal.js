@@ -48,14 +48,21 @@ export function requiredMinimumDistribution(age, priorYearEndBalance, options = 
 // Withdraw a fixed real amount monthly from a portfolio path.
 // portfolioValues: number[] (monthly nominal portfolio values WITHOUT withdrawals)
 // monthlySpend: real monthly spend amount (constant in real terms)
-// options: { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 }
+// options: { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0, guardrail = 'none', startingValue = 0 }
 // Returns: { balances, depletedYear, maxDrawdown, terminalReal, yearsLasted }
 export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
-  const { periodsPerYear = 12, inflationRate = 0, cashBufferMonths = 0 } = options;
+  const {
+    periodsPerYear = 12,
+    inflationRate = 0,
+    cashBufferMonths = 0,
+    guardrail = 'none',
+    startingValue,
+  } = options;
   const n = portfolioValues.length;
   if (n === 0) {
     return { balances: [], depletedYear: null, maxDrawdown: 0, terminalReal: 0, yearsLasted: 0 };
   }
+  const effectiveStartingValue = startingValue ?? portfolioValues[0];
 
   const balances = new Array(n);
   let depletedYear = null;
@@ -67,21 +74,37 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
   const bufferSize = monthlySpend * (cashBufferMonths || 0);
   let bufferBalance = bufferSize;
 
+  // Guardrail state
+  let currentSpend = monthlySpend;
+  let guardrailState = {};
+
   for (let i = 0; i < n; i++) {
     // Real portfolio value at month i (divide by inflation factor)
     const yearFraction = i / periodsPerYear;
     const inflationFactor = (1 + inflationRate) ** yearFraction;
     const realPortfolioValue = portfolioValues[i] / inflationFactor;
 
+    // Apply guardrail if enabled
+    if (guardrail !== 'none') {
+      const gr = guardrailSpend(
+        currentSpend,
+        realPortfolioValue,
+        effectiveStartingValue,
+        guardrail,
+        { wasCut: i > 0 }
+      );
+      currentSpend = gr.nextSpend;
+    }
+
     // Add this month's spend (spend is constant in real terms)
-    cumulativeSpend += monthlySpend;
+    cumulativeSpend += currentSpend;
 
     // Draw from cash buffer first
-    const fromBuffer = Math.min(bufferBalance, monthlySpend);
+    const fromBuffer = Math.min(bufferBalance, currentSpend);
     bufferBalance -= fromBuffer;
 
     // Remaining spend comes from portfolio
-    const fromPortfolio = monthlySpend - fromBuffer;
+    const fromPortfolio = currentSpend - fromBuffer;
 
     // Portfolio withdrawals = total spend - buffer used
     const portfolioWithdrawals = cumulativeSpend - (bufferSize - bufferBalance);
@@ -264,6 +287,8 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     expectedReturns = null,
     threshold = 0.05,
     seed = 42,
+    guardrail = 'none',
+    startingValue = 0,
   } = options;
 
   const tickers = Object.keys(weights);
@@ -381,7 +406,16 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
       // Apply monthly withdrawal (inflation-adjusted)
       const yearFraction = step / 12;
       const inflationFactor = (1 + inflationRate) ** yearFraction;
-      const realSpend = monthlySpend * inflationFactor;
+      let realSpend = monthlySpend * inflationFactor;
+
+      // Apply guardrail if enabled
+      if (guardrail !== 'none') {
+        const gr = guardrailSpend(realSpend, portfolioValue, startingValue || 1, guardrail, {
+          wasCut: step > 0,
+        });
+        realSpend = gr.nextSpend * inflationFactor;
+      }
+
       portfolioValue = Math.max(0, portfolioValue * rebalReturn - realSpend);
 
       pathValues[sim][step] = portfolioValue;
