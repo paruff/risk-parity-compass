@@ -6,6 +6,7 @@ import {
   requiredMinimumDistribution,
   RMD_TABLE_VERSION,
   withdrawalSequence,
+  guardrailSpend,
 } from '../withdrawal';
 
 describe('drawdownPath', () => {
@@ -196,5 +197,38 @@ describe('withdrawalSequence', () => {
     // Heuristic: don't push traditional withdrawal into next marginal bracket
     // Implementation detail: cap traditional at ~44k (2024 12% bracket top for single)
     expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000 / 12);
+  });
+});
+
+describe('guardrailSpend', () => {
+  describe('rpr-80', () => {
+    it('cuts to 6% when portfolio < 80% of starting', () => {
+      const r = guardrailSpend(50000, 70000, 100000, 'rpr-80');
+      expect(r.nextSpend).toBeCloseTo(0.06 * 70000, 0); // 6% of current value
+      expect(r.policyState).toBe('cut');
+      expect(r.cutRate).toBe(0.06);
+    });
+
+    it('stays at 6% until recovery above 80%', () => {
+      let r = guardrailSpend(50000, 70000, 100000, 'rpr-80');
+      expect(r.policyState).toBe('cut');
+      r = guardrailSpend(r.nextSpend, 75000, 100000, 'rpr-80', {
+        wasCut: true,
+        originalSpend: 50000,
+      });
+      expect(r.policyState).toBe('cut');
+      r = guardrailSpend(r.nextSpend, 85000, 100000, 'rpr-80', {
+        wasCut: true,
+        originalSpend: 50000,
+      });
+      expect(r.policyState).toBe('recovering'); // or 'normal'
+      expect(r.nextSpend).toBeGreaterThan(0.06 * 85000); // back to normal rate
+    });
+
+    it('normal when portfolio >= 80%', () => {
+      const r = guardrailSpend(50000, 90000, 100000, 'rpr-80');
+      expect(r.nextSpend).toBe(50000);
+      expect(r.policyState).toBe('normal');
+    });
   });
 });

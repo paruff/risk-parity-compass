@@ -500,3 +500,21 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
     shortfall,
   };
 }
+
+// Guardrail spending policies: rpr-80, guyton-klinger, vpw
+export function guardrailSpend(currentSpend, portfolioValue, startingValue, policy, opts = {}) {
+  if (policy === 'rpr-80') {
+    const threshold = 0.8 * startingValue;
+    if (portfolioValue < threshold) {
+      return { nextSpend: 0.06 * portfolioValue, policyState: 'cut', cutRate: 0.06 };
+    }
+    // Recovery: if previously cut and now above threshold, return to normal
+    if (opts.wasCut && portfolioValue >= threshold) {
+      const normalSpend = opts.originalSpend ?? currentSpend;
+      return { nextSpend: normalSpend, policyState: 'recovering', cutRate: 0 };
+    }
+    return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
+  }
+  // other policies handled in Tasks 2-3
+  return { nextSpend: currentSpend, policyState: 'normal', cutRate: 0 };
+}
