@@ -11,7 +11,7 @@ A self-directed investor within a decade of retirement needs to answer two quest
 
 Risk Parity Compass answers both in a static, local-only browser app. Grounding comes from Risk Parity Radio (RPR): robust portfolios that can be drawn down in perpetuity, judged by safe withdrawal rate (SWR) and perpetual withdrawal rate (PWR).
 
-> Shannon's Demon is the *strategy* (harvest volatility by rebalancing a diversified, low-correlation mix). Risk Parity Compass is the *product*.
+> The product was formerly called *Shannon's Demon*. That name now describes only the rebalancing effect (harvesting volatility from a diversified, low-correlation mix); the product, repo, site and storage keys are all **Risk Parity Compass** / `risk-parity-compass` / `rpcompass_*`.
 
 ## Who it is for
 
@@ -49,6 +49,18 @@ Risk Parity Compass answers both in a static, local-only browser app. Grounding 
 
 M1–M3 shipped with ten Critical arithmetic defects behind green CI (labels asserted, mocks lacking timestamps, vacuous `0 ≥ 0` comparisons). See `docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`. That is why the numeric-oracle rule and `REVIEW.md` exist.
 
+## Provenance
+
+The product's plan came from the Superpowers brainstorming → spec → plan workflow, recorded under `docs/superpowers/`: the two specs below and one plan per milestone (M1, M2, M3, M3.5, M4, M5, M7, plus the migration and phase-3 plans). Those files are the authoritative history; this intent, `spec.md` and `plan.md` are the flat working summary distilled from them. No AI-DLC workflow was ever run.
+
+| Date | Source | What it set |
+|------|--------|-------------|
+| 2025-11-21 | Initial commits | Streamlit app "Shannon's Demon": inverse-volatility weights, tax-location, rebalancing trades |
+| 2026-08-15 | `docs/superpowers/specs/…react-migration-design.md` | Rewrite as React + Vite SPA on GitHub Pages |
+| 2026-10-25 | `docs/superpowers/specs/…retirement-production-roadmap-design.md` | Pivot to retirement drawdown, grounded in Risk Parity Radio; milestones M1–M6; renamed to Risk Parity Compass |
+| 2026-10-25 → 26 | `docs/superpowers/plans/` (one per milestone M1–M5, M7) | Task-level plans that were executed to build the product |
+| 2026-10-26 | `…code-review-m1-m3.md`, expert-lens review | M3.5 correctness work, numeric-oracle rule, then M7 remediation |
+
 ## Where the detail lives
 
 - `docs/spec.md` — what is built and its contracts.
@@ -57,6 +69,6 @@ M1–M3 shipped with ten Critical arithmetic defects behind green CI (labels ass
 - `DESIGN.md` — the design system.
 - `docs/superpowers/` — historical specs, plans, reviews, research.
 
-## AI-DLC state
+## Tooling
 
-The AI-DLC workspace (`aidlc/`, `.claude/`) is installed but has no active workflow; `aidlc/spaces/default/memory/project.md` is unpopulated. This file and `docs/spec.md` are intended to seed it.
+`AGENTS.md` points here. The opencode `@planner` agent expects `intent.md` → `spec.md` → `plan.md` (default location `docs/ai-sdlc/<feature>/`); this repo keeps them flat in `docs/`. The AI-DLC shell (`aidlc/`, `.claude/`) is installed but has no active workflow.

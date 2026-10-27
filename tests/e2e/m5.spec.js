@@ -45,7 +45,7 @@ test('export then import round-trips a plan', async ({ page }) => {
   ]);
   const plan = JSON.parse(await readFile(await download.path(), 'utf8'));
   expect(plan.schemaVersion).toBe(2);
-  expect(plan.app).toBe('shannonsdemon');
+  expect(plan.app).toBe('risk-parity-compass');
   await page.setInputFiles('input[aria-label="Import plan file"]', {
     name: 'plan.json',
     mimeType: 'application/json',
@@ -63,13 +63,13 @@ test('import rejects an invalid file', async ({ page }) => {
   await expect(page.getByText(/Import failed/)).toBeVisible();
 });
 
-test('v1 state migrates to v2', async ({ page }) => {
+test('legacy shannonsdemon_v1 state migrates to the current key', async ({ page }) => {
   await page.evaluate(() => {
     localStorage.setItem('shannonsdemon_v1', JSON.stringify({ tickers: ['SPY', 'TLT'] }));
   });
   await page.reload();
   await expect(page.locator('#panel-holdings')).toBeVisible();
-  const v2 = await page.evaluate(() => localStorage.getItem('shannonsdemon_v2'));
+  const v2 = await page.evaluate(() => localStorage.getItem('rpcompass_state'));
   expect(JSON.parse(v2).schemaVersion).toBe(2);
 });
 

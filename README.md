@@ -12,7 +12,7 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
 - **Risk parity allocation** — inverse volatility weighting from live market data
 - **Tax-efficient placement** — waterfall algorithm (bonds → IRAs, stocks → taxable)
-- **Rebalancing guidance** — Shannon's Demon: trade only when drift exceeds your threshold
+- **Rebalancing guidance** — trade only when drift exceeds your threshold, harvesting volatility (the "Shannon's Demon" effect) without paying for noise
 - **Risk contribution and correlation** views for the chosen mix
 - **Scenarios** — save and compare portfolio configurations
 
@@ -34,8 +34,6 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 - **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes
 - **Load Template** — replaces your tickers and re-runs analysis; your saved scenarios are untouched until you save
 
-> **Shannon's Demon is the strategy, not the product.** The name refers to the rebalancing result that harvesting volatility from a diversified, uncorrelated mix can add growth without extra return. Risk Parity Compass is the application built on it.
-
 ## Quick start
 
 ```bash
@@ -52,7 +50,7 @@ npm run preview # preview the build on http://localhost:4173/risk-parity-compass
 3. **Run Analysis** — fetches prices, computes targets, and generates trades
 4. **Retirement** — enter spend, horizon, inflation, birth year and any Social Security or pension income, then run the projection
 
-State persists in `localStorage` under `shannonsdemon_v2` (schemaVersion 2); older `shannonsdemon_v1` data is migrated on first load.
+State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Data saved under the old `shannonsdemon_*` keys (the project's former name) is migrated on first load and left in place as a backup; plan files exported under the old name still import.
 
 **Retirement tab** — Safe/Perpetual Withdrawal Rate, Monte Carlo success probability, RMDs, guardrails (None, RPR-80) and a static-vs-guardrail comparison. Every metric block carries a planning-estimate disclaimer. **Download PDF** uses the browser print dialog with a print stylesheet (no sidebar, nav or dark theme).
 
@@ -86,25 +84,31 @@ Pre-commit runs Lefthook + lint-staged on staged files. CI runs every gate plus 
 | Document | Purpose |
 |---|---|
 | [`DESIGN.md`](DESIGN.md) | Design tokens, component rules and UI do's/don'ts (designmd.app / Google design.md format) |
+| [`docs/intent.md`](docs/intent.md) · [`docs/spec.md`](docs/spec.md) · [`docs/plan.md`](docs/plan.md) | Why, contracts, and milestones mapped to GitHub issues |
+| [`REVIEW.md`](REVIEW.md) | How to review a change here |
 | [`AGENTS.md`](AGENTS.md) | Repository context and conventions for AI agents |
-| [`docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md`](docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md) | Approved roadmap spec: M1–M6 |
+| [`docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md`](docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md) | Long-form roadmap spec (history) |
 | [`docs/superpowers/plans/`](docs/superpowers/plans) | Implementation plans, one per milestone |
 | [`docs/superpowers/reviews/`](docs/superpowers/reviews) | Code review records |
 | [`Known Limitations.md`](Known%20Limitations.md) | Known constraints and open risks |
 
 ## Roadmap
 
+Source of truth: [`docs/plan.md`](docs/plan.md), which maps each milestone to its GitHub issue and PR.
+
 | Milestone | Scope | State |
 |---|---|---|
-| M1 | Withdrawal engine core (drawdown, SWR/PWR, Monte Carlo, RMD) | shipped, **defective** |
-| M2 | Tax & account mechanics (sequencing, RMD UI, cash buffer) | shipped, **defective** |
-| M3 | Dynamic spending guardrails + income floor | shipped, **defective** |
-| **M3.5** | **Correctness remediation** — the engine's arithmetic, guardrail period contract, and a numeric test oracle | **next** |
-| M4 | Portfolio templates, diversification view, comparison | planned |
-| M5 | Storage v2, print/PDF, accessibility preferences | planned |
-| M6 | Learning journey: investor-level progression and distance learning | built: rubric, five engine-graded modules, spaced refresher (PR #28) |
+| M1–M3.5 | Withdrawal engine, tax and account mechanics, guardrails, correctness remediation | shipped |
+| M4 | Portfolio templates, diversification view, comparison | shipped |
+| M5 | Storage v2, print/PDF, accessibility preferences | shipped |
+| M6 | Learning journey: competency rubric, engine-graded modules, spaced refresher | shipped |
+| **M7** (#37) | **Expert review remediation:** honest historical metrics (#30), template fidelity (#31), long-run history (#32), bootstrap Monte Carlo (#33), equal-risk-contribution weights (#34), tax-aware drawdown (#35), code hygiene (#36) | **active** (#29 guardrail fix shipped) |
 
-The 2026-10-26 review found that M1–M3 shipped arithmetic defects that make the headline retirement numbers optimistic by roughly 2× (withdrawals were never compounded) plus a unit mismatch in the Monte Carlo and guardrail policies applied monthly as if annual. **No new feature milestone starts until M3.5 closes those findings.** See [`docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md`](docs/superpowers/reviews/2026-10-26-code-review-m1-m3.md).
+Until M7's Critical items close, treat headline historical metrics as provisional; see [`Known Limitations.md`](Known%20Limitations.md).
+
+## History
+
+Began in 2025 as a Streamlit tool called *Shannon's Demon*, was rewritten as a React + Vite SPA in 2026, and renamed **Risk Parity Compass** when it grew a retirement drawdown engine. "Shannon's Demon" now names only the rebalancing effect the app uses. See [`docs/intent.md`](docs/intent.md) for provenance.
 
 ## License
 
