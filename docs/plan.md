@@ -46,6 +46,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 
 - Guyton-Klinger and VPW are not selectable in the Retirement tab; Guyton-Klinger state is not carried across years inside the Monte Carlo. Fix before exposing them.
 - "Lowest spend reached" metric for the guardrail comparison.
+- Fallback price provider for the snapshot refresh (Alpha Vantage, Polygon/Massive, Twelve Data or Finnhub). Blocked on obtaining an API key; until then Yahoo is a single point of failure. See `Known Limitations.md`.
 
 ## Verification Strategy
 
