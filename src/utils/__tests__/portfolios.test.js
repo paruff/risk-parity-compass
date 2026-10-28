@@ -4,6 +4,7 @@ import {
   diversificationScore,
   getMacroClass,
   validateAllocations,
+  assertTemplateValid,
   getTemplate,
   getTemplateList,
   normalizeTemplateWeights,
@@ -12,8 +13,8 @@ import {
 } from '../portfolios';
 
 describe('PORTFOLIO_TEMPLATES', () => {
-  it('has at least 5 templates with valid allocations summing to 1', () => {
-    expect(PORTFOLIO_TEMPLATES.length).toBeGreaterThanOrEqual(5);
+  it('has at least 4 templates with valid allocations summing to 1', () => {
+    expect(PORTFOLIO_TEMPLATES.length).toBeGreaterThanOrEqual(4);
     for (const t of PORTFOLIO_TEMPLATES) {
       expect(t.id).toBeTypeOf('string');
       expect(t.name).toBeTypeOf('string');
@@ -29,34 +30,42 @@ describe('PORTFOLIO_TEMPLATES', () => {
     }
   });
 
-  it('contains Golden Butterfly template per RPR', () => {
-    const gb = PORTFOLIO_TEMPLATES.find(t => t.id === 'golden-butterfly');
-    expect(gb).toBeDefined();
-    expect(gb.source).toBe('Risk Parity Radio');
-    expect(gb.allocations).toEqual({
-      VTI: 0.2,
-      VIOV: 0.2,
+  it('pins each template to its sourced weights', () => {
+    const w = id => PORTFOLIO_TEMPLATES.find(t => t.id === id).allocations;
+    expect(w('golden-butterfly')).toEqual({
+      VTI: 0.205,
+      VIOV: 0.205,
       VGLT: 0.2,
-      VGSH: 0.2,
+      SHY: 0.19,
       GLDM: 0.2,
     });
-  });
-
-  it('contains All Seasons template', () => {
-    const as = PORTFOLIO_TEMPLATES.find(t => t.id === 'all-seasons');
-    expect(as).toBeDefined();
-    expect(as.source).toBe('Risk Parity Radio');
-  });
-
-  it('contains Permanent Portfolio template', () => {
-    const pp = PORTFOLIO_TEMPLATES.find(t => t.id === 'permanent-portfolio');
-    expect(pp).toBeDefined();
-    expect(pp.allocations).toEqual({
-      VTI: 0.25,
-      VGLT: 0.25,
-      VGSH: 0.25,
-      GLDM: 0.25,
+    expect(w('all-seasons')).toEqual({ VTI: 0.3, VGLT: 0.4, VGIT: 0.15, GLDM: 0.075, PDBC: 0.075 });
+    expect(w('golden-ratio')).toEqual({
+      VUG: 0.21,
+      VIOV: 0.21,
+      VGLT: 0.26,
+      GLDM: 0.16,
+      DBMF: 0.1,
+      BIL: 0.06,
     });
+    expect(w('permanent-portfolio')).toEqual({ VTI: 0.25, VGLT: 0.25, VGSH: 0.25, GLDM: 0.25 });
+  });
+
+  it('every template records a source URL or named author', () => {
+    for (const t of PORTFOLIO_TEMPLATES) {
+      expect(t.source).toMatch(/riskparityradio\.com|Harry Browne/);
+    }
+  });
+
+  it('has no unpublished RPR templates', () => {
+    const ids = PORTFOLIO_TEMPLATES.map(t => t.id);
+    expect(ids).not.toContain('risk-parity-core');
+    expect(ids).not.toContain('aggressive-50-50');
+  });
+
+  it('assertTemplateValid throws instead of adjusting weights', () => {
+    expect(() => assertTemplateValid({ id: 'x', allocations: { A: 0.5, B: 0.4 } })).toThrow(/sum/);
+    for (const t of PORTFOLIO_TEMPLATES) expect(() => assertTemplateValid(t)).not.toThrow();
   });
 
   it('all templates have unique IDs', () => {
