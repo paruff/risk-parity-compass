@@ -1,5 +1,5 @@
 import ErrorBoundary from './components/ErrorBoundary';
-import { proxyReturns } from './utils/longRun';
+import { proxyReturns, rollingLongRun } from './utils/longRun';
 import Tooltip from './components/Tooltip';
 import RiskContribution from './components/RiskContribution';
 import CorrelationMatrix from './components/CorrelationMatrix';
@@ -754,12 +754,19 @@ export default function App() {
       );
 
       // Rolling SWR/PWR
-      const rolling = rollingWithdrawalRates(portfolioValues, {
-        horizonYears: retirement.horizonYears,
-        periodsPerYear: 12,
-        inflationRate: retirement.inflationRate,
-        monthlySpend: netMonthlySpend,
-      });
+      // Prefer the 1928-2025 index-proxy history when every holding has one.
+      const rolling =
+        rollingLongRun(targetWeights, totalValue, {
+          horizonYears: retirement.horizonYears,
+          inflationRate: retirement.inflationRate,
+          annualSpend: netMonthlySpend * 12,
+        }) ??
+        rollingWithdrawalRates(portfolioValues, {
+          horizonYears: retirement.horizonYears,
+          periodsPerYear: 12,
+          inflationRate: retirement.inflationRate,
+          monthlySpend: netMonthlySpend,
+        });
 
       // Current age for guardrails
       const currentAge = new Date().getFullYear() - (retirement.birthYear ?? 1960);
@@ -2561,6 +2568,9 @@ export default function App() {
                             ? `SWR / PWR / success withheld: ${retirementResults.withheldReason}. `
                             : ''}
                           Historical windows: {retirementResults.windowCount}
+                          {retirementResults.basis === 'long-run'
+                            ? ' (1928–2025 annual index proxies, not your ETFs’ own history)'
+                            : ''}
                         </div>
                         {/* Metric Cards */}
                         <div

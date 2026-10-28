@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { computeOverlap, correlationMatrix, fetchMonthlyHistory } from './utils/finance';
 import { buildPortfolioPath } from './utils/portfolioPath';
 import { rollingWithdrawalRates } from './utils/withdrawal';
+import { rollingLongRun } from './utils/longRun';
 import {
   PORTFOLIO_TEMPLATES,
   diversificationScore,
@@ -33,12 +34,18 @@ async function portfolioMetrics(weights, histories, retirement, totalValue) {
   const { aligned, effectiveYears } = computeOverlap(picked);
   if (Object.keys(aligned).length === 0) throw new Error('No overlapping price history');
   const path = buildPortfolioPath(aligned, weights, totalValue);
-  const rolling = rollingWithdrawalRates(path, {
-    horizonYears: retirement.horizonYears,
-    periodsPerYear: 12,
-    inflationRate: retirement.inflationRate,
-    monthlySpend: retirement.monthlySpend,
-  });
+  const rolling =
+    rollingLongRun(weights, totalValue, {
+      horizonYears: retirement.horizonYears,
+      inflationRate: retirement.inflationRate,
+      annualSpend: retirement.monthlySpend * 12,
+    }) ??
+    rollingWithdrawalRates(path, {
+      horizonYears: retirement.horizonYears,
+      periodsPerYear: 12,
+      inflationRate: retirement.inflationRate,
+      monthlySpend: retirement.monthlySpend,
+    });
   return { ...rolling, effectiveYears, corr: correlationMatrix(aligned) };
 }
 
@@ -339,6 +346,7 @@ export default function PortfoliosTab({
           ].map(([name, r]) => (
             <div key={name} style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }} role="status">
               {name}: historical windows {r.windowCount}
+              {r.basis === 'long-run' ? ' (1928–2025 index proxies)' : ''}
               {r.withheld ? ` — SWR/PWR/success withheld: ${r.withheldReason}` : ''}
             </div>
           ))}
