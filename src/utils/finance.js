@@ -130,6 +130,36 @@ function inverseVolWeights(vols) {
   return weights;
 }
 
+// Equal-risk-contribution weights: every asset contributes the same share of
+// portfolio variance. Long-only fixed point w_i <- w_i * sqrt(target / rc_i),
+// started from inverse-vol (which is exact when all correlations are equal).
+// ponytail: plain damped iteration, switch to Newton if a large universe is slow.
+function ercWeights(vols, corrMatrix) {
+  const tickers = Object.keys(vols);
+  const n = tickers.length;
+  if (n === 0) return {};
+  const sig = tickers.map(t => Math.max(vols[t], 0.001));
+  const cov = sig.map((si, i) =>
+    sig.map((sj, j) => (i === j ? 1 : (corrMatrix?.[tickers[i]]?.[tickers[j]] ?? 0)) * si * sj)
+  );
+  let w = sig.map(s => 1 / s);
+  const norm = () => {
+    const tot = w.reduce((a, b) => a + b, 0);
+    w = w.map(x => x / tot);
+  };
+  norm();
+  for (let iter = 0; iter < 20000; iter++) {
+    const rc = w.map((wi, i) => wi * cov[i].reduce((a, c, j) => a + c * w[j], 0));
+    const tot = rc.reduce((a, b) => a + b, 0);
+    if (!(tot > 0)) break;
+    const dev = Math.max(...rc.map(r => Math.abs(r / tot - 1 / n)));
+    if (dev < 1e-10) break;
+    w = w.map((wi, i) => wi * Math.sqrt(tot / n / rc[i]));
+    norm();
+  }
+  return Object.fromEntries(tickers.map((t, i) => [t, w[i]]));
+}
+
 // ─── TAX LOCATION WATERFALL ───────────────────────────────────────────────────
 
 // Returns: { "Roth IRA": { SPY: $amount, ... }, ... }
@@ -720,6 +750,7 @@ export {
   computeOverlap,
   annualizedVol,
   inverseVolWeights,
+  ercWeights,
   taxLocationWaterfall,
   generateTrades,
   closestTickers,
