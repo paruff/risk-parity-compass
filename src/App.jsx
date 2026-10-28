@@ -23,7 +23,7 @@ import {
   fetchMonthlyHistory,
   computeOverlap,
   annualizedVol,
-  inverseVolWeights,
+  ercWeights,
   taxLocationWaterfall,
   generateTrades,
   closestTickers,
@@ -664,7 +664,8 @@ export default function App() {
         newCloses[r.ticker] = r.closes;
       }
 
-      const weights = inverseVolWeights(newVols);
+      const corr = correlationMatrix(newCloses);
+      const weights = ercWeights(newVols, corr);
       const allocation = taxLocationWaterfall(weights, newPrices, accounts, totalValue);
       const newTrades = generateTrades(
         currentHoldings,
@@ -675,7 +676,6 @@ export default function App() {
       );
 
       // Phase 3: correlation, risk contribution, performance simulation
-      const corr = correlationMatrix(newCloses);
       const rc = riskContribution(weights, newVols, corr);
       const perf = simulatePerformance(newCloses, weights, threshold);
 
@@ -1880,8 +1880,8 @@ export default function App() {
                     {/* Risk parity table */}
                     <div style={S.card}>
                       <div style={S.cardTitle}>
-                        <Tooltip tip="Inverse volatility: lower vol assets get higher weight so each contributes equal risk">
-                          Risk Parity Weights (Inverse Volatility)
+                        <Tooltip tip="Equal risk contribution: weights are solved from volatilities and correlations so each asset contributes the same share of portfolio risk (unlevered, long-only)">
+                          Risk Parity Weights (Equal Risk Contribution)
                         </Tooltip>
                       </div>
                       <div style={S.tableWrap}>

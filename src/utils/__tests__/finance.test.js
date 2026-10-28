@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   annualizedVol,
   inverseVolWeights,
+  ercWeights,
   taxLocationWaterfall,
   generateTrades,
   closestTickers,
@@ -344,5 +345,32 @@ describe('computeOverlap reporting', () => {
     const r = computeOverlap({ AAA: long, BBB: short });
     expect(r.effectiveYears).toBe(2);
     expect(r.limitedBy).toBe('BBB');
+  });
+});
+
+describe('ercWeights', () => {
+  const rcOf = (w, vols, corr) => {
+    const t = Object.keys(w);
+    const c = (a, b) => (a === b ? 1 : corr[a][b]) * vols[a] * vols[b];
+    const rc = t.map(a => w[a] * t.reduce((s, b) => s + c(a, b) * w[b], 0));
+    const tot = rc.reduce((a, b) => a + b, 0);
+    return rc.map(r => r / tot);
+  };
+  const vols = { A: 0.1, B: 0.2, C: 0.15 };
+  const corr = {
+    A: { B: 0.3, C: -0.2 },
+    B: { A: 0.3, C: 0.5 },
+    C: { A: -0.2, B: 0.5 },
+  };
+  it('equalises risk contributions within 1e-6', () => {
+    const w = ercWeights(vols, corr);
+    expect(Object.values(w).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
+    for (const r of rcOf(w, vols, corr)) expect(r).toBeCloseTo(1 / 3, 6);
+  });
+  it('reduces to inverse-vol when correlations are zero', () => {
+    const zero = { A: { B: 0, C: 0 }, B: { A: 0, C: 0 }, C: { A: 0, B: 0 } };
+    const w = ercWeights(vols, zero);
+    const iv = inverseVolWeights(vols);
+    for (const t of Object.keys(vols)) expect(w[t]).toBeCloseTo(iv[t], 6);
   });
 });
