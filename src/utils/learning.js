@@ -144,7 +144,7 @@ export const MODULES = {
   sequencing: {
     title: 'Which account to draw from',
     worked: () =>
-      `Spending $4,000 a month with $2,000 in taxable and $100,000 traditional: taxable goes first (${usd(2000)}), the remaining $2,000 comes from traditional, and Roth is left to grow.`,
+      `A common starting heuristic: spending $4,000 a month with $2,000 in taxable and $100,000 traditional, draw taxable first (${usd(2000)}), take the remaining $2,000 from traditional, and leave Roth to grow. It is a default to reason from, not an optimum.`,
     items: [
       {
         module: 'sequencing',
@@ -162,13 +162,13 @@ export const MODULES = {
     unit: 'dollars',
     question: i =>
       `You need ${usd(i.spend)} this month. You have ${usd(i.accounts.Taxable)} taxable, ${usd(i.accounts[TAX])} traditional and ${usd(i.accounts['Roth IRA'])} Roth${i.rmdMonthly ? `, and a required minimum of ${usd(i.rmdMonthly)} a month from the traditional account` : ''}. How much comes from the traditional account, in dollars?`,
-    goal: 'order withdrawals taxable, then traditional, then Roth, without breaking a required minimum',
+    goal: 'apply the common taxable, then traditional, then Roth heuristic, without breaking a required minimum',
     result: (i, t) =>
-      `Taxable is used first; traditional covers any gap or the required minimum, whichever is larger: ${usd(t)} this month.`,
+      `Under this heuristic taxable is used first; traditional covers any gap or the required minimum, whichever is larger: ${usd(t)} this month.`,
     next: 'Check for a required minimum before you decide which account pays this month.',
     intention: 'Before I withdraw, I will check…',
     limits:
-      'this is a simple ordering heuristic; the best order depends on your brackets, state and estate goals. It is not tax advice.',
+      'this is a simple ordering heuristic, not the goal. Research (e.g. Reichenstein; Kitces) often favours filling low tax brackets with traditional withdrawals or Roth conversions in earlier years, and the best order depends on your brackets, state and estate goals. It is not tax advice.',
   },
 };
 
