@@ -939,7 +939,7 @@ export default function App() {
     );
     const a = document.createElement('a');
     a.href = url;
-    a.download = `shannonsdemon-plan-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `risk-parity-compass-plan-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
     setLastBackupAt(Date.now());

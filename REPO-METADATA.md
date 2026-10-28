@@ -10,7 +10,7 @@ Risk parity rebalancing and retirement drawdown planner. Harvest volatility by r
 https://paruff.github.io/risk-parity-compass/
 
 ## Topics
-risk-parity, portfolio-rebalancing, volatility-harvesting, tax-efficient-investing, retirement-planning, safe-withdrawal-rate, monte-carlo, required-minimum-distribution, shannons-demon, personal-finance, react, fintech
+risk-parity, portfolio-rebalancing, volatility-harvesting, tax-efficient-investing, retirement-planning, safe-withdrawal-rate, monte-carlo, required-minimum-distribution, personal-finance, react, fintech
 
 ## License
 MIT (existing LICENSE file)

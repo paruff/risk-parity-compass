@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
-  STORAGE_KEY_V1,
-  STORAGE_KEY_V2,
+  STORAGE_KEY,
   loadState,
   saveState,
   loadScenarios,
@@ -33,20 +32,29 @@ describe('storage v2', () => {
 
   it('saves with schemaVersion 2 under the v2 key', () => {
     saveState({ tickers: ['SPY'] });
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY_V2));
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
     expect(raw).toEqual({ schemaVersion: 2, tickers: ['SPY'] });
   });
 
-  it('migrates v1 to v2 and keeps v1 as a backup', () => {
-    localStorage.setItem(STORAGE_KEY_V1, JSON.stringify({ tickers: ['TLT'] }));
-    expect(loadState()).toEqual({ schemaVersion: 2, tickers: ['TLT'] });
-    expect(localStorage.getItem(STORAGE_KEY_V2)).not.toBeNull();
-    expect(localStorage.getItem(STORAGE_KEY_V1)).not.toBeNull();
+  it.each(['shannonsdemon_v1', 'shannonsdemon_v2'])(
+    'migrates legacy %s and keeps it as a backup',
+    legacyKey => {
+      localStorage.setItem(legacyKey, JSON.stringify({ tickers: ['TLT'] }));
+      expect(loadState()).toEqual({ schemaVersion: 2, tickers: ['TLT'] });
+      expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+      expect(localStorage.getItem(legacyKey)).not.toBeNull();
+    }
+  );
+
+  it('prefers the current key over legacy keys', () => {
+    localStorage.setItem('shannonsdemon_v2', JSON.stringify({ tickers: ['OLD'] }));
+    saveState({ tickers: ['NEW'] });
+    expect(loadState().tickers).toEqual(['NEW']);
   });
 
   it('falls back to null on corrupt data', () => {
-    localStorage.setItem(STORAGE_KEY_V2, '{nope');
-    localStorage.setItem(STORAGE_KEY_V1, '{nope');
+    localStorage.setItem(STORAGE_KEY, '{nope');
+    localStorage.setItem('shannonsdemon_v1', '{nope');
     expect(loadState()).toBeNull();
   });
 
@@ -59,6 +67,19 @@ describe('storage v2', () => {
 });
 
 describe('export / import', () => {
+  it('accepts plan files exported under the old app id', () => {
+    const json = JSON.stringify({
+      app: 'shannonsdemon',
+      schemaVersion: 2,
+      state: { tickers: ['SPY'] },
+    });
+    expect(importPlan(json).state.tickers).toEqual(['SPY']);
+  });
+
+  it('exports under the current app id', () => {
+    expect(JSON.parse(exportPlan({})).app).toBe('risk-parity-compass');
+  });
+
   it('round-trips state and scenarios', () => {
     const json = exportPlan({ tickers: ['SPY'] }, [{ name: 'a' }]);
     expect(importPlan(json)).toEqual({

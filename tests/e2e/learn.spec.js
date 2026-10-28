@@ -31,7 +31,7 @@ test('correct answer is graded against the engine value ($134,083 gap)', async (
   await expect(page.getByText(/Where you’re going/)).toBeVisible();
 
   const learning = await page.evaluate(
-    () => JSON.parse(localStorage.getItem('shannonsdemon_v2')).learning
+    () => JSON.parse(localStorage.getItem('rpcompass_state')).learning
   );
   expect(learning.modules.cost.correct).toBe(true);
   expect(learning.modules.cost.nextDue).toBeGreaterThan(Date.now() + 6 * DAY);
@@ -51,7 +51,7 @@ test('wrong, confident answer gets calibration feedback, not a bare "wrong"', as
 test('a due refresher shows passively on the tab, with no push', async ({ page }) => {
   await page.evaluate(now => {
     localStorage.setItem(
-      'shannonsdemon_v2',
+      'rpcompass_state',
       JSON.stringify({
         schemaVersion: 2,
         learning: {

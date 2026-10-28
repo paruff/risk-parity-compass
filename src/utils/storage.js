@@ -1,10 +1,14 @@
 // Versioned persistence, plan export/import, backup reminder.
-export const STORAGE_KEY_V1 = 'shannonsdemon_v1';
-export const STORAGE_KEY_V2 = 'shannonsdemon_v2';
-const SCENARIOS_KEY_V1 = 'shannonsdemon_scenarios_v1';
-const SCENARIOS_KEY_V2 = 'shannonsdemon_scenarios_v2';
+const PREFIX = 'rpcompass_';
+export const STORAGE_KEY = `${PREFIX}state`;
+const SCENARIOS_KEY = `${PREFIX}scenarios`;
+// Pre-rename keys (product was "Shannon's Demon"); read once, never written.
+const LEGACY_STATE_KEYS = ['shannonsdemon_v2', 'shannonsdemon_v1'];
+const LEGACY_SCENARIOS_KEYS = ['shannonsdemon_scenarios_v2', 'shannonsdemon_scenarios_v1'];
+const LEGACY_PRICECACHE_KEY = 'shannonsdemon_pricecache_v1';
 const SCHEMA_VERSION = 2;
-const APP_ID = 'shannonsdemon';
+const APP_ID = 'risk-parity-compass';
+const LEGACY_APP_ID = 'shannonsdemon';
 const BACKUP_DAYS = 30;
 const SIZE_WARN_BYTES = 4 * 1024 * 1024; // localStorage is ~5MB
 
@@ -27,26 +31,26 @@ function write(key, value) {
 }
 
 export function loadState() {
-  const v2 = read(STORAGE_KEY_V2);
-  if (v2) return v2;
-  const v1 = read(STORAGE_KEY_V1);
-  if (!v1 || typeof v1 !== 'object') return null;
-  const migrated = { schemaVersion: SCHEMA_VERSION, ...v1 };
-  write(STORAGE_KEY_V2, migrated); // v1 left in place as a backup
+  const current = read(STORAGE_KEY);
+  if (current) return current;
+  const legacy = LEGACY_STATE_KEYS.map(read).find(v => v && typeof v === 'object');
+  if (!legacy) return null;
+  const migrated = { ...legacy, schemaVersion: SCHEMA_VERSION };
+  write(STORAGE_KEY, migrated); // legacy key left in place as a backup
   return migrated;
 }
 
 export function saveState(state) {
-  return write(STORAGE_KEY_V2, { ...state, schemaVersion: SCHEMA_VERSION });
+  return write(STORAGE_KEY, { ...state, schemaVersion: SCHEMA_VERSION });
 }
 
 export function loadScenarios() {
-  const s = read(SCENARIOS_KEY_V2) ?? read(SCENARIOS_KEY_V1);
+  const s = [SCENARIOS_KEY, ...LEGACY_SCENARIOS_KEYS].map(read).find(Array.isArray);
   return Array.isArray(s) ? s : [];
 }
 
 export function saveScenarios(scenarios) {
-  return write(SCENARIOS_KEY_V2, scenarios);
+  return write(SCENARIOS_KEY, scenarios);
 }
 
 export function exportPlan(state, scenarios = []) {
@@ -70,7 +74,9 @@ export function importPlan(json) {
   } catch {
     throw new Error('File is not valid JSON.');
   }
-  if (doc?.app !== APP_ID) throw new Error('Not a Shannon’s Demon plan file.');
+  if (doc?.app !== APP_ID && doc?.app !== LEGACY_APP_ID) {
+    throw new Error('Not a Risk Parity Compass plan file.');
+  }
   if (doc.schemaVersion > SCHEMA_VERSION) {
     throw new Error(`Plan was saved by a newer version (schema ${doc.schemaVersion}).`);
   }
@@ -104,7 +110,8 @@ export function storageBytes() {
     let n = 0;
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k.startsWith('shannonsdemon_')) n += k.length + localStorage.getItem(k).length;
+      if (k.startsWith(PREFIX) || k.startsWith('shannonsdemon_'))
+        n += k.length + localStorage.getItem(k).length;
     }
     return n * 2; // UTF-16
   } catch {
@@ -118,14 +125,14 @@ export function backupDue(lastBackupMs, now = Date.now()) {
 }
 
 // Last good quote per ticker+lookback, so a Yahoo outage degrades to stale data, not failure.
-const PRICE_CACHE_KEY = 'shannonsdemon_pricecache_v1';
+const PRICE_CACHE_KEY = `${PREFIX}pricecache`;
 
 export function getCachedQuote(ticker, lookback) {
-  return read(PRICE_CACHE_KEY)?.[`${ticker}|${lookback}`] ?? null;
+  return (read(PRICE_CACHE_KEY) ?? read(LEGACY_PRICECACHE_KEY))?.[`${ticker}|${lookback}`] ?? null;
 }
 
 export function cacheQuote(quote, lookback, at = Date.now()) {
-  const cache = read(PRICE_CACHE_KEY) ?? {};
+  const cache = read(PRICE_CACHE_KEY) ?? read(LEGACY_PRICECACHE_KEY) ?? {};
   cache[`${quote.ticker}|${lookback}`] = { ...quote, at };
   write(PRICE_CACHE_KEY, cache);
 }

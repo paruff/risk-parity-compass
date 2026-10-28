@@ -1,6 +1,6 @@
 # Spec — Risk Parity Compass
 
-**Status:** Current as of 2026-10-26 (M1–M5 merged; M6 in review)
+**Status:** Current as of 2026-10-26 (M1–M6 merged; M7 in progress)
 **Intent:** `docs/intent.md` · **Plan:** `docs/plan.md` · **Review rules:** `REVIEW.md` · **Design:** `DESIGN.md`
 **History and rationale:** `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (the long-form roadmap spec; this file is the working summary).
 
@@ -22,7 +22,7 @@ src/
 tests/e2e/                Playwright with route-intercepted, timestamped Yahoo mocks
 ```
 
-Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (scenarios). They keep the old prefix on purpose across the product rename; migration is M5.
+Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecache` (schemaVersion 2). Legacy `shannonsdemon_*` keys and plan files with `app: "shannonsdemon"` are read for migration only. Plan files export `app: "risk-parity-compass"`.
 
 ## 2. Functional requirements
 
@@ -37,9 +37,9 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 | FR-7 | Static vs guardrail outcome comparison on the Retirement tab | M3 (Task 6) | Built (PR #25) |
 | FR-8 | Correctness remediation of M1–M3 (compounding, units, honest success rate, guardrail periods) | M3.5 | Built |
 | FR-9 | Template library; compare up to 3 templates with the user's portfolio; diversification score | M4 | Built (PR #19) |
-| FR-10 | Versioned storage v2, export/import, backup reminder | M5 | Planned |
-| FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Planned |
-| FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Planned |
+| FR-10 | Versioned storage v2, export/import, backup reminder | M5 | Built (PR #27) |
+| FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Built (PR #27) |
+| FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Built (PR #27) |
 | FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Built (PR #28) |
 
 ## 3. Calculation contracts (normative)
@@ -77,13 +77,13 @@ Persistence keys: `shannonsdemon_v1` (state) and `shannonsdemon_scenarios_v1` (s
 | Gap | Where tracked |
 |-----|---------------|
 | Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
-| Pages site broken by half-finished rename (repo `shannonsdemon`, base `/risk-parity-compass/`) | `docs/plan.md` §Housekeeping |
+| Pages rename (repo now `risk-parity-compass`) | Resolved; close #24 once verified | |
 | Yahoo unofficial API may break; CORS blocks localhost | `Known Limitations.md`; M5 resilience |
 | Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
 | `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
 | Heuristic tax model; federal only | `Known Limitations.md`; M7 #35 |
-| **Critical:** `rpr-80` trip can raise spending (starting rate < 4.8%) | M7 #29 |
-| **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 |
+| ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
+| **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 (PR #40 draft) |
 | Templates diverge from published sources (All Seasons, Golden Ratio, `risk-parity-core`) | M7 #31 |
 | No pre-2004 history; Gaussian constant-correlation Monte Carlo | M7 #32, #33 |
 | "Risk parity" weights are inverse-volatility | M7 #34 |

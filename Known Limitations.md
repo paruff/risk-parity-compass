@@ -29,7 +29,7 @@
 - **Template ETFs** — templates use specific ETFs (for example VTI, VGLT, GLDM); load a template to analyse exactly those tickers, or edit the ticker list afterwards.
 
 ## Browser & Environment
-- **localStorage only** — all state persists in `shannonsdemon_v2` (v1 is migrated automatically and left in place as a backup). Use Export plan / Import plan to back up. No cloud sync, no accounts.
+- **localStorage only** — all state persists under `rpcompass_*` keys (data saved under the old `shannonsdemon_*` keys is migrated automatically and left in place as a backup). Use Export plan / Import plan to back up. No cloud sync, no accounts.
 - **Single-tab assumption** — concurrent edits in multiple tabs may overwrite each other.
 - **No mobile app** — responsive web only; touch targets meet 44px minimum but complex tables scroll horizontally on small screens.
 - **CORS on localhost** — Yahoo Finance blocks monthly history requests from `localhost` due to CORS. The app shows an error banner; on GitHub Pages it works.
