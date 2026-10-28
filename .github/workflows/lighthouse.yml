@@ -11,4 +11,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx lhci autorun
+      # Not a project dependency: its Puppeteer chain carries unfixable advisories (extract-zip).
+      # Pinned and run only on the ephemeral CI runner.
+      - run: npx --yes @lhci/cli@0.15.1 autorun

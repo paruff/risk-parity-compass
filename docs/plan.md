@@ -39,7 +39,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 | Item | Issue | Resolution |
 |------|-------|------------|
 | Pages site broken: repo was `shannonsdemon` but Vite `base` and all docs use `/risk-parity-compass/` | #24 | **Done 2026-10-26:** repo renamed to `risk-parity-compass`; https://paruff.github.io/risk-parity-compass/ returns 200. Close #24 once verified in a browser. |
-| Uncommitted `.gitignore` additions and the AI-DLC `.claude/` shell | — | **Done:** committed in PR #20. |
+| AI-DLC / opencode / Claude workflow shells (`.aidlc/`, `aidlc/`, `.opencode/`, `.claude/`) | — | **Moved out of the repo 2026-10-28:** untracked and gitignored; they live on the maintainer's machine only. |
 | `DESIGN.md` conformance of new views | — | `PortfoliosTab.jsx` warning banner switched to `warning-surface`/`warning-border`/`warning` tokens. |
 
 ## Deferred
