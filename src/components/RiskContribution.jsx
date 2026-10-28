@@ -1,5 +1,6 @@
 import Tooltip from './Tooltip';
 import { fmt, clampPct } from '../utils/finance';
+import { C } from '../tokens';
 
 export default function RiskContribution({ S, tickers, targetWeights, riskContrib }) {
   if (Object.keys(riskContrib).length === 0) return null;
@@ -10,7 +11,7 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           Risk Contribution
         </Tooltip>
       </div>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
         Weight % vs risk contribution %. Equal risk contribution = true risk parity.
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
@@ -20,7 +21,9 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           const diff = rc - w;
           return (
             <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
-              <span style={{ width: 44, fontFamily: 'monospace', color: '#94a3b8' }}>{t}</span>
+              <span style={{ width: 44, fontFamily: 'monospace', color: C.onSurfaceMuted }}>
+                {t}
+              </span>
               <div style={{ flex: 1, position: 'relative', height: 16 }}>
                 <div
                   style={{
@@ -49,12 +52,14 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
                   }}
                 />
               </div>
-              <span style={{ width: 50, textAlign: 'right', color: '#94a3b8' }}>{fmt.pct(w)}</span>
+              <span style={{ width: 50, textAlign: 'right', color: C.onSurfaceMuted }}>
+                {fmt.pct(w)}
+              </span>
               <span
                 style={{
                   width: 50,
                   textAlign: 'right',
-                  color: Math.abs(diff) > 0.02 ? '#f59e0b' : '#16a34a',
+                  color: Math.abs(diff) > 0.02 ? '#f59e0b' : C.positive,
                 }}
               >
                 {fmt.pct(rc)}
@@ -63,7 +68,9 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
           );
         })}
       </div>
-      <div style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 13, color: '#94a3b8' }}>
+      <div
+        style={{ display: 'flex', gap: 12, marginTop: 10, fontSize: 13, color: C.onSurfaceMuted }}
+      >
         <span>
           <span
             style={{

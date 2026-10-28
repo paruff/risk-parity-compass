@@ -1,5 +1,16 @@
 // Colour tokens mirrored from DESIGN.md `colors:`; keep the two in sync.
 export const C = {
+  background: '#0a0f1e',
+  surface: '#0d1424',
+  primary: '#3b82f6',
+  secondary: '#0891b2',
+  focus: '#93c5fd',
+  positive: '#16a34a',
+  positiveSurface: '#14532d',
+  negative: '#dc2626',
+  negativeSurface: '#4c0519',
+  errorSurface: '#1a0808',
+  errorBorder: '#7f1d1d',
   surfaceInput: '#131d2e',
   border: '#1e293b',
   borderStrong: '#334155',
