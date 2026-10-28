@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
-    "prepare": "lefthook install"
+    "prepare": "lefthook install",
+    "prices:update": "node scripts/update-prices.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

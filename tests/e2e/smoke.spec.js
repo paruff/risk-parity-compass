@@ -1,16 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { mockPrices } from './helpers/mockPrices.js';
 
 // Deterministic fixture for Yahoo Finance chart endpoint (avoid live API flakiness).
 const MOCK_CLOSES = Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.1) * 5);
 
 test.beforeEach(async ({ page }) => {
-  await page.route('https://query1.finance.yahoo.com/**', route =>
-    route.fulfill({
-      json: {
-        chart: { result: [{ indicators: { adjclose: [{ adjclose: MOCK_CLOSES }] } }] },
-      },
-    })
-  );
+  await mockPrices(page, MOCK_CLOSES);
   await page.goto('/risk-parity-compass/');
   await page.waitForSelector('#root');
 });

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockPrices } from './helpers/mockPrices.js';
 import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 
@@ -10,15 +11,7 @@ const STAMPS = Array.from({ length: 600 }, (_, i) =>
 test.describe.configure({ timeout: 120000 });
 
 test.beforeEach(async ({ page }) => {
-  await page.route('https://query1.finance.yahoo.com/**', route =>
-    route.fulfill({
-      json: {
-        chart: {
-          result: [{ indicators: { adjclose: [{ adjclose: CLOSES }] }, timestamp: STAMPS }],
-        },
-      },
-    })
-  );
+  await mockPrices(page, CLOSES, STAMPS);
   await page.goto('/risk-parity-compass/');
   await page.waitForSelector('#root');
 });
