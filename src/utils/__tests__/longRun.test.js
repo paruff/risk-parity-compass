@@ -27,3 +27,33 @@ describe('long-run returns', () => {
     expect(proxyReturns('DBMF')).toBeNull();
   });
 });
+
+import { longRunPath, rollingLongRun } from '../longRun';
+
+describe('rolling metrics on long-run history', () => {
+  it('builds a rebalanced path from proxy returns', () => {
+    const p = longRunPath({ VTI: 0.5, VGSH: 0.5 }, 100);
+    expect(p).toHaveLength(99);
+    const s = LONG_RUN.series;
+    expect(p[1]).toBeCloseTo(100 * (1 + 0.5 * s.stocks[0] + 0.5 * s.bills[0]), 8);
+  });
+  it('returns null when a holding has no proxy', () => {
+    expect(longRunPath({ VTI: 0.5, DBMF: 0.5 })).toBeNull();
+    expect(rollingLongRun({ DBMF: 1 }, 1e6, { horizonYears: 30 })).toBeNull();
+  });
+  it('gives many windows and is not withheld over 98 years at 30y horizon', () => {
+    const r = rollingLongRun({ VTI: 0.6, VGIT: 0.4 }, 1e6, {
+      horizonYears: 30,
+      inflationRate: 0.03,
+      annualSpend: 40000,
+    });
+    // 99 points, 30-point windows: 70 starts
+    expect(r.windowCount).toBe(70);
+    expect(r.withheld).toBe(false);
+    expect(r.successRate).toBeGreaterThan(0.5);
+    expect(r.successRate).toBeLessThanOrEqual(1);
+    // 4% real-ish rule on 60/40 over 1928+ should find an SWR in the 3-6% band
+    expect(r.swr).toBeGreaterThan(0.03);
+    expect(r.swr).toBeLessThan(0.07);
+  });
+});

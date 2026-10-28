@@ -2,7 +2,8 @@
 
 ## Data Source
 - **Yahoo Finance unofficial API** — works from browsers today but could break without notice. The `fetchQuote()` function is isolated so you can swap it for Alpha Vantage (free tier, 25 req/day) or Polygon.io easily.
-- **Short ETF history limits 30-year SWR** — the default ticker set (SPY, TLT, GLD, VNQ, EEM) only has ~22 years of overlapping monthly history. The app reports `effectiveYears` and computes rolling metrics over available history rather than returning zeros.
+- **Rolling SWR/PWR/success basis** — when every holding has an index proxy (US stocks, small-cap, Treasuries, bills, gold), these metrics use annual 1928–2025 proxy history (about 70 overlapping 30-year windows) and say so beside the window count. Annual periods are coarser than monthly, a 10-year Treasury stands in for long bonds, and proxy history is not your ETFs' own. Holdings with no proxy (REITs, emerging markets, commodities, managed futures) fall back to the ETFs' own short history and are withheld when it is too short.
+- **Short ETF history limits 30-year SWR (fallback path)** — the default ticker set (SPY, TLT, GLD, VNQ, EEM) only has ~22 years of overlapping monthly history. The app reports `effectiveYears` and computes rolling metrics over available history rather than returning zeros.
 - **Stale-price fallback** — if a live quote fails, the last good quote for that ticker and lookback is used, flagged with its timestamp, and prices can be overridden by hand. Cached data is never refreshed silently.
 - **Yahoo CORS from localhost** — the chart endpoint blocks requests from `localhost` due to CORS. This works on GitHub Pages but fails locally; the app surfaces an error banner rather than silently failing.
 
