@@ -84,7 +84,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | Heuristic tax model; federal only | `Known Limitations.md`; M7 #35 |
 | ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
 | **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 (PR #40 draft) |
-| Templates diverge from published sources (All Seasons, Golden Ratio, `risk-parity-core`) | M7 #31 |
+| ~~Templates diverge from published sources~~ | Fixed, M7 #31 (unpublished templates removed; weights re-sourced 2026-10-28) |
 | No pre-2004 history; Gaussian constant-correlation Monte Carlo | M7 #32, #33 |
 | "Risk parity" weights are inverse-volatility | M7 #34 |
 

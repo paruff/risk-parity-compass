@@ -102,7 +102,7 @@ test('Template cards compare up to three templates side by side', async ({ page 
   await page.getByRole('checkbox', { name: 'Add Permanent Portfolio to comparison' }).check();
   // Three selected: the remaining cards cannot be added.
   await expect(
-    page.getByRole('checkbox', { name: 'Add Aggressive 50/50 to comparison' })
+    page.getByRole('checkbox', { name: 'Add Golden Ratio to comparison' })
   ).toBeDisabled();
   for (const id of ['golden-butterfly', 'all-seasons', 'permanent-portfolio']) {
     await expect(page.getByTestId(`metric-swr-${id}`)).toHaveText(/^\d+(\.\d+)?%$/, {

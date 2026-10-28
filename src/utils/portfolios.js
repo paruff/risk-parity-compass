@@ -36,6 +36,7 @@ export const MACRO_CLASS_MAP = {
   AGG: 'US Agg Bonds',
   SCHZ: 'US Agg Bonds',
   VGSH: 'US Short Bonds',
+  SHY: 'US Short Bonds',
   SHV: 'US Short Bonds',
   BIL: 'US Short Bonds',
   TIP: 'TIPS',
@@ -54,6 +55,7 @@ export const MACRO_CLASS_MAP = {
   DBC: 'Broad Commodities',
   PDBC: 'Broad Commodities',
   COMT: 'Broad Commodities',
+  DBMF: 'Managed Futures',
   // Real Estate
   VNQ: 'US REIT',
   SCHH: 'US REIT',
@@ -84,54 +86,55 @@ export const PORTFOLIO_TEMPLATES = [
   {
     id: 'golden-butterfly',
     name: 'Golden Butterfly',
-    source: 'Risk Parity Radio',
-    lastReviewed: '2026-10-26',
+    source: 'Risk Parity Radio, https://www.riskparityradio.com/portfolios (July 2026 rebalancing)',
+    lastReviewed: '2026-10-28',
     description:
-      'Equal-weight 5-asset portfolio: 20% each US stocks, small-cap value, long bonds, short bonds, gold. Designed for all-weather resilience.',
+      'Five-asset portfolio: US stocks, small-cap value, long Treasuries, short Treasuries, gold. Weights are the currently published ones (20.5/20.5/20/20/19); RPR plans a glide to 25/25/20/20/10 by 2035.',
     allocations: {
-      VTI: 0.2, // US Total Market
-      VIOV: 0.2, // US Small-Cap Value
+      VTI: 0.205, // US Total Market
+      VIOV: 0.205, // US Small-Cap Value
       VGLT: 0.2, // Long-Term Treasury
-      VGSH: 0.2, // Short-Term Treasury
+      SHY: 0.19, // Short-Term Treasury
       GLDM: 0.2, // Gold
     },
   },
   {
     id: 'all-seasons',
     name: 'All Seasons (RPR Version)',
-    source: 'Risk Parity Radio',
-    lastReviewed: '2026-10-26',
+    source: 'Risk Parity Radio, https://www.riskparityradio.com/portfolios',
+    lastReviewed: '2026-10-28',
     description:
-      'RPR adaptation of the All Weather portfolio: 30% US stocks, 15% long bonds, 40% intermediate bonds, 7.5% gold, 7.5% commodities.',
+      'RPR adaptation of the All Weather portfolio: 30% US stocks, 40% long Treasuries, 15% intermediate Treasuries, 7.5% gold, 7.5% commodities.',
     allocations: {
       VTI: 0.3, // US Total Market
-      VGLT: 0.15, // Long-Term Treasury
-      VGIT: 0.4, // Intermediate Treasury
+      VGLT: 0.4, // Long-Term Treasury
+      VGIT: 0.15, // Intermediate Treasury
       GLDM: 0.075, // Gold
-      DBC: 0.075, // Broad Commodities
+      PDBC: 0.075, // Broad Commodities
     },
   },
   {
     id: 'golden-ratio',
     name: 'Golden Ratio',
-    source: 'Risk Parity Radio',
-    lastReviewed: '2026-10-26',
+    source:
+      'Risk Parity Radio, https://www.riskparityradio.com/portfolios (revised 2024-12-31 version)',
+    lastReviewed: '2026-10-28',
     description:
-      'Fibonacci-inspired allocation: 61.8% growth assets (stocks/REITs), 38.2% defensive (bonds/gold).',
+      'Golden-ratio-stepped allocation: 42% stocks (growth and small-cap value), 26% long Treasuries, 16% gold, 10% managed futures, 6% cash. Cash is modelled with BIL (T-bills) in place of a money-market fund.',
     allocations: {
-      VTI: 0.4, // US Total Market
-      VXUS: 0.218, // Intl Equity (61.8% * ~35%)
-      VGLT: 0.15, // Long Bonds
-      VGIT: 0.15, // Intermediate Bonds
-      VNQ: 0.05, // REITs
-      GLDM: 0.032, // Gold (adjusted to sum to 1)
+      VUG: 0.21, // US Large-Cap Growth
+      VIOV: 0.21, // US Small-Cap Value
+      VGLT: 0.26, // Long-Term Treasury
+      GLDM: 0.16, // Gold
+      DBMF: 0.1, // Managed Futures
+      BIL: 0.06, // Cash proxy (published: money market)
     },
   },
   {
     id: 'permanent-portfolio',
     name: 'Permanent Portfolio',
-    source: 'Risk Parity Radio / Harry Browne',
-    lastReviewed: '2026-10-26',
+    source: 'Harry Browne (classic 25/25/25/25; not an RPR-published allocation)',
+    lastReviewed: '2026-10-28',
     description:
       'Classic 25% each: US stocks, long bonds, cash/short bonds, gold. Designed for any economic environment.',
     allocations: {
@@ -141,33 +144,18 @@ export const PORTFOLIO_TEMPLATES = [
       GLDM: 0.25, // Gold
     },
   },
-  {
-    id: 'aggressive-50-50',
-    name: 'Aggressive 50/50',
-    source: 'Risk Parity Radio',
-    lastReviewed: '2026-10-26',
-    description:
-      'Simple 50% US stocks / 50% long bonds. High volatility, historically strong returns.',
-    allocations: {
-      VTI: 0.5,
-      VGLT: 0.5,
-    },
-  },
-  {
-    id: 'risk-parity-core',
-    name: 'Risk Parity Core (RPR)',
-    source: 'Risk Parity Radio',
-    lastReviewed: '2026-10-26',
-    description:
-      'RPR flagship risk parity: equal-risk allocation across 4 macro regimes using 4 ETFs.',
-    allocations: {
-      VTI: 0.2, // Growth
-      VGLT: 0.3, // Deflation hedge
-      GLDM: 0.25, // Inflation hedge
-      VGIT: 0.25, // Intermediate bonds
-    },
-  },
 ];
+
+/**
+ * Throw if a template's allocations do not sum to 1. Weights are never adjusted to fit.
+ * @param {{id: string, allocations: Record<string, number>}} template
+ */
+export function assertTemplateValid(template) {
+  if (!validateAllocations(template.allocations)) {
+    const sum = Object.values(template.allocations).reduce((a, b) => a + b, 0);
+    throw new Error(`Template ${template.id} allocations sum to ${sum}, expected 1`);
+  }
+}
 
 /**
  * Validate template allocations sum to 1.0 (within tolerance).
