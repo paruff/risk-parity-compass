@@ -750,6 +750,7 @@ export default function App() {
         horizonYears: retirement.horizonYears,
         periodsPerYear: 12,
         inflationRate: retirement.inflationRate,
+        monthlySpend: netMonthlySpend,
       });
 
       // Current age for guardrails
@@ -2492,6 +2493,16 @@ export default function App() {
                     {/* Results */}
                     {retirementResults && (
                       <div>
+                        <div
+                          role="status"
+                          data-testid="history-windows"
+                          style={{ fontSize: 12, marginBottom: 8, opacity: 0.8 }}
+                        >
+                          {retirementResults.withheld
+                            ? `SWR / PWR / success withheld: ${retirementResults.withheldReason}. `
+                            : ''}
+                          Historical windows: {retirementResults.windowCount}
+                        </div>
                         {/* Metric Cards */}
                         <div
                           style={{
@@ -2507,7 +2518,9 @@ export default function App() {
                               style={S.metricVal}
                               data-testid="metric-swr"
                             >
-                              {(retirementResults.swr * 100).toFixed(2)}%
+                              {retirementResults.withheld
+                                ? '—'
+                                : `${(retirementResults.swr * 100).toFixed(2)}%`}
                             </div>
                             <div style={S.metricLbl}>Safe Withdrawal Rate (SWR)</div>
                           </div>
@@ -2517,7 +2530,9 @@ export default function App() {
                               style={S.metricVal}
                               data-testid="metric-pwr"
                             >
-                              {(retirementResults.pwr * 100).toFixed(2)}%
+                              {retirementResults.withheld
+                                ? '—'
+                                : `${(retirementResults.pwr * 100).toFixed(2)}%`}
                             </div>
                             <div style={S.metricLbl}>Perpetual Withdrawal Rate (PWR)</div>
                           </div>
@@ -2527,7 +2542,9 @@ export default function App() {
                               style={S.metricVal}
                               data-testid="metric-success"
                             >
-                              {(retirementResults.successRate * 100).toFixed(1)}%
+                              {retirementResults.withheld
+                                ? '—'
+                                : `${(retirementResults.successRate * 100).toFixed(1)}%`}
                             </div>
                             <div style={S.metricLbl}>Success Probability</div>
                           </div>
