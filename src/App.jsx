@@ -1,4 +1,5 @@
 import ErrorBoundary from './components/ErrorBoundary';
+import { proxyReturns } from './utils/longRun';
 import Tooltip from './components/Tooltip';
 import RiskContribution from './components/RiskContribution';
 import CorrelationMatrix from './components/CorrelationMatrix';
@@ -775,6 +776,13 @@ export default function App() {
       for (const t of tickersWithData) {
         allCloses[t] = aligned[t];
       }
+      // Resample whole historical years (1928+) when every holding has a proxy series;
+      // otherwise fall back to Gaussian shocks.
+      const proxies = Object.fromEntries(Object.keys(targetWeights).map(t => [t, proxyReturns(t)]));
+      const useBootstrap = Object.values(proxies).every(Boolean);
+      const bootstrap = useBootstrap
+        ? Object.fromEntries(Object.entries(proxies).map(([t, rows]) => [t, rows.map(x => x.r)]))
+        : null;
       // Same seed for every run, so static vs guardrail differ only by the spending rule.
       const runMc = guardrail =>
         monteCarloWithWithdrawals(allCloses, targetWeights, vols, corrMatrix, {
@@ -783,6 +791,7 @@ export default function App() {
           monthlySpend: netMonthlySpend,
           inflationRate: retirement.inflationRate,
           driftMode: retirement.driftMode,
+          bootstrap,
           seed: 42,
           startingValue: totalValue,
           guardrail,
@@ -822,6 +831,7 @@ export default function App() {
         rmdTable,
         mcStats: mc.stats,
         guardrailComparison,
+        mcMethod: useBootstrap ? 'bootstrap' : 'gaussian',
         bufferStatus: {
           months: retirement.cashBufferMonths,
           remainingMonths:
@@ -2674,6 +2684,11 @@ export default function App() {
                         {/* Monte Carlo Fan Chart */}
                         <div style={S.card}>
                           <div style={S.cardTitle}>Monte Carlo Fan Chart (P10–P90)</div>
+                          <p data-testid="mc-method" style={{ color: '#94a3b8', fontSize: 12 }}>
+                            {retirementResults.mcMethod === 'bootstrap'
+                              ? 'Method: resampled calendar years 1928–2025 from index proxies (annual data, not your ETFs’ own history).'
+                              : 'Method: Gaussian shocks with constant correlation; a holding has no long-run proxy.'}
+                          </p>
                           <FanChart
                             bands={retirementResults.bands}
                             steps={retirementResults.bands?.p50?.length ?? 360}
