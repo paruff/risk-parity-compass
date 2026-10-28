@@ -371,7 +371,8 @@ function percentile(sorted, p) {
 // weights: { ticker: weight }
 // vols: { ticker: annualizedVol }
 // corrMatrix: { ticker: { [ticker2]: correlation } }
-// options: { simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed, guardrail, startingValue, age }
+// options: { bootstrap: { ticker: annualReturns[] } (equal length, same years) resamples whole historical years
+//   in 12-month blocks instead of drawing Gaussian shocks, simulations, steps, monthlySpend, inflationRate, driftMode, expectedReturns, threshold, seed, guardrail, startingValue, age }
 // Returns: { terminalValues, successRate, bands: { p10, p25, p50, p75, p90 }, stats, depletionYears }
 export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options = {}) {
   const {
@@ -386,6 +387,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     guardrail = 'none',
     startingValue = 0,
     age,
+    bootstrap = null,
   } = options;
 
   const tickers = Object.keys(weights);
@@ -460,6 +462,14 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
   const rng = mulberry32(seed);
   const normal = normalSampler(rng);
 
+  const bootstrapYears = bootstrap ? (bootstrap[tickers[0]]?.length ?? 0) : 0;
+  if (
+    bootstrap &&
+    (bootstrapYears === 0 || tickers.some(t => bootstrap[t]?.length !== bootstrapYears))
+  ) {
+    throw new Error('bootstrap needs an equal-length return series for every ticker');
+  }
+
   const terminalValues = new Float64Array(simulations);
   const depletionYears = new Array(simulations);
   const pathValues = Array.from({ length: simulations }, () => new Float64Array(steps));
@@ -468,21 +478,31 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     const currentWeights = { ...weights };
     const pathPrices = { ...currentPrices };
     let portfolioValue = startingValue; // dollars
+    let yearIdx = 0;
 
     for (let step = 0; step < steps; step++) {
-      // Correlated shocks: Z = L · X
-      const normals = Array.from({ length: n }, () => normal());
-      const correlated = Array(n).fill(0);
-      for (let i = 0; i < n; i++) {
-        let sum = 0;
-        for (let j = 0; j <= i; j++) sum += L[i][j] * normals[j];
-        correlated[i] = sum;
+      if (bootstrap && step % 12 === 0) {
+        // One historical year for every asset keeps that year's cross-asset correlation.
+        yearIdx = Math.floor(rng() * bootstrapYears);
+      }
+      let correlated = null;
+      if (!bootstrap) {
+        // Correlated shocks: Z = L · X
+        const normals = Array.from({ length: n }, () => normal());
+        correlated = Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+          let sum = 0;
+          for (let j = 0; j <= i; j++) sum += L[i][j] * normals[j];
+          correlated[i] = sum;
+        }
       }
 
       let rebalReturn = 0;
       for (let i = 0; i < n; i++) {
         const t = tickers[i];
-        const growth = Math.exp(stepDrift[t] + Math.sqrt(dt) * correlated[i]);
+        const growth = bootstrap
+          ? (1 + bootstrap[t][yearIdx]) ** (1 / 12)
+          : Math.exp(stepDrift[t] + Math.sqrt(dt) * correlated[i]);
         pathPrices[t] *= growth;
         rebalReturn += currentWeights[t] * growth;
         currentWeights[t] *= growth;

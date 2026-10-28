@@ -85,7 +85,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
 | **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 (PR #40 draft) |
 | ~~Templates diverge from published sources~~ | Fixed, M7 #31 (unpublished templates removed; weights re-sourced 2026-10-28) |
-| No pre-2004 history; Gaussian constant-correlation Monte Carlo | M7 #32, #33 |
+| Annual-only long-run proxies; no commodity/managed-futures history; Gaussian fallback when a holding has no proxy | M7 #32, #33 (partly fixed) |
 | ~~"Risk parity" weights are inverse-volatility~~ | Fixed, M7 #34 (equal-risk-contribution weights) |
 
 ## 7. Definition of done (roadmap)
