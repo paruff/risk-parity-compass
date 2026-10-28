@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { C } from './tokens';
 import {
   RUBRIC,
   MODULES,
@@ -36,15 +37,15 @@ export default function LearnTab({ S, learning, setLearning }) {
                 checked={learning?.rubricChoice === r.id}
                 onChange={() => setLearning(l => ({ ...l, rubricChoice: r.id }))}
               />
-              <span style={{ color: '#cbd5e1', fontSize: 15 }}>
+              <span style={{ color: C.onSurfaceSecondary, fontSize: 15 }}>
                 <strong>{r.name}.</strong> {r.can}
                 <br />
-                <span style={{ color: '#94a3b8' }}>Common slip: {r.error}</span>
+                <span style={{ color: C.onSurfaceMuted }}>Common slip: {r.error}</span>
               </span>
             </label>
           ))}
         </fieldset>
-        <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 0 }}>
+        <p style={{ color: C.onSurfaceMuted, fontSize: 14, marginBottom: 0 }}>
           This is a map, not a test or a score. Every tab stays open whatever you pick, and the
           modules below can be done in any order.
         </p>
@@ -65,9 +66,9 @@ export default function LearnTab({ S, learning, setLearning }) {
                 borderRadius: 8,
                 fontSize: 15,
                 cursor: 'pointer',
-                color: '#e2e8f0',
-                background: active === id ? '#1d4ed8' : '#1e293b',
-                border: '1px solid #334155',
+                color: C.onSurface,
+                background: active === id ? C.primaryDeep : C.border,
+                border: `1px solid ${C.borderStrong}`,
               }}
             >
               {MODULES[id].title}
@@ -122,19 +123,24 @@ function ModuleCard({ id, S, learning, setLearning }) {
   return (
     <div style={S.card}>
       {isDue && !result && (
-        <div role="status" style={{ ...S.card, borderColor: '#92400e', background: '#1c1200' }}>
-          <span style={{ color: '#fbbf24' }}>
+        <div
+          role="status"
+          style={{ ...S.card, borderColor: C.warningBorder, background: C.warningSurface }}
+        >
+          <span style={{ color: C.warning }}>
             A quick refresher on this topic is due. It’s optional.
           </span>
         </div>
       )}
       <div style={S.cardTitle}>{m.title}</div>
-      <h2 style={{ fontSize: 16, color: '#f1f5f9', margin: '0 0 6px' }}>Worked example</h2>
-      <p style={{ color: '#cbd5e1', fontSize: 15, lineHeight: 1.5, marginTop: 0 }}>{m.worked()}</p>
+      <h2 style={{ fontSize: 16, color: C.onSurfaceStrong, margin: '0 0 6px' }}>Worked example</h2>
+      <p style={{ color: C.onSurfaceSecondary, fontSize: 15, lineHeight: 1.5, marginTop: 0 }}>
+        {m.worked()}
+      </p>
 
-      <h2 style={{ fontSize: 16, color: '#f1f5f9', margin: '16px 0 6px' }}>Your turn</h2>
+      <h2 style={{ fontSize: 16, color: C.onSurfaceStrong, margin: '16px 0 6px' }}>Your turn</h2>
       <form onSubmit={submit}>
-        <p style={{ color: '#cbd5e1', fontSize: 15, lineHeight: 1.5, marginTop: 0 }}>
+        <p style={{ color: C.onSurfaceSecondary, fontSize: 15, lineHeight: 1.5, marginTop: 0 }}>
           {m.question(current)} (Within 5% counts.)
         </p>
         <label style={S.label} htmlFor="learn-answer">
@@ -177,16 +183,16 @@ function ModuleCard({ id, S, learning, setLearning }) {
 
       {result && (
         <div role="status" style={{ marginTop: 16 }}>
-          <p style={{ color: result.correct ? '#86efac' : '#fca5a5', fontWeight: 600 }}>
+          <p style={{ color: result.correct ? C.onPositive : C.onNegative, fontWeight: 600 }}>
             {result.correct ? 'Correct.' : 'Not quite.'}
           </p>
-          <p style={{ color: '#cbd5e1' }}>
+          <p style={{ color: C.onSurfaceSecondary }}>
             <strong>Where you’re going:</strong> {result.where}
           </p>
-          <p style={{ color: '#cbd5e1' }}>
+          <p style={{ color: C.onSurfaceSecondary }}>
             <strong>How you’re doing:</strong> {result.how}
           </p>
-          <p style={{ color: '#cbd5e1' }}>
+          <p style={{ color: C.onSurfaceSecondary }}>
             <strong>Next:</strong> {result.next}
           </p>
 
@@ -211,17 +217,17 @@ function ModuleCard({ id, S, learning, setLearning }) {
             </button>
             <button
               type="button"
-              style={{ ...S.btn, width: 'auto', padding: '12px 18px', background: '#1e293b' }}
+              style={{ ...S.btn, width: 'auto', padding: '12px 18px', background: C.border }}
               onClick={again}
             >
               Try another
             </button>
           </div>
-          {saved && <p style={{ color: '#86efac' }}>Saved on this device.</p>}
+          {saved && <p style={{ color: C.onPositive }}>Saved on this device.</p>}
         </div>
       )}
 
-      <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 0 }}>
+      <p style={{ color: C.onSurfaceMuted, fontSize: 14, marginBottom: 0 }}>
         What this doesn’t show: {m.limits} Progress stays on this device.
       </p>
     </div>

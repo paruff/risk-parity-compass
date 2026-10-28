@@ -7,6 +7,7 @@ colors:
   surface: "#0d1424"
   surface-input: "#131d2e"
   border: "#1e293b"
+  border-strong: "#334155"
   divider: "#0f172a"
   on-surface: "#e2e8f0"
   on-surface-strong: "#f1f5f9"
