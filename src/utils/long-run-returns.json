@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "Aswath Damodaran, Historical Returns on Stocks, Bonds and Bills: 1928-2025, https://pages.stern.nyu.edu/~adamodar/pc/datasets/histretSP.xls (inflation: FRED CPIAUCNS, annual % change)",
+  "source": "Aswath Damodaran, Historical Returns on Stocks, Bonds and Bills: 1928-2025, NYU Stern, https://pages.stern.nyu.edu/~adamodar/pc/datasets/histretSP.xls (usage rules: free to use, acknowledgement requested). Inflation: U.S. Bureau of Labor Statistics, CPI-U All Items [CPIAUCNS], retrieved from FRED, Federal Reserve Bank of St. Louis, https://fred.stlouisfed.org/series/CPIAUCNS (public domain, citation requested).",
   "retrieved": "2026-10-28",
   "frequency": "annual, calendar year, nominal total return as decimal",
   "notes": [
