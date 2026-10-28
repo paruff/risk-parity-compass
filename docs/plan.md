@@ -1,6 +1,6 @@
 # Plan — Risk Parity Compass
 
-**Intent:** `docs/intent.md` · **Spec:** `docs/spec.md` · **Last synced with GitHub:** 2026-10-27
+**Intent:** `docs/intent.md` · **Spec:** `docs/spec.md` · **Last synced with GitHub:** 2026-10-28
 
 One milestone = one branch = one PR (< 400 changed lines). **Agents never merge; a human reviews and merges.**
 
@@ -15,7 +15,7 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 | M4 | Portfolio library & comparison | #10 | Closed | PR #18 (templates module) and PR #19 (Portfolios tab) merged | — |
 | M5 | Production hardening & accessibility | #11 | Closed | PR #27 merged | — |
 | M6 | Learning journey | #23 | Closed | PR #28 merged | Contextual field links deferred; guardrail and sequencing modules corrected under M7 (#29, #35) |
-| M7 | Expert review remediation | #37 | Open | Plan: `docs/superpowers/plans/2026-10-26-m7-expert-review-remediation.md`; see table below | #30–#36 |
+| M7 | Expert review remediation | #37 | Closed | Plan: `docs/superpowers/plans/2026-10-26-m7-expert-review-remediation.md`; see table below | — |
 
 ### M7 work items
 
@@ -24,15 +24,15 @@ Order = severity then dependency. One issue = one branch = one PR.
 | Order | Issue | Finding | Severity | State | PR |
 |-------|-------|---------|----------|-------|----|
 | 1 | #29 | F1 `rpr-80` can raise spending | Critical | Closed | #39 merged |
-| 2 | #30 | F2+F3 honest historical metrics | Critical | Open | #40 draft |
-| 3 | #31 | F4 template fidelity audit (independent) | High | Open | — |
-| 4 | #32 | Long-run history (before #33) | High | Open | — |
-| 5 | #33 | F5 block-bootstrap Monte Carlo (after #32) | High | Open | — |
-| 6 | #34 | F6 ERC weights or rename | Medium | Open | — |
-| 7 | #35 | F7 tax-aware drawdown | Medium | Open | — |
-| 8 | #36 | F8 hygiene (anytime) | Low | Open | — |
+| 2 | #30 | F2+F3 honest historical metrics | Critical | Closed | #43 merged |
+| 3 | #31 | F4 template fidelity audit (independent) | High | Closed | #44 merged |
+| 4 | #32 | Long-run history (before #33) | High | Closed | #48 (data), #53 (rolling metrics) merged |
+| 5 | #33 | F5 block-bootstrap Monte Carlo (after #32) | High | Closed | #50 merged (#49 merged into a stale stacked branch and was re-opened as #50) |
+| 6 | #34 | F6 ERC weights | Medium | Closed | #45 merged |
+| 7 | #35 | F7 tax-aware drawdown | Medium | Closed | #47 (wording), #51 (bracket-fill) merged |
+| 8 | #36 | F8 hygiene | Low | Closed | #46, #52, #54 merged |
 
-**Next action:** review and merge #40 (closes #30), then start #31.
+**Next action:** none scheduled. Candidates: expose Guyton-Klinger/VPW (see Deferred), group the tab props into context, a long-bond and commodity proxy series.
 
 ## Housekeeping items (not milestones)
 
@@ -49,7 +49,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 
 ## Verification Strategy
 
-Each PR: unit tests with independently computed oracles (`docs/spec.md` §4), `npm run lint`, `format`, `build`, `test:e2e`, Lighthouse CI. Metric-changing PRs (#30, #32, #33) also update `Known Limitations.md` and in-app disclaimers.
+Each PR: unit tests with independently computed oracles (`docs/spec.md` §4), `npm run lint`, `format`, `build`, `test:e2e`, Lighthouse CI. Metric-changing PRs also update `Known Limitations.md` and in-app disclaimers.
 
 ## Rename: Shannon's Demon → Risk Parity Compass
 

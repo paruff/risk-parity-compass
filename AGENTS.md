@@ -18,7 +18,7 @@ Every node subprocess needs `env -u NODE_OPTIONS <cmd>` (the shim is broken).
 
 ## Layout
 
-`src/App.jsx` (UI, state, inline styles; `PortfoliosTab.jsx` is already split out) · `src/utils/` (pure finance: `finance.js`, `withdrawal.js`, `portfolioPath.js`, `portfolios.js`, `rmd-tables.json`) · `src/components/` · `src/mocks/handlers.js` (MSW) · `tests/e2e/` (Playwright, Yahoo mocked).
+`src/App.jsx` (shared state and effects; inline styles) · `src/tabs/` (Holdings, Analysis, Trades, Retirement tab bodies, each taking App's state as props) · `PortfoliosTab.jsx`, `LearnTab.jsx` · `src/utils/` (pure finance: `finance.js`, `withdrawal.js`, `portfolioPath.js`, `portfolios.js`, `longRun.js`, `learning.js`, `storage.js`; static data `rmd-tables.json`, `long-run-returns.json`) · `src/components/` (charts and shared widgets) · `src/tokens.js` (colour tokens mirroring `DESIGN.md`) · `src/mocks/handlers.js` (MSW) · `tests/e2e/` (Playwright, Yahoo mocked).
 
 ## Rules
 
@@ -40,4 +40,4 @@ Every node subprocess needs `env -u NODE_OPTIONS <cmd>` (the shim is broken).
 
 ## Current state
 
-M1–M6 shipped. **M7 expert-review remediation (#37) is active**; #29 and #30 are Critical and land before any new feature. See `docs/plan.md`.
+M1–M7 shipped (M7 expert-review remediation, #37, closed). Open caveats are in `Known Limitations.md`. See `docs/plan.md`.
