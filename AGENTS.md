@@ -18,15 +18,15 @@ Every node subprocess needs `env -u NODE_OPTIONS <cmd>` (the shim is broken).
 
 ## Layout
 
-`src/App.jsx` (UI, state, inline styles; `PortfoliosTab.jsx` is already split out) · `src/utils/` (pure finance: `finance.js`, `withdrawal.js`, `portfolioPath.js`, `portfolios.js`, `rmd-tables.json`) · `src/components/` · `src/mocks/handlers.js` (MSW) · `tests/e2e/` (Playwright, Yahoo mocked).
+`src/App.jsx` (shared state and effects; inline styles) · `src/tabs/` (Holdings, Analysis, Trades, Retirement tab bodies, each taking App's state as props) · `PortfoliosTab.jsx`, `LearnTab.jsx` · `src/utils/` (pure finance: `finance.js`, `withdrawal.js`, `portfolioPath.js`, `portfolios.js`, `longRun.js`, `learning.js`, `storage.js`; static data `rmd-tables.json`, `long-run-returns.json`) · `src/components/` (charts and shared widgets) · `src/tokens.js` (colour tokens mirroring `DESIGN.md`) · `src/mocks/handlers.js` (MSW) · `tests/e2e/` (Playwright, Yahoo mocked).
 
 ## Rules
 
 - Finance math is pure (`src/utils/`): no DOM, network or clock. Seeded RNG only.
 - Every financial output needs a numeric oracle computed independently of the implementation, at realistic scale. Label-only assertions are forbidden.
 - Rates are annual; functions take `periodsPerYear`. Simulations run in dollars. (Full contracts: `docs/spec.md` §3.)
-- Inline styles only, values from `DESIGN.md`; add a token there before inventing a colour.
-- Yahoo Finance is the only data source; tests never hit it live. It is CORS-blocked from localhost, so retirement inputs must never depend on a fetch.
+- Inline styles only, values from `DESIGN.md`; add a token there (and in `src/tokens.js`) before inventing a colour. No raw hex in components.
+- Yahoo Finance is the only live data source; tests never hit it live. Yahoo is CORS-blocked from localhost, so retirement inputs must never depend on a fetch. Bundled static datasets (`rmd-tables.json`, `long-run-returns.json`) carry their source and retrieval date; cite any new one in the README.
 - Storage keys are `rpcompass_*`. `shannonsdemon_*` is read-only legacy for migration; never write it, never use the old name for the product.
 - No new dependency without justification in the commit.
 
@@ -40,4 +40,4 @@ Every node subprocess needs `env -u NODE_OPTIONS <cmd>` (the shim is broken).
 
 ## Current state
 
-M1–M6 shipped. **M7 expert-review remediation (#37) is active**; #29 and #30 are Critical and land before any new feature. See `docs/plan.md`.
+M1–M7 shipped (M7 expert-review remediation, #37, closed). Open caveats are in `Known Limitations.md`. See `docs/plan.md`.

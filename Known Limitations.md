@@ -8,10 +8,11 @@
 - **Yahoo CORS from localhost** — the chart endpoint blocks requests from `localhost` due to CORS. This works on GitHub Pages but fails locally; the app surfaces an error banner rather than silently failing.
 
 ## Calculations
+- **Long-run data sources** — 1928–2025 annual proxy returns are Aswath Damodaran's published dataset (NYU Stern; free to use, acknowledgement requested; he cautions it is not for public-policy debates or court use and is better suited to valuation than historical research) plus BLS CPI via FRED (public domain, citation requested). Full citations are in the README.
 - **Monte Carlo method** — when every holding has a proxy (stocks, small cap, Treasuries, bills, gold), the simulation resamples whole calendar years from 1928–2025 annual index data, which keeps real stock/bond co-crashes. The data is annual, uses a 10-year Treasury for long bonds and has no commodity or managed-futures series; holdings without a proxy fall back to Gaussian shocks with constant correlation. Proxy history is not your ETFs' own history.
 - **Historical mean drift** — in Gaussian mode only, Monte Carlo defaults to each ticker's historical mean return. You can switch to `zero` or `custom` drift modes in the retirement inputs.
-- **Volatility lookback sensitivity** — inverse-vol weights can shift meaningfully between 3mo and 2y, especially for assets like GLD or TLT. Worth being aware of which lookback you're anchoring to.
-- **Heuristic tax logic** — withdrawal sequencing uses a bracket heuristic (`~$44k/yr` for single filers) that is a simplification, not a full tax calculation. Verify with a qualified advisor.
+- **Volatility lookback sensitivity** — equal-risk-contribution weights (computed from volatilities and correlations; long-only, unlevered, so no leverage to reach a return target) can shift meaningfully between 3mo and 2y, especially for assets like GLD or TLT. Worth being aware of which lookback you're anchoring to.
+- **Heuristic tax logic** — withdrawal sequencing offers the common taxable → traditional → Roth order or a bracket-filling order, both using a fixed bracket allowance (`~$44k/yr` for single filers) rather than your actual income, deductions or Social Security taxation. Neither is a full tax calculation. Verify with a qualified advisor.
 - **Constant inflation** — the retirement engine assumes a single, constant inflation rate over the entire horizon. Real inflation varies.
 - **Guardrail selector** — the Retirement tab offers None and RPR-80. Guyton-Klinger and VPW exist in `guardrailSpend` but are not selectable, and Guyton-Klinger's state is not carried between years inside the Monte Carlo.
 - **Guardrails are models, not guarantees** — RPR-80, Guyton-Klinger, and VPW are spending *rules*, not promises. They reduce sequence risk but don't eliminate it.
@@ -24,10 +25,10 @@
 ## Features Not Yet Implemented
 - **RMDs are implemented** (IRS Uniform Lifetime Table, versioned); they cover Traditional IRA/401k only and assume the account owner's own age.
 - **Tax-loss harvesting** — sell decisions don't optimize for capital loss harvesting.
-- **Roth conversion optimization** — no guidance on partial Roth conversions in low-income years.
+- **Roth conversion optimization** — you can enter a yearly conversion amount in bracket-fill mode and it is capped to the unused bracket room, but the app does not recommend an amount, model the tax paid on it, or look across years.
 - **Social Security optimization** — claiming strategy (when to claim) is not modeled.
 - **PDF export** — "Download PDF" opens the browser print dialog (print stylesheet, light background); choose "Save as PDF". No PDF library is bundled.
-- **Template data fidelity** — template allocations are transcribed by hand from Risk Parity Radio pages (see each template's `lastReviewed`); they are not fetched live and can drift from the source.
+- **Template data fidelity** — template allocations are transcribed by hand from Risk Parity Radio pages (URL and `lastReviewed` per template); they are not fetched live and RPR rebalances, so they can drift. Golden Ratio's money-market slot is modelled with BIL, and Golden Butterfly uses RPR's current 20.5/20.5/20/20/19 weights, not the older equal 20% split.
 - **Template ETFs** — templates use specific ETFs (for example VTI, VGLT, GLDM); load a template to analyse exactly those tickers, or edit the ticker list afterwards.
 
 ## Browser & Environment

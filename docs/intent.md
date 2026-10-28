@@ -41,7 +41,7 @@ Risk Parity Compass answers both in a static, local-only browser app. Grounding 
 
 - React 18 + Vite SPA on GitHub Pages; inline styles only; no new runtime dependencies without justification.
 - Finance logic is pure (`src/utils/`), tested with numeric oracles at realistic scale.
-- Yahoo Finance is the only data source (`fetchQuote`, `fetchMonthlyHistory`); tests never hit it live.
+- Yahoo Finance is the only live data source (`fetchQuote`, `fetchMonthlyHistory`); tests never hit it live. Static datasets (RMD table, 1928–2025 returns) are bundled with their sources recorded.
 - One milestone per branch/PR, < 400 changed lines; **agents never merge**.
 - `DESIGN.md` tokens are normative for all UI.
 
