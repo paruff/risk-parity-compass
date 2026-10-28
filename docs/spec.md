@@ -6,7 +6,7 @@
 
 ## 1. System
 
-Static React 18 + Vite SPA on GitHub Pages. All state in `localStorage`. No backend. The only network calls are Yahoo Finance chart requests from the browser; the IRS RMD table and the 1928–2025 long-run returns are bundled static JSON.
+Static React 18 + Vite SPA on GitHub Pages. All state in `localStorage`. No backend. The browser fetches only same-origin static files: the price snapshot in `public/prices/` (written server-side by `scripts/update-prices.mjs`), the IRS RMD table and the 1928–2025 long-run returns are bundled static JSON.
 
 ```
 src/
@@ -23,8 +23,10 @@ src/
   utils/long-run-returns.json  annual returns (Damodaran; CPI via FRED), sources recorded in the file
   utils/rmd-tables.json   versioned IRS Uniform Lifetime Table
   components/             charts (FanChart, DrawdownBacktestChart, WeightBar, Confetti), ErrorBoundary, Tooltip, RiskContribution, CorrelationMatrix, PerformanceChart, PlanTools
-  mocks/handlers.js       MSW handlers for Yahoo
-tests/e2e/                Playwright with route-intercepted, timestamped Yahoo mocks
+  mocks/handlers.js       MSW handlers for the price snapshot files
+  utils/priceSnapshot.js  loads public/prices/<TICKER>.json; builds snapshots from Yahoo charts
+scripts/update-prices.mjs  server-side snapshot refresh (npm run prices:update)
+tests/e2e/                Playwright with route-intercepted snapshot mocks (tests/e2e/helpers/mockPrices.js)
 ```
 
 Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecache` (schemaVersion 2). Legacy `shannonsdemon_*` keys and plan files with `app: "shannonsdemon"` are read for migration only. Plan files export `app: "risk-parity-compass"`.
@@ -68,7 +70,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 
 - **Numeric oracle for every financial output**: expected value computed independently (hand or closed form) at realistic scale (six-figure portfolio, four-figure monthly spend, 30-year horizon).
 - UI tests assert values (`/^\d+(\.\d+)?%$/`, no `NaN`), never labels alone; an error path must never satisfy an assertion.
-- Yahoo is mocked everywhere (MSW for unit, route interception for E2E) with **timestamps** so monthly history aligns.
+- The price snapshot is mocked everywhere (MSW for unit, route interception for E2E) with monthly dates so history aligns; `real-prices.spec.js` is the one unmocked check and is required post-deploy.
 - Gates before merge: `npm test`, `npm run lint` (0 errors), `npm run format`, `npm run build`, `npm run test:e2e`, Lighthouse CI (perf ≥ 0.9, a11y ≥ 0.95, best-practices ≥ 0.9, SEO ≥ 0.9).
 - All Node subprocesses: `env -u NODE_OPTIONS <cmd>`.
 
@@ -86,7 +88,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 |-----|---------------|
 | Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
 | Pages rename (repo now `risk-parity-compass`) | Resolved; close #24 once verified | |
-| Yahoo unofficial API may break; CORS blocks localhost and the deployed Pages origin (price fetch fails in production) | `Known Limitations.md`; M5 resilience |
+| Prices are a snapshot (days old, ~50 tickers); Yahoo's unofficial API can rate-limit the refresh | `Known Limitations.md`; deploy workflow |
 | Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
 | `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
 | Heuristic tax model; federal only; bracket room is a fixed ~$44k/yr, not computed from income | `Known Limitations.md` |

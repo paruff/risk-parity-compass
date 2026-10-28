@@ -1,7 +1,7 @@
 # Known Limitations to Disclose
 
 ## Data Source
-- **Yahoo Finance unofficial API** — works from browsers today but could break without notice. The `fetchQuote()` function is isolated so you can swap it for Alpha Vantage (free tier, 25 req/day) or Polygon.io easily.
+- **Prices are a bundled snapshot, not live** — prices come from static files in `public/prices/`, refreshed by `npm run prices:update` and a best-effort weekday-evening CI run, so they can be days old (each quote shows its snapshot date). Only about 50 common ETFs are included; any other ticker fails with suggestions, and a price can be overridden by hand. The data comes from Yahoo Finance's unofficial chart endpoint, which can rate-limit or change without notice; review its terms before promoting the site widely. Swap the fetcher in `scripts/update-prices.mjs` for another provider if needed.
 - **Rolling SWR/PWR/success basis** — when every holding has an index proxy (US stocks, small-cap, Treasuries, bills, gold), these metrics use annual 1928–2025 proxy history (about 70 overlapping 30-year windows) and say so beside the window count. Annual periods are coarser than monthly, a 10-year Treasury stands in for long bonds, and proxy history is not your ETFs' own. Holdings with no proxy (REITs, emerging markets, commodities, managed futures) fall back to the ETFs' own short history and are withheld when it is too short.
 - **Short ETF history limits 30-year SWR (fallback path)** — the default ticker set (SPY, TLT, GLD, VNQ, EEM) only has ~22 years of overlapping monthly history. The app reports `effectiveYears` and computes rolling metrics over available history rather than returning zeros.
 - **Stale-price fallback** — if a live quote fails, the last good quote for that ticker and lookback is used, flagged with its timestamp, and prices can be overridden by hand. Cached data is never refreshed silently.
@@ -34,4 +34,3 @@
 - **localStorage only** — all state persists under `rpcompass_*` keys (data saved under the old `shannonsdemon_*` keys is migrated automatically and left in place as a backup). Use Export plan / Import plan to back up. No cloud sync, no accounts.
 - **Single-tab assumption** — concurrent edits in multiple tabs may overwrite each other.
 - **No mobile app** — responsive web only; touch targets meet 44px minimum but complex tables scroll horizontally on small screens.
-- **CORS (monthly history)** — the same block applies to monthly history requests, locally and on the deployed site. See the Data Source entry above.

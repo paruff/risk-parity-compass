@@ -56,13 +56,15 @@ State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Dat
 
 **Portfolios tab** — curated templates you can load, compare and analyse. Template weights are validated, never adjusted to sum to 1.
 
-**Data resilience** — price data carries a visible timestamp on every tab. If Yahoo fails, the last good quote is used and flagged as cached, and you can override a price. The Retirement tab reports the effective history horizon and which ticker limits it.
+**Data resilience** — every quote carries its snapshot date. If a ticker is missing from the snapshot the app says so and suggests close matches, and you can override a price by hand. The Retirement tab reports the effective history horizon and which ticker limits it.
 
 **Backup and accessibility** — Export plan / Import plan (versioned, validated JSON, includes scenarios); a reminder appears when a backup is over 30 days old or storage is nearly full. Text size (100/115/130%) and high contrast persist.
 
 ## Data source
 
-Live prices come from Yahoo Finance's unofficial v8 chart endpoint (no API key). Static datasets are bundled and need no network: the IRS RMD table and the 1928–2025 long-run returns (see below). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
+Prices are a **bundled snapshot**, not a live feed. `npm run prices:update` (`scripts/update-prices.mjs`) fetches daily (2 years) and monthly (full history) adjusted closes from Yahoo Finance's unofficial chart endpoint server-side, one polite request at a time, and writes one JSON file per ticker to `public/prices/` plus an `index.json`. The site reads those files from its own origin, so browsers never call Yahoo (it sends no CORS header and cannot be called from GitHub Pages). The deploy workflow refreshes the snapshot best-effort on weekday evenings; if Yahoo rate-limits the runner, the committed files are used. Only tickers in the snapshot can be analysed (about 50 common ETFs: the defaults, every template holding and the common-ETF list). Tests never call Yahoo: unit tests use MSW and E2E uses Playwright route interception on the snapshot files.
+
+Static datasets are also bundled and need no network: the IRS RMD table and the 1928–2025 long-run returns (see below).
 
 ### Long-run history and attribution
 
@@ -73,7 +75,7 @@ Rolling SWR/PWR/success and the Monte Carlo use bundled annual returns for 1928�
 
 ## Privacy
 
-Everything you enter stays in your browser's `localStorage`; there is no server, account or analytics. The only data that leaves the page is the list of tickers you ask for, sent as price requests to Yahoo Finance (`query1.finance.yahoo.com`), which sees your IP address like any website you visit. Account balances, spending, birth year and scenarios are never transmitted. See [`SECURITY.md`](SECURITY.md).
+Everything you enter stays in your browser's `localStorage`; there is no server, account or analytics. The page makes no requests to third parties: prices are static files served from the same site, so not even the tickers you look up leave your browser. See [`SECURITY.md`](SECURITY.md).
 
 ## Quality gates
 
