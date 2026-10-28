@@ -3,6 +3,10 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # Weekday evenings (UTC, after the US close): rebuild with a fresh price snapshot.
+  schedule:
+    - cron: '17 22 * * 1-5'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,6 +23,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      # Best effort: Yahoo may rate-limit CI runners. On failure the committed snapshot is used.
+      - name: Refresh price snapshot
+        run: npm run prices:update
+        continue-on-error: true
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -44,7 +52,7 @@ jobs:
 
   # Runs the full e2e suite against the site that was just published, so a broken deploy
   # (bad base path, missing asset, CSP violation) fails the workflow instead of going unnoticed.
-  # Yahoo is mocked inside the specs, so this verifies the deployed build, not live prices.
+  # The main suite mocks price files; the step after it requires real snapshot data on the live site.
   verify:
     needs: deploy
     runs-on: ubuntu-latest
@@ -64,6 +72,13 @@ jobs:
           export BASE_URL="$(echo "$BASE_URL" | sed -E 's#(https?://[^/]+).*#\1#')"
           echo "Verifying $BASE_URL"
           npm run test:e2e
+      - name: Live site can price real tickers (no mocks)
+        env:
+          BASE_URL: ${{ needs.deploy.outputs.page_url }}
+          REQUIRE_REAL_PRICES: '1'
+        run: |
+          export BASE_URL="$(echo "$BASE_URL" | sed -E 's#(https?://[^/]+).*#\1#')"
+          npx playwright test tests/e2e/real-prices.spec.js
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4

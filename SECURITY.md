@@ -1,6 +1,6 @@
 # Security policy
 
-Risk Parity Compass is a static site that runs entirely in your browser. It has no server, no accounts and no analytics. The only network requests it makes are price lookups to Yahoo Finance for the tickers you enter.
+Risk Parity Compass is a static site that runs entirely in your browser. It has no server, no accounts and no analytics, and it makes no requests to third parties: prices are static files served from the same site.
 
 ## Reporting a vulnerability
 

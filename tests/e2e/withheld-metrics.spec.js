@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { mockPrices } from './helpers/mockPrices.js';
 
 // 10 years of monthly history: shorter than the default 30y horizon.
 const CLOSES = Array.from({ length: 120 }, (_, i) => 100 + Math.sin(i * 0.1) * 2 + i * 0.03);
@@ -7,15 +8,7 @@ const TIMESTAMPS = Array.from({ length: 120 }, (_, i) =>
 );
 
 test('SWR/PWR/success are withheld with the reason when history is short', async ({ page }) => {
-  await page.route('https://query1.finance.yahoo.com/**', route =>
-    route.fulfill({
-      json: {
-        chart: {
-          result: [{ indicators: { adjclose: [{ adjclose: CLOSES }] }, timestamp: TIMESTAMPS }],
-        },
-      },
-    })
-  );
+  await mockPrices(page, CLOSES, TIMESTAMPS);
   await page.goto('/risk-parity-compass/');
   await page.waitForSelector('#root');
   await page.click('button:has-text("Run Analysis")');

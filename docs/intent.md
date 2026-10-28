@@ -26,7 +26,7 @@ Risk Parity Compass answers both in a static, local-only browser app. Grounding 
 | 2 | Withdrawals are modelled monthly with inflation, historically and by seeded Monte Carlo | Numeric-oracle unit tests |
 | 3 | RMDs and withdrawal sequencing are calculated, per account | Oracle tests + RMD table version in UI |
 | 4 | An RPR portfolio loads in one click and compares against the user's own (up to 3) | Portfolios E2E |
-| 5 | No personal data leaves the browser; no backend, no accounts | Architecture rule; no network except Yahoo quotes |
+| 5 | No personal data leaves the browser; no backend, no accounts | Architecture rule; the browser makes no third-party requests |
 | 6 | Accessible to an older, non-technical user | axe zero violations; Lighthouse a11y ≥ 0.95 |
 | 7 | Every headline number is pinned by an independently computed test | Review rule R1 in `REVIEW.md` |
 
@@ -41,7 +41,7 @@ Risk Parity Compass answers both in a static, local-only browser app. Grounding 
 
 - React 18 + Vite SPA on GitHub Pages; inline styles only; no new runtime dependencies without justification.
 - Finance logic is pure (`src/utils/`), tested with numeric oracles at realistic scale.
-- Yahoo Finance is the only live data source (`fetchQuote`, `fetchMonthlyHistory`); tests never hit it live. Static datasets (RMD table, 1928–2025 returns) are bundled with their sources recorded.
+- Prices are a bundled snapshot (`public/prices/`, refreshed server-side from Yahoo by `scripts/update-prices.mjs`); the browser fetches only same-origin files. Other static datasets (RMD table, 1928–2025 returns) are bundled with their sources recorded.
 - One milestone per branch/PR, < 400 changed lines; **agents never merge**.
 - `DESIGN.md` tokens are normative for all UI.
 

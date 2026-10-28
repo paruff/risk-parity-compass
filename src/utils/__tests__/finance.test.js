@@ -13,7 +13,6 @@ import {
   simulatePerformance,
   monteCarloSimulation,
   clampPct,
-  fetchMonthlyHistory,
   computeOverlap,
   mulberry32,
   normalSampler,
@@ -246,20 +245,6 @@ describe('monteCarloSimulation', () => {
     const result = monteCarloSimulation({}, {}, {}, {}, { simulations: 10 });
     expect(result.terminalValues.length).toBe(0);
     expect(result.stats.median).toBe(0);
-  });
-});
-
-describe('fetchMonthlyHistory', () => {
-  it('returns monthly dates and closes', async () => {
-    const { dates, closes } = await fetchMonthlyHistory('SPY');
-    expect(Array.isArray(dates)).toBe(true);
-    expect(Array.isArray(closes)).toBe(true);
-    expect(dates.length).toBe(closes.length);
-    expect(dates.length).toBeGreaterThan(0);
-  });
-
-  it('throws on 404', async () => {
-    await expect(fetchMonthlyHistory('INVALID')).rejects.toThrow();
   });
 });
 

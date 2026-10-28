@@ -1,3 +1,5 @@
+import { loadSnapshot } from './priceSnapshot.js';
+
 // ─── FINANCE HELPERS ────────────────────────────────────────────────────────
 
 const TAX_INEFFICIENCY = {
@@ -88,21 +90,19 @@ function closestTickers(ticker, candidates = COMMON_ETFS, limit = 3) {
 }
 // ─── FINANCE HELPERS ──────────────────────────────────────────────────────────
 
-// Yahoo Finance v8 chart endpoint – unofficial, no API key needed, CORS-friendly via a proxy trick.
-// NOTE: This endpoint is unofficial and may break. Swap fetchQuote() if needed.
+// Prices come from the bundled snapshot (see priceSnapshot.js); there is no live network call.
+const LOOKBACK_POINTS = { '3mo': 63, '6mo': 126, '1y': 252, '2y': 504 };
+
 async function fetchQuote(ticker, period = '1y') {
-  const interval = period === '3mo' ? '1d' : '1d';
-  const range = period;
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=${interval}&events=history`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Failed to fetch ${ticker}: HTTP ${resp.status}`);
-  const json = await resp.json();
-  const result = json?.chart?.result?.[0];
-  if (!result) throw new Error(`No data for ${ticker}`);
-  const closes = result.indicators.adjclose?.[0]?.adjclose ?? result.indicators.quote?.[0]?.close;
-  if (!closes || closes.length < 10) throw new Error(`Insufficient history for ${ticker}`);
-  const valid = closes.filter(Boolean);
-  return { ticker, closes: valid, latestPrice: valid[valid.length - 1] };
+  const snap = await loadSnapshot(ticker);
+  const closes = (snap.daily ?? []).slice(-(LOOKBACK_POINTS[period] ?? LOOKBACK_POINTS['1y']));
+  if (closes.length < 10) throw new Error(`Insufficient history for ${ticker}`);
+  return {
+    ticker: String(ticker).trim().toUpperCase(),
+    closes,
+    latestPrice: closes[closes.length - 1],
+    asOf: snap.asOf,
+  };
 }
 
 function annualizedVol(closes) {
@@ -471,25 +471,12 @@ function choleskyDecompose(covMatrix) {
 // mulberry32: small, fast, deterministic 32-bit PRNG. A seed makes Monte
 // Carlo runs reproducible and unit-testable.
 // ─── MONTHLY HISTORY FETCH ─────────────────────────────────────────────────────
-// Fetches monthly adjusted close data from Yahoo Finance for long-horizon analysis.
+// Monthly adjusted closes from the bundled snapshot, for long-horizon analysis.
 async function fetchMonthlyHistory(ticker) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=max&interval=1mo&events=history`;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`Failed to fetch ${ticker}: HTTP ${resp.status}`);
-  const json = await resp.json();
-  const result = json?.chart?.result?.[0];
-  if (!result) throw new Error(`No data for ${ticker}`);
-  const timestamps = result.timestamp ?? [];
-  const closes = result.indicators?.adjclose?.[0]?.adjclose ?? result.indicators?.quote?.[0]?.close;
+  const snap = await loadSnapshot(ticker);
+  const { dates, closes } = snap.monthly ?? {};
   if (!closes || closes.length < 10) throw new Error(`Insufficient monthly history for ${ticker}`);
-  const dates = timestamps.map(ts => new Date(ts * 1000).toISOString().slice(0, 7)); // YYYY-MM
-  const validPairs = dates
-    .map((d, i) => ({ date: d, close: closes[i] }))
-    .filter(p => p.close != null);
-  return {
-    dates: validPairs.map(p => p.date),
-    closes: validPairs.map(p => p.close),
-  };
+  return { dates, closes };
 }
 
 // Aligns multiple ticker histories to their common date range.
@@ -742,6 +729,7 @@ const fmt = {
 };
 
 export {
+  COMMON_ETFS,
   TAX_INEFFICIENCY,
   ACCOUNT_TYPES,
   LOOKBACK_OPTIONS,
