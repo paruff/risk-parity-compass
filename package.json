@@ -34,7 +34,6 @@
     "@axe-core/playwright": "^4.13.0",
     "@commitlint/cli": "^19.8.1",
     "@commitlint/config-conventional": "^19.8.1",
-    "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.62.1",
     "@vitejs/plugin-react": "^6.0.5",
     "axe-core": "^4.13.0",

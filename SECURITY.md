@@ -10,4 +10,4 @@ Please use GitHub's private reporting: **Security → Report a vulnerability** o
 
 - The production build ships a Content-Security-Policy `<meta>` tag (see `vite.config.js`). GitHub Pages cannot set response headers, so frame-ancestors and similar header-only directives are not available.
 - Your plan lives in `localStorage` on your device. Anyone with access to your browser profile can read it; use Export plan for backups.
-- Development-only dependencies (Lighthouse CI and its Chrome tooling) report advisories under `npm audit`. They are not shipped in the site; `npm audit --omit=dev` is clean.
+- `npm audit` is clean. Lighthouse CI is not a project dependency (its Puppeteer chain has an unpatched `extract-zip` advisory); CI runs a pinned `npx @lhci/cli` on ephemeral runners only.

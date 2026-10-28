@@ -265,3 +265,9 @@ aidlc/diagnostics/
 .omo/
 .agents/logs/
 test-results/
+
+# Personal AI-workflow tooling lives on the developer's machine, not in the public repo
+.aidlc/
+aidlc/
+.opencode/
+.claude/
