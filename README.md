@@ -71,6 +71,10 @@ Rolling SWR/PWR/success and the Monte Carlo use bundled annual returns for 1928â
 - Returns on US stocks, small-cap stocks, T-bills, 10-year Treasuries, Baa corporate bonds, real estate and gold from Aswath Damodaran, *Historical Returns on Stocks, Bonds and Bills: 1928â€“2025*, NYU Stern, <https://pages.stern.nyu.edu/~adamodar/pc/datasets/histretSP.xls> (his own sources include S&P, Ken French's data library, FRED and Shiller). His usage rules say the data is free to use and ask for acknowledgement; they also say it is not meant for public policy debates or court cases, and that it is best suited to real-time valuation work rather than historical research. Here it is a planning proxy only.
 - Inflation: U.S. Bureau of Labor Statistics, Consumer Price Index for All Urban Consumers: All Items in U.S. City Average [CPIAUCNS], retrieved from FRED, Federal Reserve Bank of St. Louis, <https://fred.stlouisfed.org/series/CPIAUCNS> (public domain, citation requested).
 
+## Privacy
+
+Everything you enter stays in your browser's `localStorage`; there is no server, account or analytics. The only data that leaves the page is the list of tickers you ask for, sent as price requests to Yahoo Finance (`query1.finance.yahoo.com`), which sees your IP address like any website you visit. Account balances, spending, birth year and scenarios are never transmitted. See [`SECURITY.md`](SECURITY.md).
+
 ## Quality gates
 
 | Gate | Command | Budget |

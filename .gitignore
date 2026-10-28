@@ -259,3 +259,9 @@ aidlc/spaces/*/intents/*/.aidlc-*
 aidlc/diagnostics/
 .claude/settings.local.json
 # END AI-DLC:gitignore
+
+# Local tool scratch (screenshots, session state, run logs)
+.playwright-mcp/
+.omo/
+.agents/logs/
+test-results/

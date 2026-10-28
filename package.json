@@ -2,6 +2,17 @@
   "name": "risk-parity-compass",
   "private": true,
   "version": "0.1.0-alpha.1",
+  "description": "Risk parity rebalancing and retirement drawdown planner. Runs in the browser.",
+  "license": "MIT",
+  "author": "Phil Ruff",
+  "homepage": "https://paruff.github.io/risk-parity-compass/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paruff/risk-parity-compass.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paruff/risk-parity-compass/issues"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

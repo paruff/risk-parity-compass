@@ -86,8 +86,8 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 |-----|---------------|
 | Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
 | Pages rename (repo now `risk-parity-compass`) | Resolved; close #24 once verified | |
-| Yahoo unofficial API may break; CORS blocks localhost | `Known Limitations.md`; M5 resilience |
-| Template allocations are hand-transcribed; Golden Ratio models its money-market slot with BIL | `lastReviewed` per template; `Known Limitations.md` |
+| Yahoo unofficial API may break; CORS blocks localhost and the deployed Pages origin (price fetch fails in production) | `Known Limitations.md`; M5 resilience |
+| Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
 | `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
 | Heuristic tax model; federal only; bracket room is a fixed ~$44k/yr, not computed from income | `Known Limitations.md` |
 | ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
