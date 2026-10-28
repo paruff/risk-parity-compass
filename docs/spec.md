@@ -1,23 +1,28 @@
 # Spec — Risk Parity Compass
 
-**Status:** Current as of 2026-10-26 (M1–M6 merged; M7 in progress)
+**Status:** Current as of 2026-10-28 (M1–M7 merged)
 **Intent:** `docs/intent.md` · **Plan:** `docs/plan.md` · **Review rules:** `REVIEW.md` · **Design:** `DESIGN.md`
 **History and rationale:** `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (the long-form roadmap spec; this file is the working summary).
 
 ## 1. System
 
-Static React 18 + Vite SPA on GitHub Pages. All state in `localStorage`. No backend. The only network calls are Yahoo Finance chart requests from the browser.
+Static React 18 + Vite SPA on GitHub Pages. All state in `localStorage`. No backend. The only network calls are Yahoo Finance chart requests from the browser; the IRS RMD table and the 1928–2025 long-run returns are bundled static JSON.
 
 ```
 src/
-  App.jsx                 single-file UI: state, views, inline styles
-  PortfoliosTab.jsx       Portfolios tab (extracted: self-contained data flow)
-  utils/finance.js        vol, weights, trades, tax location, quote + monthly fetch, correlation
+  App.jsx                 shared state, effects, layout; inline styles
+  tabs/                   Holdings, Analysis, Trades, Retirement tab bodies (props from App)
+  PortfoliosTab.jsx       Portfolios tab (self-contained data flow)
+  LearnTab.jsx            learning journey
+  tokens.js               colour tokens mirroring DESIGN.md
+  utils/finance.js        vol, ERC weights, trades, tax location, quote + monthly fetch, correlation
   utils/withdrawal.js     drawdown, SWR/PWR, Monte Carlo, RMD, guardrails, sequencing
   utils/portfolioPath.js  weight-normalised backtest series
   utils/portfolios.js     RPR templates, macro classes, diversification score, comparison helpers
+  utils/longRun.js        1928-2025 proxy map, proxy portfolio path, rolling metrics on it
+  utils/long-run-returns.json  annual returns (Damodaran; CPI via FRED), sources recorded in the file
   utils/rmd-tables.json   versioned IRS Uniform Lifetime Table
-  components/             ErrorBoundary, Tooltip, RiskContribution, CorrelationMatrix, PerformanceChart
+  components/             charts (FanChart, DrawdownBacktestChart, WeightBar, Confetti), ErrorBoundary, Tooltip, RiskContribution, CorrelationMatrix, PerformanceChart, PlanTools
   mocks/handlers.js       MSW handlers for Yahoo
 tests/e2e/                Playwright with route-intercepted, timestamped Yahoo mocks
 ```
@@ -28,7 +33,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 
 | ID | Requirement | Milestone | Status |
 |----|-------------|-----------|--------|
-| FR-1 | Inverse-volatility weights, tax-location waterfall, drift-threshold trades | MVP | Built |
+| FR-1 | Equal-risk-contribution weights (changed from inverse-volatility in M7), tax-location waterfall, drift-threshold trades | MVP | Built |
 | FR-2 | Retirement inputs → SWR, PWR, success probability, max drawdown, effective horizon | M1 | Built (fixed in M3.5) |
 | FR-3 | Monthly drawdown with inflation and cash buffer; rolling historical backtest | M1/M2 | Built |
 | FR-4 | Seeded Monte Carlo with withdrawals, percentile fan chart | M1 | Built |
@@ -41,6 +46,9 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Built (PR #27) |
 | FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Built (PR #27) |
 | FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Built (PR #28) |
+| FR-14 | Historical metrics withheld with a reason when history is too short; window count always shown | M7 | Built (#43) |
+| FR-15 | Rolling metrics and Monte Carlo on 1928–2025 proxy history (block bootstrap by calendar year) when every holding has a proxy, labelled as such | M7 | Built (#48, #50, #53) |
+| FR-16 | Bracket-filling draw order with optional Roth conversion, federal-only heuristic | M7 | Built (#51) |
 
 ## 3. Calculation contracts (normative)
 
@@ -48,11 +56,11 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 2. **Units:** simulations run in dollars from the user's portfolio value; never normalise to 1 while subtracting dollars.
 3. **Rates are annual.** Any function taking a rate takes `periodsPerYear` and divides before applying; band decisions evaluate on year boundaries.
 4. **`successRate`** is the share of start dates where the user's actual spending survives — never derived from the SWR itself.
-5. **Short history:** compute over the available window and report `effectiveYears`; never return zeros.
+5. **Short history:** compute over the available window and report `effectiveYears`; never return zeros. SWR/PWR/success are withheld (with the reason) when fewer than `MIN_WINDOWS` distinct windows exist, and the window count is always shown.
 6. **`vpw` requires `age`**; fail at the call site, not deep in a simulation.
 7. **Portfolio path:** `Σ w × p(t)/p(0)`, weight-normalised, never `Σ w × p(t)`.
 8. **Monte Carlo is deterministic** under a seed. No `Math.random` in finance code.
-9. **Template allocations sum to 1** (±1e-6); each has `source` and `lastReviewed`.
+9. **Template allocations sum to 1** (±1e-6) or validation throws; they are never adjusted to fit. Each has a `source` (URL or named author) and `lastReviewed`; only allocations the source publishes may be labelled as that source's.
 10. **Diversification warnings:** average pairwise correlation > 0.6, fewer than 4 macro classes, or any pair > 0.9.
 11. **Comparison sign convention:** difference = template − current (positive = template has more).
 
@@ -79,13 +87,13 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
 | Pages rename (repo now `risk-parity-compass`) | Resolved; close #24 once verified | |
 | Yahoo unofficial API may break; CORS blocks localhost | `Known Limitations.md`; M5 resilience |
-| Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
+| Template allocations are hand-transcribed; Golden Ratio models its money-market slot with BIL | `lastReviewed` per template; `Known Limitations.md` |
 | `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
-| Heuristic tax model; federal only | `Known Limitations.md`; M7 #35 |
+| Heuristic tax model; federal only; bracket room is a fixed ~$44k/yr, not computed from income | `Known Limitations.md` |
 | ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
-| **Critical:** contract 4 violated — rolling success evaluated at 4%, not user spend; one window when history < horizon | M7 #30 (PR #40 draft) |
+| ~~Contract 4 violated: rolling success at 4%, one window~~ | Fixed, M7 #30 (PR #43) |
 | ~~Templates diverge from published sources~~ | Fixed, M7 #31 (unpublished templates removed; weights re-sourced 2026-10-28) |
-| Annual-only long-run proxies; no commodity/managed-futures history; Gaussian fallback when a holding has no proxy | M7 #32, #33 (partly fixed) |
+| Annual-only long-run proxies; 10y Treasury stands in for long bonds; no REIT/EM/commodity/managed-futures series; Gaussian and own-history fallback for those holdings | `Known Limitations.md` |
 | ~~"Risk parity" weights are inverse-volatility~~ | Fixed, M7 #34 (equal-risk-contribution weights) |
 
 ## 7. Definition of done (roadmap)

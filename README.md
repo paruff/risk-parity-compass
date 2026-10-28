@@ -10,7 +10,7 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
 **Accumulation / rebalancing**
 
-- **Risk parity allocation** — equal-risk-contribution weights from live volatilities and correlations
+- **Risk parity allocation** — equal-risk-contribution weights (long-only, unlevered) from live volatilities and correlations
 - **Tax-efficient placement** — waterfall algorithm (bonds → IRAs, stocks → taxable)
 - **Rebalancing guidance** — trade only when drift exceeds your threshold, harvesting volatility (the "Shannon's Demon" effect) without paying for noise
 - **Risk contribution and correlation** views for the chosen mix
@@ -18,17 +18,17 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
 **Drawdown / retirement**
 
-- **Withdrawal sequencing** — taxable → traditional (with an RMD floor) → Roth
+- **Withdrawal sequencing** — a common heuristic (taxable → traditional with an RMD floor → Roth) or a bracket-filling order that draws traditional money first up to a federal bracket allowance, with an optional Roth conversion that fits in the unused room. Both are planning heuristics, not tax advice
 - **RMD table** — IRS Uniform Lifetime Table, with the SECURE 2.0 73/75 eligibility split
-- **Spending guardrails** — RPR-80, Guyton-Klinger and VPW policies
+- **Spending guardrails** — RPR-80 is selectable (a trip can only cut spending, never raise it); Guyton-Klinger and VPW exist in the engine but are not exposed in the UI yet
 - **Static vs guardrail** — Monte Carlo success probability and terminal values side by side, on identical simulated markets
 - **Income floor** — Social Security and pension netting, with bridge-year awareness
-- **Historical backtest** — rolling safe and perpetual withdrawal rates
-- **Monte Carlo** — fan chart of simulated outcomes with withdrawals
+- **Historical backtest** — rolling safe and perpetual withdrawal rates on 1928–2025 annual index proxies when every holding has one, otherwise on your ETFs' own history; the metrics are withheld, with the reason, when that history is too short, and the window count is always shown
+- **Monte Carlo** — fan chart of simulated outcomes with withdrawals; resamples whole historical years (keeps stock/bond co-crashes) when every holding has a proxy, otherwise Gaussian shocks. The method is stated under the chart
 
 **Portfolio library**
 
-- **Templates** — Golden Butterfly, All Seasons, Golden Ratio, Permanent and more, transcribed from Risk Parity Radio
+- **Templates** — Golden Butterfly, All Seasons and Golden Ratio as published on riskparityradio.com (URL and review date recorded per template), plus the classic Permanent Portfolio credited to Harry Browne
 - **Template cards** — each shows description, allocations and source, with its own Load button
 - **Compare** — up to 3 templates at once against your current weights, with SWR, PWR, success probability and max drawdown side by side
 - **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes
@@ -54,7 +54,7 @@ State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Dat
 
 **Retirement tab** — Safe/Perpetual Withdrawal Rate, Monte Carlo success probability, RMDs, guardrails (None, RPR-80) and a static-vs-guardrail comparison. Every metric block carries a planning-estimate disclaimer. **Download PDF** uses the browser print dialog with a print stylesheet (no sidebar, nav or dark theme).
 
-**Portfolios tab** — curated Risk Parity Radio templates you can load, compare and analyse.
+**Portfolios tab** — curated templates you can load, compare and analyse. Template weights are validated, never adjusted to sum to 1.
 
 **Data resilience** — price data carries a visible timestamp on every tab. If Yahoo fails, the last good quote is used and flagged as cached, and you can override a price. The Retirement tab reports the effective history horizon and which ticker limits it.
 
@@ -62,7 +62,7 @@ State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Dat
 
 ## Data source
 
-Yahoo Finance's unofficial v8 chart endpoint (no API key). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
+Live prices come from Yahoo Finance's unofficial v8 chart endpoint (no API key). Static datasets are bundled and need no network: the IRS RMD table and the 1928–2025 long-run returns (see below). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
 
 ### Long-run history and attribution
 
@@ -109,9 +109,9 @@ Source of truth: [`docs/plan.md`](docs/plan.md), which maps each milestone to it
 | M4 | Portfolio templates, diversification view, comparison | shipped |
 | M5 | Storage v2, print/PDF, accessibility preferences | shipped |
 | M6 | Learning journey: competency rubric, engine-graded modules, spaced refresher | shipped |
-| **M7** (#37) | **Expert review remediation:** honest historical metrics (#30), template fidelity (#31), long-run history (#32), bootstrap Monte Carlo (#33), equal-risk-contribution weights (#34), tax-aware drawdown (#35), code hygiene (#36) | **active** (#29 guardrail fix shipped) |
+| M7 (#37) | Expert review remediation: guardrail cap (#29), honest historical metrics (#30), template fidelity (#31), long-run history (#32), bootstrap Monte Carlo (#33), equal-risk-contribution weights (#34), tax-aware drawdown (#35), code hygiene (#36) | shipped |
 
-Until M7's Critical items close, treat headline historical metrics as provisional; see [`Known Limitations.md`](Known%20Limitations.md).
+Headline historical metrics now rest on proxy history for most portfolios; read [`Known Limitations.md`](Known%20Limitations.md) for what the proxies cannot represent.
 
 ## History
 
