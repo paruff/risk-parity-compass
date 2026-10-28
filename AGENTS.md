@@ -26,7 +26,7 @@ Every node subprocess needs `env -u NODE_OPTIONS <cmd>` (the shim is broken).
 - Every financial output needs a numeric oracle computed independently of the implementation, at realistic scale. Label-only assertions are forbidden.
 - Rates are annual; functions take `periodsPerYear`. Simulations run in dollars. (Full contracts: `docs/spec.md` §3.)
 - Inline styles only, values from `DESIGN.md`; add a token there (and in `src/tokens.js`) before inventing a colour. No raw hex in components.
-- Yahoo Finance is the only live data source; tests never hit it live. Bundled static datasets (`rmd-tables.json`, `long-run-returns.json`) carry their source and retrieval date; cite any new one in the README. It is CORS-blocked from localhost, so retirement inputs must never depend on a fetch.
+- Yahoo Finance is the only live data source; tests never hit it live. Yahoo is CORS-blocked from localhost, so retirement inputs must never depend on a fetch. Bundled static datasets (`rmd-tables.json`, `long-run-returns.json`) carry their source and retrieval date; cite any new one in the README.
 - Storage keys are `rpcompass_*`. `shannonsdemon_*` is read-only legacy for migration; never write it, never use the old name for the product.
 - No new dependency without justification in the commit.
 
