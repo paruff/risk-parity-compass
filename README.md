@@ -10,7 +10,7 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
 **Accumulation / rebalancing**
 
-- **Risk parity allocation** — inverse volatility weighting from live market data
+- **Risk parity allocation** — equal-risk-contribution weights from live volatilities and correlations
 - **Tax-efficient placement** — waterfall algorithm (bonds → IRAs, stocks → taxable)
 - **Rebalancing guidance** — trade only when drift exceeds your threshold, harvesting volatility (the "Shannon's Demon" effect) without paying for noise
 - **Risk contribution and correlation** views for the chosen mix
@@ -63,6 +63,13 @@ State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Dat
 ## Data source
 
 Yahoo Finance's unofficial v8 chart endpoint (no API key). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
+
+### Long-run history and attribution
+
+Rolling SWR/PWR/success and the Monte Carlo use bundled annual returns for 1928–2025 (`src/utils/long-run-returns.json`):
+
+- Returns on US stocks, small-cap stocks, T-bills, 10-year Treasuries, Baa corporate bonds, real estate and gold from Aswath Damodaran, *Historical Returns on Stocks, Bonds and Bills: 1928–2025*, NYU Stern, <https://pages.stern.nyu.edu/~adamodar/pc/datasets/histretSP.xls> (his own sources include S&P, Ken French's data library, FRED and Shiller). His usage rules say the data is free to use and ask for acknowledgement; they also say it is not meant for public policy debates or court cases, and that it is best suited to real-time valuation work rather than historical research. Here it is a planning proxy only.
+- Inflation: U.S. Bureau of Labor Statistics, Consumer Price Index for All Urban Consumers: All Items in U.S. City Average [CPIAUCNS], retrieved from FRED, Federal Reserve Bank of St. Louis, <https://fred.stlouisfed.org/series/CPIAUCNS> (public domain, citation requested).
 
 ## Quality gates
 
