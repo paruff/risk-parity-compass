@@ -145,6 +145,35 @@ describe('rollingWithdrawalRates', () => {
     expect(rollingWithdrawalRates(flat, { referenceRate: 0.04 }).successRate).toBe(1);
   });
 
+  it('success is the share of windows where the user spend survives, with windowCount', () => {
+    // 12y horizon over a 30y path => 217 windows; a 60% crash at month 200 sinks windows spanning it
+    const path = Array.from({ length: 360 }, (_, i) => (i < 200 ? 1_000_000 : 400_000));
+    const r = rollingWithdrawalRates(path, { horizonYears: 12, monthlySpend: 3000 });
+    expect(r.windowCount).toBe(217);
+    expect(r.withheld).toBe(false);
+    const survived = r.samples.filter(s => !s.depleted).length;
+    expect(r.successRate).toBeCloseTo(survived / 217, 10);
+    expect(r.successRate).toBeGreaterThan(0);
+    expect(r.successRate).toBeLessThan(1);
+  });
+
+  it('user spend overrides the 4% reference', () => {
+    expect(rollingWithdrawalRates(flat, { horizonYears: 20, monthlySpend: 1e9 }).successRate).toBe(
+      0
+    );
+    expect(rollingWithdrawalRates(flat, { horizonYears: 20, monthlySpend: 1 }).successRate).toBe(1);
+  });
+
+  it('withholds when history is shorter than horizon + minWindows - 1', () => {
+    const one = rollingWithdrawalRates(flat, { horizonYears: 30 }); // 1 window
+    expect(one.windowCount).toBe(1);
+    expect(one.withheld).toBe(true);
+    expect(one.withheldReason).toBe('needs ≥ 30.9 years; have 30.0');
+    const short = rollingWithdrawalRates(flat.slice(0, 263), { horizonYears: 30 });
+    expect(short.withheld).toBe(true);
+    expect(short.withheldReason).toMatch(/^needs ≥ 30\.9 years; have 21\.9$/);
+  });
+
   it('rollingWithdrawalRates returns SWR and PWR for growing portfolio', () => {
     // 40 years with some volatility: 5% average but with down years
     const values = Array.from({ length: 480 }, (_, i) => {

@@ -200,17 +200,31 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
 // constant real withdrawal rate that (a) never depletes the portfolio (SWR) and
 // (b) never ends below the original real principal (PWR).
 // portfolioValues: monthly real portfolio value series (from weights × prices)
-// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, referenceRate = 0.04 }
-// Returns: { swr, pwr, successRate, effectiveYears, worstStart, worstDepletionYear, maxDrawdown, samples }
+// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, monthlySpend, referenceRate = 0.04, minWindows = MIN_WINDOWS }
+// successRate = share of windows where `monthlySpend` (dollars, the user's spend) survives;
+// without monthlySpend it falls back to referenceRate * startValue.
+// Returns: { swr, pwr, successRate, effectiveYears, windowCount, withheld, withheldReason, worstStart,
+//            worstDepletionYear, maxDrawdown, samples }
+// withheld: history too short for a trustworthy figure; the numbers are still computed but must not be shown.
+export const MIN_WINDOWS = 12;
+
 export function rollingWithdrawalRates(portfolioValues, options = {}) {
   const {
     horizonYears = 30,
     periodsPerYear = 12,
     inflationRate = 0,
     referenceRate = 0.04,
+    monthlySpend: userMonthlySpend,
+    minWindows = MIN_WINDOWS,
   } = options;
   const horizonMonths = horizonYears * periodsPerYear;
   const n = portfolioValues.length;
+  // Need a full horizon plus minWindows distinct start dates.
+  const neededMonths = horizonMonths + minWindows - 1;
+  const withheld = n < neededMonths;
+  const withheldReason = withheld
+    ? `needs ≥ ${(neededMonths / periodsPerYear).toFixed(1)} years; have ${(n / periodsPerYear).toFixed(1)}`
+    : null;
 
   // If insufficient history, compute over available data
   const effectiveMonths = Math.min(horizonMonths, n);
@@ -223,6 +237,9 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
       pwr: 0,
       successRate: 0,
       effectiveYears,
+      windowCount: 0,
+      withheld: true,
+      withheldReason: withheldReason ?? 'needs ≥ 1 year of history',
       worstStart: 0,
       worstDepletionYear: null,
       maxDrawdown: 0,
@@ -281,7 +298,7 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     }
 
     // Evaluate at referenceRate for success rate (not at SWR)
-    const monthlySpendRef = (referenceRate * startValue) / periodsPerYear;
+    const monthlySpendRef = userMonthlySpend ?? (referenceRate * startValue) / periodsPerYear;
     const refResult = drawdownPath(slice, monthlySpendRef, { periodsPerYear, inflationRate });
 
     samples.push({
@@ -311,6 +328,9 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     pwr: worstPwr,
     successRate,
     effectiveYears,
+    windowCount: samples.length,
+    withheld,
+    withheldReason,
     worstStart: samples.findIndex(s => s.swr === worstSwr),
     worstDepletionYear,
     maxDrawdown: overallMaxDrawdown,

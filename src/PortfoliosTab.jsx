@@ -12,6 +12,8 @@ import {
 } from './utils/portfolios';
 
 const pct = (v, digits = 2) => `${(v * 100).toFixed(digits)}%`;
+// SWR/PWR/success are withheld when history is too short; drawdown is not.
+const cell = (r, m) => (r.withheld && m.key !== 'maxDrawdown' ? '—' : pct(r[m.key], m.digits));
 const signedPp = (v, digits = 2) => `${v >= 0 ? '+' : ''}${(v * 100).toFixed(digits)} pp`;
 
 const METRICS = [
@@ -35,6 +37,7 @@ async function portfolioMetrics(weights, histories, retirement, totalValue) {
     horizonYears: retirement.horizonYears,
     periodsPerYear: 12,
     inflationRate: retirement.inflationRate,
+    monthlySpend: retirement.monthlySpend,
   });
   return { ...rolling, effectiveYears, corr: correlationMatrix(aligned) };
 }
@@ -330,6 +333,15 @@ export default function PortfoliosTab({
 
       {done && (
         <>
+          {[
+            ['Current', result.current],
+            ...compared.map(t => [t.name, result.templates[t.id]]),
+          ].map(([name, r]) => (
+            <div key={name} style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }} role="status">
+              {name}: historical windows {r.windowCount}
+              {r.withheld ? ` — SWR/PWR/success withheld: ${r.withheldReason}` : ''}
+            </div>
+          ))}
           {METRICS.map(m => (
             <div
               key={m.key}
@@ -342,22 +354,24 @@ export default function PortfoliosTab({
             >
               {metricCard(
                 `metric-${m.key}-current`,
-                pct(result.current[m.key], m.digits),
+                cell(result.current, m),
                 `${m.label} — Current`
               )}
               {compared.map(t => [
                 metricCard(
                   `metric-${m.key}-${t.id}`,
-                  pct(result.templates[t.id][m.key], m.digits),
+                  cell(result.templates[t.id], m),
                   `${m.label} — ${t.name}`
                 ),
                 comparisonMode &&
                   metricCard(
                     `metric-${m.key}-diff-${t.id}`,
-                    signedPp(
-                      metricDifference(result.current, result.templates[t.id])[m.key],
-                      m.digits
-                    ),
+                    result.current.withheld || result.templates[t.id].withheld
+                      ? '—'
+                      : signedPp(
+                          metricDifference(result.current, result.templates[t.id])[m.key],
+                          m.digits
+                        ),
                     `${m.short} Δ (${t.name} − current)`
                   ),
               ])}
