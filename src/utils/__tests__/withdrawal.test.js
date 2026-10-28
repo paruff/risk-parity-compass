@@ -638,3 +638,47 @@ describe('netSpend', () => {
     expect(r.pensionActive).toBe(true);
   });
 });
+
+describe('monteCarloWithWithdrawals block bootstrap', () => {
+  const closes = { A: [100, 101], B: [100, 101] };
+  const w = { A: 0.5, B: 0.5 };
+  const base = { simulations: 20, steps: 120, startingValue: 1e6, monthlySpend: 0, threshold: 1 };
+  const run = (bootstrap, seed = 1) =>
+    monteCarloWithWithdrawals(
+      closes,
+      w,
+      { A: 0.1, B: 0.1 },
+      { A: { B: 0 }, B: { A: 0 } },
+      {
+        ...base,
+        bootstrap,
+        seed,
+      }
+    );
+
+  it('a constant-return series reproduces that return', () => {
+    const r = run({ A: [0.07, 0.07, 0.07], B: [0.07, 0.07, 0.07] });
+    for (const v of r.terminalValues) expect(v).toBeCloseTo(1e6 * 1.07 ** 10, 0);
+  });
+
+  it('keeps cross-asset correlation: a year where both fall hits both together', () => {
+    // Every resampled year is either +10%/+10% or -20%/-20%, so both assets always move as one.
+    const r = run({ A: [0.1, -0.2], B: [0.1, -0.2] });
+    const lo = 1e6 * 0.8 ** 10;
+    const hi = 1e6 * 1.1 ** 10;
+    for (const v of r.terminalValues) {
+      expect(v).toBeGreaterThanOrEqual(lo - 1);
+      expect(v).toBeLessThanOrEqual(hi + 1);
+    }
+  });
+
+  it('is deterministic for a seed and varies across seeds', () => {
+    const b = { A: [0.3, -0.2, 0.05, 0.1], B: [0.02, 0.01, 0.0, 0.03] };
+    expect(Array.from(run(b, 5).terminalValues)).toEqual(Array.from(run(b, 5).terminalValues));
+    expect(Array.from(run(b, 5).terminalValues)).not.toEqual(Array.from(run(b, 6).terminalValues));
+  });
+
+  it('rejects unequal-length series', () => {
+    expect(() => run({ A: [0.1, 0.2], B: [0.1] })).toThrow(/equal-length/);
+  });
+});
