@@ -519,10 +519,17 @@ export default function App() {
     cashBufferMonths: 12,
     guardrail: 'none',
     driftMode: 'historical',
+    sequenceStrategy: 'taxable-first',
+    rothConversionAnnual: 0,
     expectedReturn: null,
     birthYear: 1960,
     socialSecurityStartAge: 67,
     pensionStartAge: 65,
+  });
+  // Draw-order options shared by every withdrawal-sequencing call in the Retirement tab.
+  const seqExtra = () => ({
+    strategy: retirement.sequenceStrategy,
+    rothConversionMonthly: (retirement.rothConversionAnnual ?? 0) / 12,
   });
   const [retirementResults, setRetirementResults] = useState(null);
   const [retirementCalculating, setRetirementCalculating] = useState(false);
@@ -2473,6 +2480,48 @@ export default function App() {
                             <option value="zero">Zero (Conservative)</option>
                           </select>
                         </div>
+                        <div>
+                          <label style={S.label} htmlFor="ret-seq-strategy">
+                            Draw Order
+                          </label>
+                          <select
+                            id="ret-seq-strategy"
+                            className="sd-input"
+                            style={S.input}
+                            value={retirement.sequenceStrategy}
+                            onChange={e =>
+                              setRetirement(r => ({ ...r, sequenceStrategy: e.target.value }))
+                            }
+                          >
+                            <option value="taxable-first">
+                              Taxable, then traditional, then Roth
+                            </option>
+                            <option value="bracket-fill">
+                              Fill the bracket room (~$44k/yr heuristic) with traditional first
+                            </option>
+                          </select>
+                        </div>
+                        {retirement.sequenceStrategy === 'bracket-fill' && (
+                          <div>
+                            <label style={S.label} htmlFor="ret-roth-conv">
+                              Roth conversion per year ($, within bracket room only)
+                            </label>
+                            <input
+                              id="ret-roth-conv"
+                              className="sd-input"
+                              style={S.input}
+                              type="number"
+                              min="0"
+                              value={retirement.rothConversionAnnual ?? 0}
+                              onChange={e =>
+                                setRetirement(r => ({
+                                  ...r,
+                                  rothConversionAnnual: Math.max(0, Number(e.target.value) || 0),
+                                }))
+                              }
+                            />
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -2756,6 +2805,7 @@ export default function App() {
                                     accounts,
                                     retirement.monthlySpend,
                                     {
+                                      ...seqExtra(),
                                       rmdByAccount: Object.fromEntries(
                                         ACCOUNT_TYPES.filter(
                                           a => a.includes('IRA') || a.includes('401k')
@@ -2801,6 +2851,7 @@ export default function App() {
                                         accounts,
                                         retirement.monthlySpend,
                                         {
+                                          ...seqExtra(),
                                           rmdByAccount: Object.fromEntries(
                                             ACCOUNT_TYPES.filter(
                                               a => a.includes('IRA') || a.includes('401k')
@@ -2822,6 +2873,7 @@ export default function App() {
                                         accounts,
                                         retirement.monthlySpend,
                                         {
+                                          ...seqExtra(),
                                           rmdByAccount: Object.fromEntries(
                                             ACCOUNT_TYPES.filter(
                                               a => a.includes('IRA') || a.includes('401k')
@@ -2843,6 +2895,7 @@ export default function App() {
                                         accounts,
                                         retirement.monthlySpend,
                                         {
+                                          ...seqExtra(),
                                           rmdByAccount: Object.fromEntries(
                                             ACCOUNT_TYPES.filter(
                                               a => a.includes('IRA') || a.includes('401k')
@@ -2864,6 +2917,7 @@ export default function App() {
                                         accounts,
                                         retirement.monthlySpend,
                                         {
+                                          ...seqExtra(),
                                           rmdByAccount: Object.fromEntries(
                                             ACCOUNT_TYPES.filter(
                                               a => a.includes('IRA') || a.includes('401k')

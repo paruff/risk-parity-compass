@@ -580,11 +580,47 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
   };
 }
 
+// Bracket-filling: use traditional money first, up to the monthly headroom in the
+// target bracket (never less than the RMD), then taxable, then more traditional, then Roth.
+// An optional Roth conversion is limited to the headroom the withdrawals left unused and
+// to what remains in the traditional account. Federal-only, a planning heuristic.
+function bracketFillSequence(bal, monthlySpend, { rmdMonthly, headroom, conversion }) {
+  const trad0 = Math.min(
+    bal.traditionalBalance,
+    Math.max(rmdMonthly, Math.min(monthlySpend, headroom))
+  );
+  let remaining = monthlySpend - trad0;
+  const taxableUsed = Math.min(bal.taxableBalance, Math.max(0, remaining));
+  remaining -= taxableUsed;
+  const tradExtra = Math.min(bal.traditionalBalance - trad0, Math.max(0, remaining));
+  remaining -= tradExtra;
+  const traditionalUsed = trad0 + tradExtra;
+  const rothUsed = Math.min(bal.rothBalance, Math.max(0, remaining));
+  remaining -= rothUsed;
+  const rothConversion = Math.max(
+    0,
+    Math.min(conversion, headroom - traditionalUsed, bal.traditionalBalance - traditionalUsed)
+  );
+  const spent = taxableUsed + traditionalUsed + rothUsed;
+  return {
+    byAccount: {
+      Taxable: taxableUsed,
+      'Traditional IRA / 401k': traditionalUsed,
+      'Roth IRA': rothUsed,
+    },
+    totalSpend: spent,
+    bracketUsed: traditionalUsed + rothConversion,
+    shortfall: Math.max(0, remaining),
+    rmdSurplus: Math.max(0, rmdMonthly - monthlySpend),
+    rothConversion,
+  };
+}
+
 // Withdrawal sequencing: determine which account to draw from each month.
 // Order: Taxable → Traditional (max of needed and RMD) → Roth
 // accounts: { "Taxable": balance, "Traditional IRA / 401k": balance, "Roth IRA": balance }
 // monthlySpend: total monthly spend needed
-// options: { bracketHeuristic?: boolean, rmdByAccount?: Record<string, number>, traditionalBracketCap?: number }
+// options: { strategy?: 'taxable-first' | 'bracket-fill', rothConversionMonthly?: number (bracket-fill only), bracketHeuristic?: boolean, rmdByAccount?: Record<string, number>, traditionalBracketCap?: number }
 // rmdByAccount and traditionalBracketCap are MONTHLY values (not annual)
 // Returns: { byAccount (monthly), totalSpend (monthly), bracketUsed (monthly), shortfall (monthly), rmdSurplus }
 export function withdrawalSequence(accounts, monthlySpend, options = {}) {
@@ -592,6 +628,8 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
     bracketHeuristic = false,
     rmdByAccount = {},
     traditionalBracketCap = 44000 / 12,
+    strategy = 'taxable-first',
+    rothConversionMonthly = 0,
   } = options;
 
   const taxableBalance = accounts.Taxable ?? 0;
@@ -600,6 +638,14 @@ export function withdrawalSequence(accounts, monthlySpend, options = {}) {
 
   // RMD floor for traditional (monthly)
   const rmdMonthly = rmdByAccount['Traditional IRA / 401k'] ?? 0;
+
+  if (strategy === 'bracket-fill') {
+    return bracketFillSequence({ taxableBalance, traditionalBalance, rothBalance }, monthlySpend, {
+      rmdMonthly,
+      headroom: traditionalBracketCap,
+      conversion: rothConversionMonthly,
+    });
+  }
 
   // Monthly spending
   let remainingSpend = monthlySpend;

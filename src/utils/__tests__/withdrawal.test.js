@@ -638,3 +638,45 @@ describe('netSpend', () => {
     expect(r.pensionActive).toBe(true);
   });
 });
+
+describe('withdrawalSequence bracket-fill', () => {
+  const T = 'Traditional IRA / 401k';
+  const acc = { Taxable: 50000, [T]: 400000, 'Roth IRA': 30000 };
+  const opt = { strategy: 'bracket-fill', traditionalBracketCap: 3000 };
+
+  it('draws traditional up to the bracket headroom before taxable', () => {
+    // spend 4000/mo, headroom 3000: 3000 traditional, 1000 taxable
+    const r = withdrawalSequence(acc, 4000, opt);
+    expect(r.byAccount[T]).toBe(3000);
+    expect(r.byAccount.Taxable).toBe(1000);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+    expect(r.totalSpend).toBe(4000);
+  });
+
+  it('pays the full RMD even above the headroom', () => {
+    const r = withdrawalSequence(acc, 4000, { ...opt, rmdByAccount: { [T]: 3500 } });
+    expect(r.byAccount[T]).toBe(3500);
+    expect(r.byAccount.Taxable).toBe(500);
+  });
+
+  it('converts only the unused headroom to Roth', () => {
+    // spend 2000 uses 2000 of headroom; 1000 left, so a 5000 request converts 1000
+    const r = withdrawalSequence(acc, 2000, { ...opt, rothConversionMonthly: 5000 });
+    expect(r.byAccount[T]).toBe(2000);
+    expect(r.rothConversion).toBe(1000);
+    expect(r.bracketUsed).toBe(3000);
+  });
+
+  it('never converts more than the traditional balance holds', () => {
+    const small = { Taxable: 0, [T]: 2500, 'Roth IRA': 0 };
+    const r = withdrawalSequence(small, 2000, { ...opt, rothConversionMonthly: 5000 });
+    expect(r.rothConversion).toBe(500);
+  });
+
+  it('spills to taxable then Roth when traditional is empty, with no conversion by default', () => {
+    const r = withdrawalSequence({ Taxable: 1000, [T]: 0, 'Roth IRA': 5000 }, 4000, opt);
+    expect(r.byAccount.Taxable).toBe(1000);
+    expect(r.byAccount['Roth IRA']).toBe(3000);
+    expect(r.rothConversion).toBe(0);
+  });
+});
