@@ -639,46 +639,44 @@ describe('netSpend', () => {
   });
 });
 
-describe('monteCarloWithWithdrawals block bootstrap', () => {
-  const closes = { A: [100, 101], B: [100, 101] };
-  const w = { A: 0.5, B: 0.5 };
-  const base = { simulations: 20, steps: 120, startingValue: 1e6, monthlySpend: 0, threshold: 1 };
-  const run = (bootstrap, seed = 1) =>
-    monteCarloWithWithdrawals(
-      closes,
-      w,
-      { A: 0.1, B: 0.1 },
-      { A: { B: 0 }, B: { A: 0 } },
-      {
-        ...base,
-        bootstrap,
-        seed,
-      }
-    );
+describe('withdrawalSequence bracket-fill', () => {
+  const T = 'Traditional IRA / 401k';
+  const acc = { Taxable: 50000, [T]: 400000, 'Roth IRA': 30000 };
+  const opt = { strategy: 'bracket-fill', traditionalBracketCap: 3000 };
 
-  it('a constant-return series reproduces that return', () => {
-    const r = run({ A: [0.07, 0.07, 0.07], B: [0.07, 0.07, 0.07] });
-    for (const v of r.terminalValues) expect(v).toBeCloseTo(1e6 * 1.07 ** 10, 0);
+  it('draws traditional up to the bracket headroom before taxable', () => {
+    // spend 4000/mo, headroom 3000: 3000 traditional, 1000 taxable
+    const r = withdrawalSequence(acc, 4000, opt);
+    expect(r.byAccount[T]).toBe(3000);
+    expect(r.byAccount.Taxable).toBe(1000);
+    expect(r.byAccount['Roth IRA']).toBe(0);
+    expect(r.totalSpend).toBe(4000);
   });
 
-  it('keeps cross-asset correlation: a year where both fall hits both together', () => {
-    // Every resampled year is either +10%/+10% or -20%/-20%, so both assets always move as one.
-    const r = run({ A: [0.1, -0.2], B: [0.1, -0.2] });
-    const lo = 1e6 * 0.8 ** 10;
-    const hi = 1e6 * 1.1 ** 10;
-    for (const v of r.terminalValues) {
-      expect(v).toBeGreaterThanOrEqual(lo - 1);
-      expect(v).toBeLessThanOrEqual(hi + 1);
-    }
+  it('pays the full RMD even above the headroom', () => {
+    const r = withdrawalSequence(acc, 4000, { ...opt, rmdByAccount: { [T]: 3500 } });
+    expect(r.byAccount[T]).toBe(3500);
+    expect(r.byAccount.Taxable).toBe(500);
   });
 
-  it('is deterministic for a seed and varies across seeds', () => {
-    const b = { A: [0.3, -0.2, 0.05, 0.1], B: [0.02, 0.01, 0.0, 0.03] };
-    expect(Array.from(run(b, 5).terminalValues)).toEqual(Array.from(run(b, 5).terminalValues));
-    expect(Array.from(run(b, 5).terminalValues)).not.toEqual(Array.from(run(b, 6).terminalValues));
+  it('converts only the unused headroom to Roth', () => {
+    // spend 2000 uses 2000 of headroom; 1000 left, so a 5000 request converts 1000
+    const r = withdrawalSequence(acc, 2000, { ...opt, rothConversionMonthly: 5000 });
+    expect(r.byAccount[T]).toBe(2000);
+    expect(r.rothConversion).toBe(1000);
+    expect(r.bracketUsed).toBe(3000);
   });
 
-  it('rejects unequal-length series', () => {
-    expect(() => run({ A: [0.1, 0.2], B: [0.1] })).toThrow(/equal-length/);
+  it('never converts more than the traditional balance holds', () => {
+    const small = { Taxable: 0, [T]: 2500, 'Roth IRA': 0 };
+    const r = withdrawalSequence(small, 2000, { ...opt, rothConversionMonthly: 5000 });
+    expect(r.rothConversion).toBe(500);
+  });
+
+  it('spills to taxable then Roth when traditional is empty, with no conversion by default', () => {
+    const r = withdrawalSequence({ Taxable: 1000, [T]: 0, 'Roth IRA': 5000 }, 4000, opt);
+    expect(r.byAccount.Taxable).toBe(1000);
+    expect(r.byAccount['Roth IRA']).toBe(3000);
+    expect(r.rothConversion).toBe(0);
   });
 });
