@@ -11,6 +11,7 @@ import {
   metricDifference,
   weightRows,
 } from './utils/portfolios';
+import { C } from './tokens';
 
 const pct = (v, digits = 2) => `${(v * 100).toFixed(digits)}%`;
 // SWR/PWR/success are withheld when history is too short; drawdown is not.
@@ -153,9 +154,9 @@ export default function PortfoliosTab({
       )
     : Infinity;
   const warnStyle = {
-    background: '#1c1200', // DESIGN.md colors.warning-surface
+    background: C.warningSurface, // DESIGN.md colors.warning-surface
     border: '1px solid #92400e', // colors.warning-border
-    color: '#fbbf24', // colors.warning
+    color: C.warning, // colors.warning
     borderRadius: 8,
     padding: '10px 14px',
     marginBottom: 12,
@@ -241,15 +242,15 @@ export default function PortfoliosTab({
           return (
             <div key={t.id} style={{ ...S.card, margin: 0 }} data-testid={`template-card-${t.id}`}>
               <h3 style={{ ...S.cardTitle, margin: 0 }}>{t.name}</h3>
-              <p style={{ color: '#cbd5e1', fontSize: 13 }}>{t.description}</p>
-              <ul style={{ color: '#94a3b8', fontSize: 12, paddingLeft: 16 }}>
+              <p style={{ color: C.onSurfaceSecondary, fontSize: 13 }}>{t.description}</p>
+              <ul style={{ color: C.onSurfaceMuted, fontSize: 12, paddingLeft: 16 }}>
                 {Object.entries(t.allocations).map(([ticker, w]) => (
                   <li key={ticker}>
                     {ticker} {pct(w, 1)}
                   </li>
                 ))}
               </ul>
-              <div style={{ color: '#94a3b8', fontSize: 11, marginBottom: 8 }}>
+              <div style={{ color: C.onSurfaceMuted, fontSize: 11, marginBottom: 8 }}>
                 {t.source} · Reviewed {t.lastReviewed}
               </div>
               <label style={{ ...S.label, display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -277,7 +278,7 @@ export default function PortfoliosTab({
       </div>
 
       {!primary && (
-        <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 40 }}>
+        <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 40 }}>
           Choose a template (up to {MAX_COMPARED_TEMPLATES}) to compare with your current portfolio.
         </div>
       )}
@@ -319,12 +320,12 @@ export default function PortfoliosTab({
       })}
 
       {primary && analysisState !== 'done' && (
-        <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 20 }}>
+        <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 20 }}>
           Run Analysis first to compare retirement metrics.
         </div>
       )}
       {result.status === 'loading' && (
-        <div style={{ color: '#94a3b8' }}>Loading monthly history…</div>
+        <div style={{ color: C.onSurfaceMuted }}>Loading monthly history…</div>
       )}
       {result.status === 'error' && (
         <div style={S.bannerError} role="alert">

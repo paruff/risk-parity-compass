@@ -1,4 +1,5 @@
 import Tooltip from './Tooltip';
+import { C } from '../tokens';
 
 export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
   if (Object.keys(corrMatrix).length === 0) return null;
@@ -9,7 +10,7 @@ export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
           Correlation Matrix
         </Tooltip>
       </div>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
         Lower correlation = better diversification. Ideal: uncorrelated assets.
       </div>
       <div style={S.tableWrap}>
@@ -33,7 +34,7 @@ export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
                   const abs = Math.abs(v);
                   const bg =
                     a === b
-                      ? '#1e293b'
+                      ? C.border
                       : v > 0.5
                         ? `rgba(239,68,68,${abs * 0.4})`
                         : v > 0
@@ -48,7 +49,7 @@ export default function CorrelationMatrix({ S, tickers, corrMatrix }) {
                         fontFamily: 'monospace',
                         fontSize: 13,
                         background: bg,
-                        color: a === b ? '#94a3b8' : '#e2e8f0',
+                        color: a === b ? C.onSurfaceMuted : C.onSurface,
                       }}
                     >
                       {a === b ? '—' : v.toFixed(2)}

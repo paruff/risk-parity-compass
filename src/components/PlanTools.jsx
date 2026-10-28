@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
+import { C } from '../tokens';
 
 const FONT_SCALES = [1, 1.15, 1.3];
 const btn = {
   padding: '10px 12px',
-  background: '#1e293b',
-  color: '#e2e8f0',
+  background: C.border,
+  color: C.onSurface,
   border: '1px solid #334155',
   borderRadius: 6,
   cursor: 'pointer',
@@ -31,9 +32,9 @@ export default function PlanTools({ onExport, onImport, backupDue, prefs, setPre
 
   return (
     <div className="sd-noprint" style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 6 }}>Plan backup</div>
+      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 6 }}>Plan backup</div>
       {backupDue && (
-        <div role="status" style={{ fontSize: 13, color: '#fbbf24', marginBottom: 8 }}>
+        <div role="status" style={{ fontSize: 13, color: C.warning, marginBottom: 8 }}>
           Back up your plan: it is stored only in this browser.
         </div>
       )}
@@ -53,10 +54,10 @@ export default function PlanTools({ onExport, onImport, backupDue, prefs, setPre
           onChange={handleFile}
         />
       </div>
-      <div role="status" style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>
+      <div role="status" style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 6 }}>
         {msg}
       </div>
-      <div style={{ fontSize: 13, color: '#94a3b8', margin: '12px 0 6px' }}>Display</div>
+      <div style={{ fontSize: 13, color: C.onSurfaceMuted, margin: '12px 0 6px' }}>Display</div>
       <label htmlFor="pref-font-scale" style={{ fontSize: 13, marginRight: 8 }}>
         Text size
       </label>
