@@ -22,6 +22,10 @@ export const C = {
   onPositive: '#86efac',
   onNegative: '#fca5a5',
   warning: '#fbbf24',
+  warningStrong: '#f59e0b',
+  accent: '#60a5fa',
+  negativeText: '#f87171',
+  positiveText: '#4ade80',
   warningSurface: '#1c1200',
   warningBorder: '#92400e',
 };

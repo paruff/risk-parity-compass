@@ -130,7 +130,7 @@ export default function DrawdownBacktestChart({ samples, horizonYears }) {
               display: 'inline-block',
               width: 12,
               height: 2,
-              background: '#60a5fa',
+              background: C.accent,
               marginRight: 4,
               verticalAlign: 'middle',
             }}
@@ -143,7 +143,7 @@ export default function DrawdownBacktestChart({ samples, horizonYears }) {
               display: 'inline-block',
               width: 8,
               height: 8,
-              background: '#f87171',
+              background: C.negativeText,
               borderRadius: '50%',
               marginRight: 4,
               verticalAlign: 'middle',

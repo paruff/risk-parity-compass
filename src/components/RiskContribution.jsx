@@ -59,7 +59,7 @@ export default function RiskContribution({ S, tickers, targetWeights, riskContri
                 style={{
                   width: 50,
                   textAlign: 'right',
-                  color: Math.abs(diff) > 0.02 ? '#f59e0b' : C.positive,
+                  color: Math.abs(diff) > 0.02 ? C.warningStrong : C.positive,
                 }}
               >
                 {fmt.pct(rc)}
