@@ -64,6 +64,10 @@ State persists in `localStorage` under `rpcompass_*` keys (schemaVersion 2). Dat
 
 Yahoo Finance's unofficial v8 chart endpoint (no API key). It works from browsers today but can break without notice. `fetchQuote()` and `fetchMonthlyHistory()` are isolated so they can be swapped for another provider. Tests never call the live API — unit tests use MSW, E2E uses Playwright route interception.
 
+## Privacy
+
+Everything you enter stays in your browser's `localStorage`; there is no server, account or analytics. The only data that leaves the page is the list of tickers you ask for, sent as price requests to Yahoo Finance (`query1.finance.yahoo.com`), which sees your IP address like any website you visit. Account balances, spending, birth year and scenarios are never transmitted. See [`SECURITY.md`](SECURITY.md).
+
 ## Quality gates
 
 | Gate | Command | Budget |
