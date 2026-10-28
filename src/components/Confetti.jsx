@@ -11,7 +11,7 @@ export default function Confetti() {
   const pieces = Array.from({ length: 20 }, (_, i) => ({
     left: `${(i * 137) % 100}%`,
     delay: `${(i % 8) * 0.08}s`,
-    color: [C.primary, C.secondary, C.positive, '#f59e0b', '#f87171'][i % 5],
+    color: [C.primary, C.secondary, C.positive, C.warningStrong, C.negativeText][i % 5],
   }));
   return (
     <div

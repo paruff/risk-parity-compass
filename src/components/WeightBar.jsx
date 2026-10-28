@@ -39,7 +39,7 @@ export default function WeightBar({ current, target, ticker }) {
       <span style={{ width: 52, color: C.onSurfaceSecondary, textAlign: 'right' }}>
         {fmt.pct(current)}
       </span>
-      <span style={{ width: 52, color: '#60a5fa', textAlign: 'right' }}>{fmt.pct(target)}</span>
+      <span style={{ width: 52, color: C.accent, textAlign: 'right' }}>{fmt.pct(target)}</span>
     </div>
   );
 }

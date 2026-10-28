@@ -1,9 +1,6 @@
 import ErrorBoundary from './components/ErrorBoundary';
 import { proxyReturns, rollingLongRun } from './utils/longRun';
 import Tooltip from './components/Tooltip';
-import RiskContribution from './components/RiskContribution';
-import CorrelationMatrix from './components/CorrelationMatrix';
-import PerformanceChart from './components/PerformanceChart';
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -17,7 +14,6 @@ function useMediaQuery(query) {
 }
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  TAX_INEFFICIENCY,
   ACCOUNT_TYPES,
   LOOKBACK_OPTIONS,
   fetchQuote,
@@ -27,21 +23,16 @@ import {
   ercWeights,
   taxLocationWaterfall,
   generateTrades,
-  closestTickers,
   correlationMatrix,
   riskContribution,
   simulatePerformance,
   fmt,
-  mulberry32,
-  normalSampler,
 } from './utils/finance';
 import {
   drawdownPath,
   rollingWithdrawalRates,
   monteCarloWithWithdrawals,
   requiredMinimumDistribution,
-  RMD_TABLE_VERSION,
-  withdrawalSequence,
 } from './utils/withdrawal';
 import { buildPortfolioPath } from './utils/portfolioPath';
 import { getTemplate } from './utils/portfolios';
@@ -49,10 +40,10 @@ import PortfoliosTab from './PortfoliosTab';
 import LearnTab from './LearnTab';
 import { dueModules } from './utils/learning';
 import PlanTools from './components/PlanTools';
-import WeightBar from './components/WeightBar';
-import Confetti from './components/Confetti';
-import DrawdownBacktestChart from './components/DrawdownBacktestChart';
-import FanChart from './components/FanChart';
+import RetirementTab from './tabs/RetirementTab';
+import TradesTab from './tabs/TradesTab';
+import AnalysisTab from './tabs/AnalysisTab';
+import HoldingsTab from './tabs/HoldingsTab';
 import {
   loadState,
   saveState,
@@ -953,7 +944,7 @@ export default function App() {
                   st === 'ok'
                     ? { c: C.positive, s: '✓' }
                     : st === 'error'
-                      ? { c: '#f87171', s: '✗' }
+                      ? { c: C.negativeText, s: '✗' }
                       : st === 'pending'
                         ? { c: C.onSurfaceMuted, s: '⏳' }
                         : null;
@@ -1080,7 +1071,7 @@ export default function App() {
             <div
               role="status"
               aria-live="polite"
-              style={{ fontSize: 13, color: '#4ade80', textAlign: 'center', marginTop: 8 }}
+              style={{ fontSize: 13, color: C.positiveText, textAlign: 'center', marginTop: 8 }}
             >
               ✓ Analysis complete
               {lastFetch && (
@@ -1152,7 +1143,7 @@ export default function App() {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#60a5fa',
+                      color: C.accent,
                       cursor: 'pointer',
                       fontSize: 13,
                       minHeight: 44,
@@ -1170,7 +1161,7 @@ export default function App() {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#f87171',
+                      color: C.negativeText,
                       cursor: 'pointer',
                       fontSize: 13,
                       minHeight: 44,
@@ -1308,1310 +1299,72 @@ export default function App() {
 
           {/* ── HOLDINGS TAB ── */}
           {tab === 'holdings' && (
-            <ErrorBoundary>
-              <div role="tabpanel" id="panel-holdings" aria-labelledby="tab-holdings">
-                <div style={S.warning}>
-                  Enter your <strong>current share counts</strong> per account. These are compared
-                  against risk parity targets to generate trades. Leave at 0 if you don't hold a
-                  position.
-                </div>
-
-                <div style={S.card}>
-                  <div style={{ ...S.cardTitle, marginBottom: 6 }}>Bulk paste</div>
-                  <textarea
-                    placeholder="Paste CSV: Account, Ticker, Shares — e.g. Taxable,SPY,100"
-                    className="sd-input"
-                    style={{ ...S.input, height: 64, fontFamily: 'monospace', fontSize: 14 }}
-                    onPaste={handlePaste}
-                  />
-                </div>
-
-                {ACCOUNT_TYPES.map(acct => (
-                  <div key={acct} style={S.card}>
-                    <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                    <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
-                      Balance: {fmt.usd(accounts[acct] ?? 0)}
-                    </div>
-                    <div className="sd-holdings-grid">
-                      {tickers.map(ticker => (
-                        <div key={ticker}>
-                          <label style={S.label} htmlFor={`holding-${acct}-${ticker}`}>
-                            {ticker} shares
-                          </label>
-                          <input
-                            id={`holding-${acct}-${ticker}`}
-                            type="number"
-                            min={0}
-                            step={0.0001}
-                            className="sd-input"
-                            style={S.input}
-                            value={currentHoldings[acct]?.[ticker] ?? ''}
-                            placeholder="0"
-                            onChange={e => updateHolding(acct, ticker, e.target.value)}
-                          />
-                          {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                            <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 3 }}>
-                              ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-
-                {currentTotalFromPrices > 0 && (
-                  <div style={S.card}>
-                    <div style={S.cardTitle}>Holdings Value (from last analysis prices)</div>
-                    <div style={S.grid2}>
-                      {Object.entries(currentValueByTicker).map(([t, v]) => (
-                        <div
-                          key={t}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            padding: '4px 0',
-                            borderBottom: '1px solid #0f172a',
-                          }}
-                        >
-                          <span style={{ color: C.onSurfaceMuted }}>{t}</span>
-                          <span>{fmt.usd(v)}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 10, color: C.onSurfaceMuted, fontSize: 13 }}>
-                      Total tracked:{' '}
-                      <strong style={{ color: C.onSurface }}>
-                        {fmt.usd(currentTotalFromPrices)}
-                      </strong>{' '}
-                      vs account total:{' '}
-                      <strong style={{ color: C.onSurface }}>{fmt.usd(totalValue)}</strong>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </ErrorBoundary>
+            <HoldingsTab
+              S={S}
+              accounts={accounts}
+              currentHoldings={currentHoldings}
+              currentTotalFromPrices={currentTotalFromPrices}
+              currentValueByTicker={currentValueByTicker}
+              handlePaste={handlePaste}
+              prices={prices}
+              tickers={tickers}
+              totalValue={totalValue}
+              updateHolding={updateHolding}
+            />
           )}
 
           {/* ── ANALYSIS TAB ── */}
           {tab === 'analysis' && (
-            <ErrorBoundary>
-              <div role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis">
-                {analysisState === 'idle' && (
-                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
-                    Enter your holdings and click{' '}
-                    <strong style={{ color: C.onSurfaceMuted }}>Run Analysis</strong> to see risk
-                    parity targets.
-                  </div>
-                )}
-
-                {analysisState === 'error' && (
-                  <div style={S.error}>
-                    <strong>Error fetching market data:</strong> {errorMsg}
-                    {failedTicker && (
-                      <div style={{ marginTop: 8, color: C.onSurfaceMuted }}>
-                        Did you mean:{' '}
-                        {closestTickers(failedTicker).map(s => (
-                          <button
-                            key={s}
-                            onClick={() => {
-                              setTickers(prev => prev.map(t => (t === failedTicker ? s : t)));
-                              setTickerInput(prev =>
-                                prev
-                                  .split(/[,\s]+/)
-                                  .map(t => (t.trim().toUpperCase() === failedTicker ? s : t))
-                                  .join(', ')
-                              );
-                            }}
-                            style={{
-                              margin: '0 4px',
-                              padding: '8px 12px',
-                              minHeight: 44,
-                              minWidth: 44,
-                              background: C.surfaceInput,
-                              border: '1px solid #1e293b',
-                              color: C.focus,
-                              borderRadius: 4,
-                              cursor: 'pointer',
-                              fontFamily: 'monospace',
-                              fontSize: 14,
-                            }}
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <div style={{ marginTop: 6, color: '#f87171' }}>
-                      Yahoo Finance unofficial API may be rate-limiting or blocking requests.{' '}
-                      {retryCountdown > 0
-                        ? `Retry in ${retryCountdown}s…`
-                        : 'Try again in a minute, or check your ticker symbols.'}
-                    </div>
-                    <button
-                      style={{ ...S.btn, marginTop: 8 }}
-                      onClick={() => {
-                        setRetryCountdown(30);
-                        runAnalysis();
-                      }}
-                    >
-                      Retry Now
-                    </button>
-                  </div>
-                )}
-
-                {analysisState === 'done' && (
-                  <>
-                    {/* Summary metrics */}
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-                        gap: 12,
-                        marginBottom: 18,
-                      }}
-                    >
-                      {[
-                        { label: 'Assets', val: tickers.length },
-                        { label: 'Trade Trigger', val: fmt.pct(threshold) },
-                        { label: 'Trades Needed', val: trades.length },
-                      ].map(m => (
-                        <div key={m.label} style={S.card}>
-                          <div style={S.metricVal}>{m.val}</div>
-                          <div style={S.metricLbl}>
-                            {m.label === 'Trade Trigger' ? (
-                              <Tooltip tip="Only trade when drift exceeds this trigger — captures the volatility premium above costs">
-                                {m.label}
-                              </Tooltip>
-                            ) : (
-                              m.label
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Weight comparison chart */}
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>Current vs Target Weights</div>
-                      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
-                        <span
-                          style={{
-                            background: C.positive,
-                            display: 'inline-block',
-                            width: 10,
-                            height: 10,
-                            borderRadius: 2,
-                            marginRight: 4,
-                          }}
-                        />
-                        under target
-                        <span
-                          style={{
-                            background: C.negative,
-                            display: 'inline-block',
-                            width: 10,
-                            height: 10,
-                            borderRadius: 2,
-                            margin: '0 4px 0 12px',
-                          }}
-                        />
-                        over target
-                        <span
-                          style={{
-                            border: '1px dashed #3b82f6',
-                            display: 'inline-block',
-                            width: 10,
-                            height: 10,
-                            borderRadius: 2,
-                            margin: '0 4px 0 12px',
-                          }}
-                        />
-                        target
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {tickers.map(t => {
-                          const curW =
-                            totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
-                          const tgtW = targetWeights[t] ?? 0;
-                          return <WeightBar key={t} ticker={t} current={curW} target={tgtW} />;
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Risk parity table */}
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>
-                        <Tooltip tip="Equal risk contribution: weights are solved from volatilities and correlations so each asset contributes the same share of portfolio risk (unlevered, long-only)">
-                          Risk Parity Weights (Equal Risk Contribution)
-                        </Tooltip>
-                      </div>
-                      <div style={S.tableWrap}>
-                        <table className="sd-table" style={S.table}>
-                          <thead>
-                            <tr>
-                              {[
-                                'Ticker',
-                                'Volatility',
-                                'Target Allocation',
-                                'Target Value',
-                                'Current Value',
-                                'Off Target',
-                              ].map(h => (
-                                <th key={h} style={S.th}>
-                                  {h}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {tickers.map(t => {
-                              const tgtW = targetWeights[t] ?? 0;
-                              const curW =
-                                totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
-                              const drift = curW - tgtW;
-                              return (
-                                <tr key={t}>
-                                  <td
-                                    style={{
-                                      ...S.td,
-                                      fontWeight: 600,
-                                      color: C.onSurface,
-                                      fontFamily: 'monospace',
-                                    }}
-                                  >
-                                    {t}
-                                  </td>
-                                  <td style={S.td}>{fmt.vol(vols[t] ?? 0)}</td>
-                                  <td style={S.td}>{fmt.pct(tgtW)}</td>
-                                  <td style={S.td}>{fmt.usd(tgtW * totalValue)}</td>
-                                  <td style={S.td}>{fmt.usd(currentValueByTicker[t] ?? 0)}</td>
-                                  <td
-                                    style={{
-                                      ...S.td,
-                                      color:
-                                        Math.abs(drift) > threshold ? '#f87171' : C.onSurfaceMuted,
-                                    }}
-                                  >
-                                    {drift >= 0 ? '+' : ''}
-                                    {fmt.pct(drift)}
-                                    {Math.abs(drift) > threshold && ' ⚠'}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Tax location */}
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>
-                        <Tooltip tip="Bonds/REITs/commodities go in IRAs first to shelter ordinary income">
-                          Tax-Efficient Location (Target)
-                        </Tooltip>
-                      </div>
-                      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
-                        Tax-inefficient assets (bonds, commodities, REITs) are placed in
-                        tax-advantaged accounts first. Tax score: 8–10 means hold in an IRA, 5–7 is
-                        neutral, 1–4 is tax-efficient. Scores are heuristics — verify with a tax
-                        advisor.
-                      </div>
-                      <div style={S.tableWrap}>
-                        <table className="sd-table" style={S.table}>
-                          <thead>
-                            <tr>
-                              <th style={S.th}>Ticker</th>
-                              <th style={S.th}>Tax Score</th>
-                              {ACCOUNT_TYPES.map(a => (
-                                <th key={a} style={S.th}>
-                                  {a}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {tickers.map(t => (
-                              <tr key={t}>
-                                <td
-                                  style={{
-                                    ...S.td,
-                                    fontFamily: 'monospace',
-                                    fontWeight: 600,
-                                    color: C.onSurface,
-                                  }}
-                                >
-                                  {t}
-                                </td>
-                                <td style={S.td}>
-                                  <span
-                                    style={S.pill(
-                                      (TAX_INEFFICIENCY[t] ?? 5) >= 8
-                                        ? 'sell'
-                                        : (TAX_INEFFICIENCY[t] ?? 5) >= 5
-                                          ? null
-                                          : 'buy'
-                                    )}
-                                  >
-                                    {TAX_INEFFICIENCY[t] ?? '5 (est.)'}
-                                  </span>
-                                </td>
-                                {ACCOUNT_TYPES.map(a => (
-                                  <td key={a} style={S.td}>
-                                    {targetAllocation[a]?.[t] > 0 ? (
-                                      fmt.usd(targetAllocation[a][t])
-                                    ) : (
-                                      <span style={{ color: C.onSurfaceMuted }}>—</span>
-                                    )}
-                                  </td>
-                                ))}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Prices */}
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>Last Prices (Yahoo Finance)</div>
-                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                        {tickers.map(t => (
-                          <div key={t} style={{ minWidth: 80 }}>
-                            <div
-                              style={{
-                                fontFamily: 'monospace',
-                                fontSize: 13,
-                                color: C.onSurfaceMuted,
-                              }}
-                            >
-                              {t}
-                            </div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: C.onSurface }}>
-                              {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <RiskContribution
-                      S={S}
-                      tickers={tickers}
-                      targetWeights={targetWeights}
-                      riskContrib={riskContrib}
-                    />
-
-                    <CorrelationMatrix S={S} tickers={tickers} corrMatrix={corrMatrix} />
-
-                    <PerformanceChart S={S} perfData={perfData} />
-                  </>
-                )}
-              </div>
-            </ErrorBoundary>
+            <AnalysisTab
+              S={S}
+              analysisState={analysisState}
+              corrMatrix={corrMatrix}
+              currentValueByTicker={currentValueByTicker}
+              errorMsg={errorMsg}
+              failedTicker={failedTicker}
+              perfData={perfData}
+              prices={prices}
+              retryCountdown={retryCountdown}
+              riskContrib={riskContrib}
+              runAnalysis={runAnalysis}
+              setRetryCountdown={setRetryCountdown}
+              setTickerInput={setTickerInput}
+              setTickers={setTickers}
+              targetAllocation={targetAllocation}
+              targetWeights={targetWeights}
+              threshold={threshold}
+              tickers={tickers}
+              totalValue={totalValue}
+              trades={trades}
+              vols={vols}
+            />
           )}
 
           {/* ── TRADES TAB ── */}
           {tab === 'trades' && (
-            <ErrorBoundary>
-              <div role="tabpanel" id="panel-trades" aria-labelledby="tab-trades">
-                {analysisState !== 'done' && (
-                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
-                    Run Analysis first to generate trades.
-                  </div>
-                )}
-
-                {analysisState === 'done' && trades.length === 0 && (
-                  <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
-                    <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                    <div style={{ color: C.onSurfaceMuted, fontSize: 15 }}>
-                      All positions are within the{' '}
-                      <strong style={{ color: C.onSurfaceMuted }}>{fmt.pct(threshold)}</strong>{' '}
-                      rebalance band. No trades needed.
-                    </div>
-                    <div style={{ color: C.onSurfaceMuted, fontSize: 13, marginTop: 8 }}>
-                      Shannon's Demon: Only rebalance when drift captures a meaningful volatility
-                      premium above transaction costs.
-                    </div>
-                    <Confetti />
-                  </div>
-                )}
-
-                {analysisState === 'done' && trades.length > 0 && (
-                  <>
-                    <div style={S.warning}>
-                      These trades move your portfolio toward risk parity targets within
-                      tax-efficient accounts.{' '}
-                      <strong>Verify share counts and prices before executing.</strong> Consider tax
-                      impact of sells in taxable accounts.
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        style={{ ...S.btn, width: 'auto', padding: '12px 16px' }}
-                        onClick={exportTradesCSV}
-                      >
-                        📋 Copy trades as CSV
-                      </button>
-                    </div>
-                    <details style={{ marginBottom: 12 }}>
-                      <summary
-                        style={{
-                          cursor: 'pointer',
-                          fontSize: 14,
-                          color: C.onSurfaceMuted,
-                          minHeight: 44,
-                          display: 'flex',
-                          alignItems: 'center',
-                        }}
-                      >
-                        Advanced
-                      </summary>
-                      <button
-                        type="button"
-                        style={{
-                          ...S.btn,
-                          width: 'auto',
-                          padding: '12px 16px',
-                          marginTop: 8,
-                        }}
-                        onClick={exportState}
-                      >
-                        📦 Copy full state JSON
-                      </button>
-                    </details>
-
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>Rebalancing Trades</div>
-                      <div style={S.tableWrap}>
-                        <table className="sd-table" style={S.table}>
-                          <thead>
-                            <tr>
-                              {[
-                                'Action',
-                                'Ticker',
-                                'Account',
-                                'Shares',
-                                'Amount',
-                                'Current Allocation',
-                                'Target Allocation',
-                                'Off Target',
-                              ].map(h => (
-                                <th key={h} style={S.th}>
-                                  {h}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {trades.map((tr, i) => (
-                              <tr key={i}>
-                                <td style={S.td}>
-                                  <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>
-                                </td>
-                                <td
-                                  style={{
-                                    ...S.td,
-                                    fontFamily: 'monospace',
-                                    fontWeight: 600,
-                                    color: C.onSurface,
-                                  }}
-                                >
-                                  {tr.ticker}
-                                </td>
-                                <td style={{ ...S.td, color: C.onSurfaceMuted }}>{tr.account}</td>
-                                <td style={S.td}>{fmt.shares(tr.shares)}</td>
-                                <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
-                                <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
-                                <td style={{ ...S.td, color: C.focus }}>
-                                  {fmt.pct(tr.targetWeight)}
-                                </td>
-                                <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-
-                    {/* Per-account summary */}
-                    <div style={S.grid2}>
-                      {ACCOUNT_TYPES.map(acct => {
-                        const acctTrades = trades.filter(t => t.account === acct);
-                        if (acctTrades.length === 0) return null;
-                        return (
-                          <div key={acct} style={S.card}>
-                            <div style={S.cardTitle}>{acct}</div>
-                            {acctTrades.map((tr, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  padding: '5px 0',
-                                  borderBottom: '1px solid #0f172a',
-                                  fontSize: 14,
-                                }}
-                              >
-                                <span>
-                                  <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>{' '}
-                                  <span style={{ fontFamily: 'monospace' }}>{tr.ticker}</span>
-                                </span>
-                                <span style={{ color: C.onSurfaceMuted }}>
-                                  {fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-            </ErrorBoundary>
+            <TradesTab
+              S={S}
+              analysisState={analysisState}
+              exportState={exportState}
+              exportTradesCSV={exportTradesCSV}
+              threshold={threshold}
+              trades={trades}
+            />
           )}
 
           {/* ── RETIREMENT TAB ── */}
           {tab === 'retirement' && (
-            <ErrorBoundary>
-              <div role="tabpanel" id="panel-retirement" aria-labelledby="tab-retirement">
-                {analysisState !== 'done' ? (
-                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
-                    Run Analysis first to generate retirement projections.
-                  </div>
-                ) : retirementResults?.error ? (
-                  <div style={S.bannerError} role="alert">
-                    {retirementResults.error}
-                  </div>
-                ) : (
-                  <div>
-                    {/* Inputs Panel */}
-                    <div style={S.card}>
-                      <div style={S.cardTitle}>Retirement Parameters</div>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                          gap: 12,
-                        }}
-                      >
-                        <div>
-                          <label style={S.label} htmlFor="ret-monthly-spend">
-                            Monthly Spend
-                          </label>
-                          <input
-                            id="ret-monthly-spend"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.monthlySpend}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                monthlySpend: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            step={100}
-                            placeholder="e.g. 4000"
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-inflation-rate">
-                            Inflation Rate
-                          </label>
-                          <input
-                            id="ret-inflation-rate"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.inflationRate}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                inflationRate: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            max={0.2}
-                            step={0.005}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-horizon-years">
-                            Horizon (Years)
-                          </label>
-                          <input
-                            id="ret-horizon-years"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.horizonYears}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                horizonYears: parseInt(e.target.value) || 0,
-                              }))
-                            }
-                            min={1}
-                            max={50}
-                            step={1}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-legacy-target">
-                            Legacy Target
-                          </label>
-                          <input
-                            id="ret-legacy-target"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.legacyTarget}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                legacyTarget: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            step={1000}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-birth-year">
-                            Birth Year
-                          </label>
-                          <input
-                            id="ret-birth-year"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.birthYear}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                birthYear: parseInt(e.target.value) || 1960,
-                              }))
-                            }
-                            min={1920}
-                            max={2020}
-                            step={1}
-                            placeholder="e.g. 1955"
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-ss-start-age">
-                            Social Security Start Age
-                          </label>
-                          <input
-                            id="ret-ss-start-age"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.socialSecurityStartAge}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                socialSecurityStartAge: parseInt(e.target.value) || 67,
-                              }))
-                            }
-                            min={62}
-                            max={70}
-                            step={1}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-pension-start-age">
-                            Pension Start Age
-                          </label>
-                          <input
-                            id="ret-pension-start-age"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.pensionStartAge}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                pensionStartAge: parseInt(e.target.value) || 65,
-                              }))
-                            }
-                            min={55}
-                            max={70}
-                            step={1}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-ss-monthly">
-                            Social Security / Mo
-                          </label>
-                          <input
-                            id="ret-ss-monthly"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.socialSecurityMonthly}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                socialSecurityMonthly: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            step={100}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-pension-monthly">
-                            Pension / Mo
-                          </label>
-                          <input
-                            id="ret-pension-monthly"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.pensionMonthly}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                pensionMonthly: parseFloat(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            step={100}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-cash-buffer">
-                            Cash Buffer (Months)
-                          </label>
-                          <input
-                            id="ret-cash-buffer"
-                            type="number"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.cashBufferMonths}
-                            onChange={e =>
-                              setRetirement(r => ({
-                                ...r,
-                                cashBufferMonths: parseInt(e.target.value) || 0,
-                              }))
-                            }
-                            min={0}
-                            max={60}
-                            step={1}
-                          />
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-guardrail">
-                            Spending Guardrail
-                          </label>
-                          <select
-                            id="ret-guardrail"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.guardrail}
-                            onChange={e =>
-                              setRetirement(r => ({ ...r, guardrail: e.target.value }))
-                            }
-                          >
-                            <option value="none">None (Fixed)</option>
-                            <option value="rpr-80">RPR-80 (Cut to 6% if &lt;80%)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-drift-mode">
-                            MC Drift Mode
-                          </label>
-                          <select
-                            id="ret-drift-mode"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.driftMode}
-                            onChange={e =>
-                              setRetirement(r => ({ ...r, driftMode: e.target.value }))
-                            }
-                          >
-                            <option value="historical">Historical Mean</option>
-                            <option value="zero">Zero (Conservative)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label style={S.label} htmlFor="ret-seq-strategy">
-                            Draw Order
-                          </label>
-                          <select
-                            id="ret-seq-strategy"
-                            className="sd-input"
-                            style={S.input}
-                            value={retirement.sequenceStrategy}
-                            onChange={e =>
-                              setRetirement(r => ({ ...r, sequenceStrategy: e.target.value }))
-                            }
-                          >
-                            <option value="taxable-first">
-                              Taxable, then traditional, then Roth
-                            </option>
-                            <option value="bracket-fill">
-                              Fill the bracket room (~$44k/yr heuristic) with traditional first
-                            </option>
-                          </select>
-                        </div>
-                        {retirement.sequenceStrategy === 'bracket-fill' && (
-                          <div>
-                            <label style={S.label} htmlFor="ret-roth-conv">
-                              Roth conversion per year ($, within bracket room only)
-                            </label>
-                            <input
-                              id="ret-roth-conv"
-                              className="sd-input"
-                              style={S.input}
-                              type="number"
-                              min="0"
-                              value={retirement.rothConversionAnnual ?? 0}
-                              onChange={e =>
-                                setRetirement(r => ({
-                                  ...r,
-                                  rothConversionAnnual: Math.max(0, Number(e.target.value) || 0),
-                                }))
-                              }
-                            />
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        style={{
-                          ...S.btn,
-                          width: 'auto',
-                          padding: '12px 16px',
-                          marginTop: 12,
-                          ...(retirementCalculating ? S.btnDisabled : {}),
-                        }}
-                        onClick={calculateRetirement}
-                        disabled={retirementCalculating}
-                      >
-                        {retirementCalculating ? '⏳ Calculating…' : '▶ Calculate'}
-                      </button>
-                    </div>
-
-                    {/* Results */}
-                    {retirementResults && (
-                      <div>
-                        <div
-                          role="status"
-                          data-testid="history-windows"
-                          style={{ fontSize: 12, marginBottom: 8, opacity: 0.8 }}
-                        >
-                          {retirementResults.withheld
-                            ? `SWR / PWR / success withheld: ${retirementResults.withheldReason}. `
-                            : ''}
-                          Historical windows: {retirementResults.windowCount}
-                          {retirementResults.basis === 'long-run'
-                            ? ' (1928–2025 annual index proxies, not your ETFs’ own history)'
-                            : ''}
-                        </div>
-                        {/* Metric Cards */}
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: 12,
-                            marginBottom: 18,
-                          }}
-                        >
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-swr"
-                            >
-                              {retirementResults.withheld
-                                ? '—'
-                                : `${(retirementResults.swr * 100).toFixed(2)}%`}
-                            </div>
-                            <div style={S.metricLbl}>Safe Withdrawal Rate (SWR)</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-pwr"
-                            >
-                              {retirementResults.withheld
-                                ? '—'
-                                : `${(retirementResults.pwr * 100).toFixed(2)}%`}
-                            </div>
-                            <div style={S.metricLbl}>Perpetual Withdrawal Rate (PWR)</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-success"
-                            >
-                              {retirementResults.withheld
-                                ? '—'
-                                : `${(retirementResults.successRate * 100).toFixed(1)}%`}
-                            </div>
-                            <div style={S.metricLbl}>Success Probability</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-maxdd"
-                            >
-                              {(retirementResults.maxDrawdown * 100).toFixed(1)}%
-                            </div>
-                            <div style={S.metricLbl}>Max Drawdown</div>
-                          </div>
-                          <div className="sd-card" style={S.card}>
-                            <div
-                              className="sd-metricVal"
-                              style={S.metricVal}
-                              data-testid="metric-horizon"
-                            >
-                              {retirementResults.effectiveYears?.toFixed(1) ?? '—'} yr
-                            </div>
-                            <div style={S.metricLbl}>
-                              Effective Horizon
-                              {retirementResults.limitedBy
-                                ? ` (limited by ${retirementResults.limitedBy})`
-                                : ''}
-                            </div>
-                          </div>
-                          {retirementResults.bridgeYears != null &&
-                            retirementResults.bridgeYears > 0 && (
-                              <div style={S.card}>
-                                <div style={S.metricVal}>{retirementResults.bridgeYears}</div>
-                                <div style={S.metricLbl}>Bridge Years to Income</div>
-                              </div>
-                            )}
-                          {retirementResults.bufferStatus && (
-                            <div style={S.card}>
-                              <div style={S.metricVal}>
-                                {retirementResults.bufferStatus.remainingMonths?.toFixed(1) ??
-                                  retirementResults.bufferStatus.months ??
-                                  '—'}
-                              </div>
-                              <div style={S.metricLbl}>Cash Buffer Remaining (Mo)</div>
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          className="sd-noprint"
-                          style={{
-                            ...S.btn,
-                            width: 'auto',
-                            padding: '12px 16px',
-                            marginBottom: 12,
-                          }}
-                          onClick={() => window.print()}
-                        >
-                          Download PDF
-                        </button>
-                        {/* Disclaimer: directly beneath the metric cards */}
-                        <div
-                          data-testid="metrics-disclaimer"
-                          style={{
-                            fontSize: 12,
-                            color: C.onSurfaceMuted,
-                            marginBottom: 14,
-                            padding: '8px 12px',
-                            background: C.surfaceInput,
-                            borderRadius: 6,
-                          }}
-                        >
-                          Planning estimates only — not financial, tax, or legal advice. Historical
-                          and simulated results do not guarantee future outcomes. Verify RMDs and
-                          tax figures with a qualified advisor.
-                        </div>
-
-                        {/* Drawdown Backtest Chart */}
-                        <div style={S.card}>
-                          <div style={S.cardTitle}>Historical SWR/PWR by Start Year</div>
-                          <DrawdownBacktestChart
-                            samples={retirementResults.samples}
-                            horizonYears={retirement.horizonYears}
-                          />
-                        </div>
-
-                        {retirementResults.guardrailComparison && (
-                          <div style={S.card} data-testid="guardrail-comparison">
-                            <div style={S.cardTitle}>
-                              Static vs Guardrail ({retirementResults.guardrailComparison.policy})
-                            </div>
-                            <div style={S.tableWrap}>
-                              <table style={S.table} aria-label="Static vs guardrail outcomes">
-                                <thead>
-                                  <tr>
-                                    <th style={S.th}>Outcome (Monte Carlo)</th>
-                                    <th style={S.th}>Static</th>
-                                    <th style={S.th}>Guardrail</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {[
-                                    ['success', 'Success Probability', r => fmt.pct(r.successRate)],
-                                    ['median', 'Median terminal value', r => fmt.usd(r.median)],
-                                    ['p10', '10th percentile terminal value', r => fmt.usd(r.p10)],
-                                  ].map(([key, label, format]) => (
-                                    <tr key={key}>
-                                      <td style={S.td}>{label}</td>
-                                      <td style={S.td} data-testid={`cmp-${key}-static`}>
-                                        {format(retirementResults.guardrailComparison.static)}
-                                      </td>
-                                      <td style={S.td} data-testid={`cmp-${key}-guardrail`}>
-                                        {format(retirementResults.guardrailComparison.guardrail)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <div style={{ color: C.onSurfaceMuted, fontSize: 12, marginTop: 8 }}>
-                              Both runs use the same simulated markets (seed 42); only the spending
-                              rule differs. Guardrails are models, not guarantees.
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Monte Carlo Fan Chart */}
-                        <div style={S.card}>
-                          <div style={S.cardTitle}>Monte Carlo Fan Chart (P10–P90)</div>
-                          <p data-testid="mc-method" style={{ color: '#94a3b8', fontSize: 12 }}>
-                            {retirementResults.mcMethod === 'bootstrap'
-                              ? 'Method: resampled calendar years 1928–2025 from index proxies (annual data, not your ETFs’ own history).'
-                              : 'Method: Gaussian shocks with constant correlation; a holding has no long-run proxy.'}
-                          </p>
-                          <FanChart
-                            bands={retirementResults.bands}
-                            steps={retirementResults.bands?.p50?.length ?? 360}
-                            monthlySpend={retirement.monthlySpend}
-                          />
-                        </div>
-
-                        {/* RMD Table */}
-                        <div style={S.card}>
-                          <div style={S.cardTitle}>
-                            Required Minimum Distributions (RMD){' '}
-                            <span style={{ fontSize: 11, color: C.onSurfaceMuted, marginLeft: 8 }}>
-                              Table: {RMD_TABLE_VERSION}
-                            </span>
-                          </div>
-                          <div style={S.tableWrap}>
-                            <table className="sd-table" style={S.table}>
-                              <thead>
-                                <tr>
-                                  <th style={S.th}>Age</th>
-                                  <th style={S.th}>Distribution Period</th>
-                                  {ACCOUNT_TYPES.filter(
-                                    a => a.includes('IRA') || a.includes('401k')
-                                  ).map(a => (
-                                    <th key={a} style={S.th}>
-                                      {a} RMD
-                                    </th>
-                                  ))}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {[
-                                  73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
-                                  89, 90,
-                                ].map(age => (
-                                  <tr key={age}>
-                                    <td style={S.th}>{age}</td>
-                                    <td style={S.td}>
-                                      {requiredMinimumDistribution(age, 1000000, {
-                                        birthYear: retirement.birthYear,
-                                      }).distributionPeriod ?? '—'}
-                                    </td>
-                                    {ACCOUNT_TYPES.filter(
-                                      a => a.includes('IRA') || a.includes('401k')
-                                    ).map(a => (
-                                      <td key={a} style={S.td}>
-                                        {accounts[a]
-                                          ? fmt.usd(
-                                              requiredMinimumDistribution(age, accounts[a], {
-                                                birthYear: retirement.birthYear,
-                                              }).rmd
-                                            )
-                                          : '—'}
-                                      </td>
-                                    ))}
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-
-                        {/* Withdrawal Sequencing Table */}
-                        <div style={S.card}>
-                          <div style={S.cardTitle}>Withdrawal Sequencing</div>
-                          <div style={S.tableWrap}>
-                            <table className="sd-table" style={S.table}>
-                              <thead>
-                                <tr>
-                                  <th style={S.th}>Account</th>
-                                  <th style={S.th}>Taxable Withdrawal</th>
-                                  <th style={S.th}>Traditional Withdrawal (incl. RMD)</th>
-                                  <th style={S.th}>Roth Withdrawal</th>
-                                  <th style={S.th}>Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(() => {
-                                  const seq = withdrawalSequence(
-                                    accounts,
-                                    retirement.monthlySpend,
-                                    {
-                                      ...seqExtra(),
-                                      rmdByAccount: Object.fromEntries(
-                                        ACCOUNT_TYPES.filter(
-                                          a => a.includes('IRA') || a.includes('401k')
-                                        ).map(a => [
-                                          a,
-                                          requiredMinimumDistribution(73, accounts[a] ?? 0, {
-                                            birthYear: retirement.birthYear,
-                                          }).rmd,
-                                        ])
-                                      ),
-                                    }
-                                  );
-                                  return [
-                                    { name: 'Taxable', ...seq.byAccount.Taxable },
-                                    {
-                                      name: 'Traditional IRA / 401k',
-                                      ...seq.byAccount['Traditional IRA / 401k'],
-                                    },
-                                    { name: 'Roth IRA', ...seq.byAccount['Roth IRA'] },
-                                  ];
-                                })().map(row => (
-                                  <tr key={row.name}>
-                                    <td style={S.th}>{row.name}</td>
-                                    <td style={S.td}>
-                                      {row.taxable > 0 ? fmt.usd(row.taxable * 12) : '—'}
-                                    </td>
-                                    <td style={S.td}>
-                                      {row.traditional > 0 ? fmt.usd(row.traditional * 12) : '—'}
-                                    </td>
-                                    <td style={S.td}>
-                                      {row.roth > 0 ? fmt.usd(row.roth * 12) : '—'}
-                                    </td>
-                                    <td style={S.td}>
-                                      {fmt.usd((row.taxable + row.traditional + row.roth) * 12)}
-                                    </td>
-                                  </tr>
-                                ))}
-                                <tr>
-                                  <td style={S.th}>Yearly Total</td>
-                                  <td style={S.td}>
-                                    {(() => {
-                                      const seq = withdrawalSequence(
-                                        accounts,
-                                        retirement.monthlySpend,
-                                        {
-                                          ...seqExtra(),
-                                          rmdByAccount: Object.fromEntries(
-                                            ACCOUNT_TYPES.filter(
-                                              a => a.includes('IRA') || a.includes('401k')
-                                            ).map(a => [
-                                              a,
-                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
-                                                birthYear: retirement.birthYear,
-                                              }).rmd,
-                                            ])
-                                          ),
-                                        }
-                                      );
-                                      return fmt.usd(seq.byAccount.Taxable * 12);
-                                    })()}
-                                  </td>
-                                  <td style={S.td}>
-                                    {(() => {
-                                      const seq = withdrawalSequence(
-                                        accounts,
-                                        retirement.monthlySpend,
-                                        {
-                                          ...seqExtra(),
-                                          rmdByAccount: Object.fromEntries(
-                                            ACCOUNT_TYPES.filter(
-                                              a => a.includes('IRA') || a.includes('401k')
-                                            ).map(a => [
-                                              a,
-                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
-                                                birthYear: retirement.birthYear,
-                                              }).rmd,
-                                            ])
-                                          ),
-                                        }
-                                      );
-                                      return fmt.usd(seq.byAccount['Traditional IRA / 401k'] * 12);
-                                    })()}
-                                  </td>
-                                  <td style={S.td}>
-                                    {(() => {
-                                      const seq = withdrawalSequence(
-                                        accounts,
-                                        retirement.monthlySpend,
-                                        {
-                                          ...seqExtra(),
-                                          rmdByAccount: Object.fromEntries(
-                                            ACCOUNT_TYPES.filter(
-                                              a => a.includes('IRA') || a.includes('401k')
-                                            ).map(a => [
-                                              a,
-                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
-                                                birthYear: retirement.birthYear,
-                                              }).rmd,
-                                            ])
-                                          ),
-                                        }
-                                      );
-                                      return fmt.usd(seq.byAccount['Roth IRA'] * 12);
-                                    })()}
-                                  </td>
-                                  <td style={S.td}>
-                                    {(() => {
-                                      const seq = withdrawalSequence(
-                                        accounts,
-                                        retirement.monthlySpend,
-                                        {
-                                          ...seqExtra(),
-                                          rmdByAccount: Object.fromEntries(
-                                            ACCOUNT_TYPES.filter(
-                                              a => a.includes('IRA') || a.includes('401k')
-                                            ).map(a => [
-                                              a,
-                                              requiredMinimumDistribution(73, accounts[a] ?? 0, {
-                                                birthYear: retirement.birthYear,
-                                              }).rmd,
-                                            ])
-                                          ),
-                                        }
-                                      );
-                                      return fmt.usd(seq.totalSpend * 12);
-                                    })()}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </ErrorBoundary>
+            <RetirementTab
+              S={S}
+              accounts={accounts}
+              analysisState={analysisState}
+              calculateRetirement={calculateRetirement}
+              retirement={retirement}
+              retirementCalculating={retirementCalculating}
+              retirementResults={retirementResults}
+              seqExtra={seqExtra}
+              setRetirement={setRetirement}
+            />
           )}
 
           {tab === 'learn' && (
