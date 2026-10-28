@@ -49,6 +49,10 @@ import PortfoliosTab from './PortfoliosTab';
 import LearnTab from './LearnTab';
 import { dueModules } from './utils/learning';
 import PlanTools from './components/PlanTools';
+import WeightBar from './components/WeightBar';
+import Confetti from './components/Confetti';
+import DrawdownBacktestChart from './components/DrawdownBacktestChart';
+import FanChart from './components/FanChart';
 import {
   loadState,
   saveState,
@@ -60,6 +64,7 @@ import {
   getCachedQuote,
   cacheQuote,
 } from './utils/storage';
+import { C } from './tokens';
 
 const DEFAULT_TICKERS = ['SPY', 'TLT', 'GLD', 'VNQ', 'EEM'];
 
@@ -72,387 +77,6 @@ const DEFAULT_ACCOUNTS = {
 // ─── FORMATTING HELPERS ───────────────────────────────────────────────────────
 
 // ─── MINI BAR CHART ───────────────────────────────────────────────────────────
-
-function WeightBar({ current, target, ticker }) {
-  const maxW = Math.max(current, target, 0.001);
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-      <span style={{ width: 48, fontFamily: 'monospace', color: '#94a3b8' }}>{ticker}</span>
-      <div style={{ flex: 1, position: 'relative', height: 20 }}>
-        {/* Target bar (background) */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 4,
-            height: 12,
-            width: `${(target / maxW) * 100}%`,
-            background: '#1e40af22',
-            borderRadius: 2,
-            border: '1px dashed #3b82f6',
-            transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-        />
-        {/* Current bar */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 4,
-            height: 12,
-            width: `${(current / maxW) * 100}%`,
-            background: current > target ? '#dc2626' : '#16a34a',
-            borderRadius: 2,
-            opacity: 0.85,
-            transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-          }}
-        />
-      </div>
-      <span style={{ width: 52, color: '#cbd5e1', textAlign: 'right' }}>{fmt.pct(current)}</span>
-      <span style={{ width: 52, color: '#60a5fa', textAlign: 'right' }}>{fmt.pct(target)}</span>
-    </div>
-  );
-}
-
-// ─── CONFETTI (dependency-free) ───────────────────────────────────────────────
-function Confetti() {
-  const [visible, setVisible] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(false), 1800);
-    return () => clearTimeout(t);
-  }, []);
-  if (!visible) return null;
-  const pieces = Array.from({ length: 20 }, (_, i) => ({
-    left: `${(i * 137) % 100}%`,
-    delay: `${(i % 8) * 0.08}s`,
-    color: ['#3b82f6', '#0891b2', '#16a34a', '#f59e0b', '#f87171'][i % 5],
-  }));
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: 50 }}
-    >
-      {pieces.map((p, i) => (
-        <span
-          key={i}
-          className="sd-confetti"
-          style={{
-            position: 'absolute',
-            top: '-12px',
-            left: p.left,
-            width: 8,
-            height: 12,
-            background: p.color,
-            borderRadius: 2,
-            animationDelay: p.delay,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── DRAWDOWN BACKTEST CHART ──────────────────────────────────────────────────
-function DrawdownBacktestChart({ samples, horizonYears }) {
-  if (!samples || samples.length === 0)
-    return (
-      <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>
-        No historical data for backtest
-      </div>
-    );
-
-  const width = 600;
-  const height = 200;
-  const margin = { top: 20, right: 20, bottom: 40, left: 50 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-
-  const rates = samples.flatMap(s => [s.swr, s.pwr]);
-  const maxRate = Math.max(...rates) * 1.1 || 0.1;
-
-  const xScale = i => margin.left + (i / (samples.length - 1 || 1)) * innerWidth;
-  const yScale = rate => margin.top + innerHeight - (rate / maxRate) * innerHeight;
-
-  return (
-    <div style={{ width: '100%', maxWidth: width, margin: '0 auto' }}>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
-        {[0, 0.25, 0.5, 0.75, 1].map(y => (
-          <line
-            key={y}
-            x1={margin.left}
-            y1={yScale(maxRate * y)}
-            x2={margin.left + innerWidth}
-            y2={yScale(maxRate * y)}
-            stroke="#1e293b"
-            strokeWidth={0.5}
-          />
-        ))}
-        <line
-          x1={margin.left}
-          y1={margin.top}
-          x2={margin.left}
-          y2={margin.top + innerHeight}
-          stroke="#334155"
-          strokeWidth={1}
-        />
-        <line
-          x1={margin.left}
-          y1={margin.top + innerHeight}
-          x2={margin.left + innerWidth}
-          y2={margin.top + innerHeight}
-          stroke="#334155"
-          strokeWidth={1}
-        />
-        {[0, 0.25, 0.5, 0.75, 1].map(y => (
-          <text
-            key={y}
-            x={margin.left - 8}
-            y={yScale(maxRate * y) + 4}
-            textAnchor="end"
-            fontSize={10}
-            fill="#94a3b8"
-          >
-            {(maxRate * y * 100).toFixed(1)}%
-          </text>
-        ))}
-        {samples
-          .filter((_, i) => i % Math.max(1, Math.floor(samples.length / 10)) === 0)
-          .map((s, idx) => (
-            <text
-              key={s.startIndex}
-              x={xScale(s.startIndex)}
-              y={margin.top + innerHeight + 16}
-              textAnchor="middle"
-              fontSize={10}
-              fill="#94a3b8"
-              transform={`rotate(-45, ${xScale(s.startIndex)}, ${margin.top + innerHeight + 16})`}
-            >
-              Start {s.startIndex}
-            </text>
-          ))}
-        <polyline
-          fill="none"
-          stroke="#16a34a"
-          strokeWidth={1.5}
-          points={samples.map((s, i) => `${xScale(i)},${yScale(s.swr)}`).join(' ')}
-        />
-        <polyline
-          fill="none"
-          stroke="#60a5fa"
-          strokeWidth={1.5}
-          strokeDasharray="4,2"
-          points={samples.map((s, i) => `${xScale(i)},${yScale(s.pwr)}`).join(' ')}
-        />
-        {samples
-          .filter(s => s.depleted)
-          .map(s => (
-            <circle
-              key={s.startIndex}
-              cx={xScale(samples.indexOf(s))}
-              cy={yScale(s.swr)}
-              r={3}
-              fill="#f87171"
-            />
-          ))}
-      </svg>
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          marginTop: 8,
-          fontSize: 12,
-          color: '#94a3b8',
-          justifyContent: 'center',
-        }}
-      >
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 2,
-              background: '#16a34a',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          SWR
-        </span>
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 2,
-              background: '#60a5fa',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          PWR
-        </span>
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 8,
-              height: 8,
-              background: '#f87171',
-              borderRadius: '50%',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          Depleted
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── FAN CHART ─────────────────────────────────────────────────────────────────
-function FanChart({ bands, steps, monthlySpend }) {
-  if (!bands || !bands.p50 || bands.p50.length === 0)
-    return (
-      <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>No Monte Carlo data</div>
-    );
-
-  const width = 600;
-  const height = 200;
-  const margin = { top: 20, right: 20, bottom: 40, left: 60 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
-
-  const allVals = [...bands.p90, ...bands.p75, ...bands.p50, ...bands.p25, ...bands.p10];
-  const maxVal = Math.max(...allVals) * 1.05 || 1;
-
-  const xScale = i => margin.left + (i / (steps - 1)) * innerWidth;
-  const yScale = val => margin.top + innerHeight - (val / maxVal) * innerHeight;
-
-  return (
-    <div style={{ width: '100%', maxWidth: width, margin: '0 auto' }}>
-      <svg viewBox={`0 0 ${width} ${height}`} style={{ width: '100%', height: 'auto' }}>
-        {[0, 0.25, 0.5, 0.75, 1].map(y => (
-          <line
-            key={y}
-            x1={margin.left}
-            y1={yScale(maxVal * y)}
-            x2={margin.left + innerWidth}
-            y2={yScale(maxVal * y)}
-            stroke="#1e293b"
-            strokeWidth={0.5}
-          />
-        ))}
-        <path
-          d={`M${bands.p10.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' L')} L${bands.p90.map((v, i) => `${xScale(steps - 1 - i)},${yScale(v)}`).join(' L')} Z`}
-          fill="#3b82f622"
-        />
-        <path
-          d={`M${bands.p25.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' L')} L${bands.p75.map((v, i) => `${xScale(steps - 1 - i)},${yScale(v)}`).join(' L')} Z`}
-          fill="#3b82f644"
-        />
-        <polyline
-          fill="none"
-          stroke="#3b82f6"
-          strokeWidth={1.5}
-          points={bands.p50.map((v, i) => `${xScale(i)},${yScale(v)}`).join(' ')}
-        />
-        <line
-          x1={margin.left}
-          y1={margin.top}
-          x2={margin.left}
-          y2={margin.top + innerHeight}
-          stroke="#334155"
-          strokeWidth={1}
-        />
-        <line
-          x1={margin.left}
-          y1={margin.top + innerHeight}
-          x2={margin.left + innerWidth}
-          y2={margin.top + innerHeight}
-          stroke="#334155"
-          strokeWidth={1}
-        />
-        {[0, 0.25, 0.5, 0.75, 1].map(y => (
-          <text
-            key={y}
-            x={margin.left - 8}
-            y={yScale(maxVal * y) + 4}
-            textAnchor="end"
-            fontSize={10}
-            fill="#94a3b8"
-          >
-            {fmt.usd(maxVal * y)}
-          </text>
-        ))}
-        {[0, 0.25, 0.5, 0.75, 1].map((frac, i) => (
-          <text
-            key={i}
-            x={margin.left + (i * innerWidth) / 4}
-            y={margin.top + innerHeight + 18}
-            textAnchor="middle"
-            fontSize={10}
-            fill="#94a3b8"
-          >
-            Y{Math.round((frac * steps) / 12)}
-          </text>
-        ))}
-      </svg>
-      <div
-        style={{
-          display: 'flex',
-          gap: 16,
-          marginTop: 8,
-          fontSize: 12,
-          color: '#94a3b8',
-          justifyContent: 'center',
-        }}
-      >
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 8,
-              background: '#3b82f622',
-              border: '1px solid #3b82f6',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          P10–P90
-        </span>
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 8,
-              background: '#3b82f644',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          P25–P75
-        </span>
-        <span>
-          <span
-            style={{
-              display: 'inline-block',
-              width: 12,
-              height: 2,
-              background: '#3b82f6',
-              marginRight: 4,
-              verticalAlign: 'middle',
-            }}
-          />{' '}
-          Median
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   // ── Config state
@@ -1018,8 +642,8 @@ export default function App() {
   const S = {
     app: {
       minHeight: '100vh',
-      background: '#0a0f1e',
-      color: '#e2e8f0',
+      background: C.background,
+      color: C.onSurface,
       fontFamily: "'Inter', 'system-ui', sans-serif",
       fontSize: 16,
     },
@@ -1029,7 +653,7 @@ export default function App() {
       display: 'flex',
       alignItems: 'center',
       gap: 14,
-      background: '#0d1424',
+      background: C.surface,
     },
     logo: {
       width: 32,
@@ -1042,12 +666,12 @@ export default function App() {
       fontSize: 16,
       flexShrink: 0,
     },
-    title: { fontSize: 18, fontWeight: 600, color: '#f1f5f9', letterSpacing: '-0.01em' },
-    subtitle: { fontSize: 13, color: '#94a3b8', marginTop: 1 },
+    title: { fontSize: 18, fontWeight: 600, color: C.onSurfaceStrong, letterSpacing: '-0.01em' },
+    subtitle: { fontSize: 13, color: C.onSurfaceMuted, marginTop: 1 },
     body: { display: 'flex', height: 'calc(100vh - 62px)' },
     sidebar: {
       width: 260,
-      background: '#0d1424',
+      background: C.surface,
       borderRight: '1px solid #1e293b',
       padding: '20px 16px',
       overflowY: 'auto',
@@ -1057,7 +681,7 @@ export default function App() {
     label: {
       fontSize: 12,
       fontWeight: 600,
-      color: '#94a3b8',
+      color: C.onSurfaceMuted,
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       marginBottom: 6,
@@ -1066,10 +690,10 @@ export default function App() {
     input: {
       width: '100%',
       minHeight: 44,
-      background: '#131d2e',
+      background: C.surfaceInput,
       border: '1px solid #1e293b',
       borderRadius: 6,
-      color: '#e2e8f0',
+      color: C.onSurface,
       padding: '11px 12px',
       fontSize: 15,
       outline: 'none',
@@ -1079,7 +703,7 @@ export default function App() {
     sectionTitle: {
       fontSize: 13,
       fontWeight: 700,
-      color: '#94a3b8',
+      color: C.onSurfaceMuted,
       textTransform: 'uppercase',
       letterSpacing: '0.08em',
       marginBottom: 12,
@@ -1113,14 +737,14 @@ export default function App() {
       background: 'none',
       border: 'none',
       borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
-      color: active ? '#e2e8f0' : '#94a3b8',
+      color: active ? C.onSurface : C.onSurfaceMuted,
       cursor: 'pointer',
       fontSize: 15,
       fontWeight: active ? 600 : 400,
       marginBottom: -1,
     }),
     card: {
-      background: '#0d1424',
+      background: C.surface,
       border: '1px solid #1e293b',
       borderRadius: 10,
       padding: '16px 18px',
@@ -1129,7 +753,7 @@ export default function App() {
     cardTitle: {
       fontSize: 13,
       fontWeight: 700,
-      color: '#94a3b8',
+      color: C.onSurfaceMuted,
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       marginBottom: 12,
@@ -1140,27 +764,33 @@ export default function App() {
       borderRadius: 100,
       fontSize: 12,
       fontWeight: 600,
-      background: color === 'buy' ? '#14532d' : color === 'sell' ? '#4c0519' : '#1e293b',
-      color: color === 'buy' ? '#86efac' : color === 'sell' ? '#fca5a5' : '#94a3b8',
+      background:
+        color === 'buy' ? C.positiveSurface : color === 'sell' ? C.negativeSurface : C.border,
+      color: color === 'buy' ? C.onPositive : color === 'sell' ? C.onNegative : C.onSurfaceMuted,
     }),
     grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-    metricVal: { fontSize: 24, fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.02em' },
-    metricLbl: { fontSize: 12, color: '#94a3b8', marginTop: 2 },
+    metricVal: {
+      fontSize: 24,
+      fontWeight: 700,
+      color: C.onSurfaceStrong,
+      letterSpacing: '-0.02em',
+    },
+    metricLbl: { fontSize: 12, color: C.onSurfaceMuted, marginTop: 2 },
     warning: {
-      background: '#1c1200',
+      background: C.warningSurface,
       border: '1px solid #92400e',
       borderRadius: 8,
       padding: '10px 14px',
-      color: '#fbbf24',
+      color: C.warning,
       fontSize: 13,
       marginBottom: 14,
     },
     error: {
-      background: '#1a0808',
+      background: C.errorSurface,
       border: '1px solid #7f1d1d',
       borderRadius: 8,
       padding: '12px 16px',
-      color: '#fca5a5',
+      color: C.onNegative,
       fontSize: 14,
       marginBottom: 14,
     },
@@ -1170,24 +800,24 @@ export default function App() {
       padding: '10px 12px',
       textAlign: 'left',
       fontSize: 12,
-      color: '#94a3b8',
+      color: C.onSurfaceMuted,
       fontWeight: 600,
       textTransform: 'uppercase',
       letterSpacing: '0.06em',
       borderBottom: '1px solid #1e293b',
     },
-    td: { padding: '12px 12px', borderBottom: '1px solid #0f172a', color: '#cbd5e1' },
+    td: { padding: '12px 12px', borderBottom: '1px solid #0f172a', color: C.onSurfaceSecondary },
     staleBanner: {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 12,
       flexWrap: 'wrap',
-      background: '#1c1200',
+      background: C.warningSurface,
       border: '1px solid #92400e',
       borderRadius: 8,
       padding: '10px 14px',
-      color: '#fbbf24',
+      color: C.warning,
       fontSize: 14,
       marginBottom: 14,
     },
@@ -1198,7 +828,7 @@ export default function App() {
       bottom: 0,
       zIndex: 30,
       padding: '10px 16px',
-      background: '#0d1424',
+      background: C.surface,
       borderTop: '1px solid #1e293b',
     },
   };
@@ -1249,7 +879,7 @@ export default function App() {
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: C.onSurfaceMuted,
               fontSize: 20,
               cursor: 'pointer',
               padding: '2px 6px',
@@ -1271,8 +901,15 @@ export default function App() {
             Risk parity rebalancing · retirement drawdown · tax-aware
           </div>
         </div>
-        <div style={{ marginLeft: 'auto', fontSize: 14, color: '#94a3b8', whiteSpace: 'nowrap' }}>
-          Total: <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
+        <div
+          style={{
+            marginLeft: 'auto',
+            fontSize: 14,
+            color: C.onSurfaceMuted,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Total: <span style={{ color: C.onSurface, fontWeight: 600 }}>{fmt.usd(totalValue)}</span>
         </div>
       </header>
 
@@ -1302,20 +939,21 @@ export default function App() {
                 }
               }}
             />
-            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 6 }}>
+            <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 6 }}>
               {tickers.map(t => {
                 const st = tickerStatus[t];
                 const badge =
                   st === 'ok'
-                    ? { c: '#16a34a', s: '✓' }
+                    ? { c: C.positive, s: '✓' }
                     : st === 'error'
                       ? { c: '#f87171', s: '✗' }
                       : st === 'pending'
-                        ? { c: '#94a3b8', s: '⏳' }
+                        ? { c: C.onSurfaceMuted, s: '⏳' }
                         : null;
                 return (
                   <span key={t} style={{ marginRight: 10 }}>
-                    <span style={{ color: badge?.c ?? '#94a3b8' }}>{badge?.s ?? '·'}</span> {t}
+                    <span style={{ color: badge?.c ?? C.onSurfaceMuted }}>{badge?.s ?? '·'}</span>{' '}
+                    {t}
                   </span>
                 );
               })}
@@ -1330,7 +968,7 @@ export default function App() {
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: C.onSurfaceMuted,
                 cursor: 'pointer',
                 fontSize: 14,
                 padding: '10px 0',
@@ -1374,21 +1012,21 @@ export default function App() {
                   step={0.01}
                   value={threshold}
                   onChange={e => setThreshold(parseFloat(e.target.value))}
-                  style={{ width: '100%', accentColor: '#3b82f6', minHeight: 44 }}
+                  style={{ width: '100%', accentColor: C.primary, minHeight: 44 }}
                 />
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     fontSize: 13,
-                    color: '#94a3b8',
+                    color: C.onSurfaceMuted,
                   }}
                 >
                   <span>1% (active)</span>
                   <span>20% (lazy)</span>
                 </div>
                 {Object.keys(prices).length > 0 && (
-                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 8 }}>
+                  <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 8 }}>
                     {estimatedTrades.length > 0
                       ? `~${estimatedTrades.length} trades if run now`
                       : 'No trades needed at current drift'}
@@ -1439,7 +1077,7 @@ export default function App() {
             >
               ✓ Analysis complete
               {lastFetch && (
-                <div style={{ color: '#94a3b8', marginTop: 2 }}>
+                <div style={{ color: C.onSurfaceMuted, marginTop: 2 }}>
                   Last prices: {new Date(lastFetch).toLocaleTimeString()} (
                   {Math.max(0, Math.round((Date.now() - new Date(lastFetch).getTime()) / 60000))}{' '}
                   min ago)
@@ -1478,7 +1116,7 @@ export default function App() {
               </button>
             </div>
             {scenarios.length === 0 && (
-              <div style={{ fontSize: 13, color: '#94a3b8' }}>
+              <div style={{ fontSize: 13, color: C.onSurfaceMuted }}>
                 Save a snapshot of inputs to compare later.
               </div>
             )}
@@ -1495,9 +1133,9 @@ export default function App() {
                   borderBottom: '1px solid #0f172a',
                 }}
               >
-                <span style={{ color: '#cbd5e1' }}>
+                <span style={{ color: C.onSurfaceSecondary }}>
                   {s.name}
-                  <span style={{ color: '#94a3b8', fontSize: 12, display: 'block' }}>
+                  <span style={{ color: C.onSurfaceMuted, fontSize: 12, display: 'block' }}>
                     {new Date(s.timestamp).toLocaleDateString()}
                   </span>
                 </span>
@@ -1546,22 +1184,22 @@ export default function App() {
             style={{
               marginTop: 20,
               padding: '10px 12px',
-              background: '#0a0f1e',
+              background: C.background,
               borderRadius: 8,
               fontSize: 13,
-              color: '#94a3b8',
+              color: C.onSurfaceMuted,
               lineHeight: 1.6,
             }}
           >
             ⚠ Uses Yahoo Finance unofficial API. Data is for planning only — not financial advice.
             Verify trades before executing.
-            <div style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: C.onSurfaceMuted }}>
               v{__VERSION__} ·{' '}
               <a
                 href={`https://github.com/paruff/risk-parity-compass/commit/${__COMMIT__}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#94a3b8' }}
+                style={{ color: C.onSurfaceMuted }}
               >
                 {__COMMIT_SHORT__}
               </a>
@@ -1618,7 +1256,7 @@ export default function App() {
           )}
           {lastFetch && (
             <div
-              style={{ fontSize: 12, color: '#94a3b8', marginBottom: 8 }}
+              style={{ fontSize: 12, color: C.onSurfaceMuted, marginBottom: 8 }}
               data-testid="data-timestamp"
             >
               Price data as of {new Date(lastFetch).toLocaleString()}
@@ -1684,7 +1322,7 @@ export default function App() {
                 {ACCOUNT_TYPES.map(acct => (
                   <div key={acct} style={S.card}>
                     <div style={{ ...S.cardTitle, marginBottom: 6 }}>{acct}</div>
-                    <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
                       Balance: {fmt.usd(accounts[acct] ?? 0)}
                     </div>
                     <div className="sd-holdings-grid">
@@ -1705,7 +1343,7 @@ export default function App() {
                             onChange={e => updateHolding(acct, ticker, e.target.value)}
                           />
                           {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
-                            <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 3 }}>
+                            <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 3 }}>
                               ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
                             </div>
                           )}
@@ -1729,18 +1367,18 @@ export default function App() {
                             borderBottom: '1px solid #0f172a',
                           }}
                         >
-                          <span style={{ color: '#94a3b8' }}>{t}</span>
+                          <span style={{ color: C.onSurfaceMuted }}>{t}</span>
                           <span>{fmt.usd(v)}</span>
                         </div>
                       ))}
                     </div>
-                    <div style={{ marginTop: 10, color: '#94a3b8', fontSize: 13 }}>
+                    <div style={{ marginTop: 10, color: C.onSurfaceMuted, fontSize: 13 }}>
                       Total tracked:{' '}
-                      <strong style={{ color: '#e2e8f0' }}>
+                      <strong style={{ color: C.onSurface }}>
                         {fmt.usd(currentTotalFromPrices)}
                       </strong>{' '}
                       vs account total:{' '}
-                      <strong style={{ color: '#e2e8f0' }}>{fmt.usd(totalValue)}</strong>
+                      <strong style={{ color: C.onSurface }}>{fmt.usd(totalValue)}</strong>
                     </div>
                   </div>
                 )}
@@ -1753,10 +1391,10 @@ export default function App() {
             <ErrorBoundary>
               <div role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis">
                 {analysisState === 'idle' && (
-                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
                     Enter your holdings and click{' '}
-                    <strong style={{ color: '#94a3b8' }}>Run Analysis</strong> to see risk parity
-                    targets.
+                    <strong style={{ color: C.onSurfaceMuted }}>Run Analysis</strong> to see risk
+                    parity targets.
                   </div>
                 )}
 
@@ -1764,7 +1402,7 @@ export default function App() {
                   <div style={S.error}>
                     <strong>Error fetching market data:</strong> {errorMsg}
                     {failedTicker && (
-                      <div style={{ marginTop: 8, color: '#94a3b8' }}>
+                      <div style={{ marginTop: 8, color: C.onSurfaceMuted }}>
                         Did you mean:{' '}
                         {closestTickers(failedTicker).map(s => (
                           <button
@@ -1783,9 +1421,9 @@ export default function App() {
                               padding: '8px 12px',
                               minHeight: 44,
                               minWidth: 44,
-                              background: '#131d2e',
+                              background: C.surfaceInput,
                               border: '1px solid #1e293b',
-                              color: '#93c5fd',
+                              color: C.focus,
                               borderRadius: 4,
                               cursor: 'pointer',
                               fontFamily: 'monospace',
@@ -1849,10 +1487,10 @@ export default function App() {
                     {/* Weight comparison chart */}
                     <div style={S.card}>
                       <div style={S.cardTitle}>Current vs Target Weights</div>
-                      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
                         <span
                           style={{
-                            background: '#16a34a',
+                            background: C.positive,
                             display: 'inline-block',
                             width: 10,
                             height: 10,
@@ -1863,7 +1501,7 @@ export default function App() {
                         under target
                         <span
                           style={{
-                            background: '#dc2626',
+                            background: C.negative,
                             display: 'inline-block',
                             width: 10,
                             height: 10,
@@ -1931,7 +1569,7 @@ export default function App() {
                                     style={{
                                       ...S.td,
                                       fontWeight: 600,
-                                      color: '#e2e8f0',
+                                      color: C.onSurface,
                                       fontFamily: 'monospace',
                                     }}
                                   >
@@ -1944,7 +1582,8 @@ export default function App() {
                                   <td
                                     style={{
                                       ...S.td,
-                                      color: Math.abs(drift) > threshold ? '#f87171' : '#94a3b8',
+                                      color:
+                                        Math.abs(drift) > threshold ? '#f87171' : C.onSurfaceMuted,
                                     }}
                                   >
                                     {drift >= 0 ? '+' : ''}
@@ -1966,7 +1605,7 @@ export default function App() {
                           Tax-Efficient Location (Target)
                         </Tooltip>
                       </div>
-                      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
                         Tax-inefficient assets (bonds, commodities, REITs) are placed in
                         tax-advantaged accounts first. Tax score: 8–10 means hold in an IRA, 5–7 is
                         neutral, 1–4 is tax-efficient. Scores are heuristics — verify with a tax
@@ -1993,7 +1632,7 @@ export default function App() {
                                     ...S.td,
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
-                                    color: '#e2e8f0',
+                                    color: C.onSurface,
                                   }}
                                 >
                                   {t}
@@ -2016,7 +1655,7 @@ export default function App() {
                                     {targetAllocation[a]?.[t] > 0 ? (
                                       fmt.usd(targetAllocation[a][t])
                                     ) : (
-                                      <span style={{ color: '#94a3b8' }}>—</span>
+                                      <span style={{ color: C.onSurfaceMuted }}>—</span>
                                     )}
                                   </td>
                                 ))}
@@ -2034,11 +1673,15 @@ export default function App() {
                         {tickers.map(t => (
                           <div key={t} style={{ minWidth: 80 }}>
                             <div
-                              style={{ fontFamily: 'monospace', fontSize: 13, color: '#94a3b8' }}
+                              style={{
+                                fontFamily: 'monospace',
+                                fontSize: 13,
+                                color: C.onSurfaceMuted,
+                              }}
                             >
                               {t}
                             </div>
-                            <div style={{ fontSize: 18, fontWeight: 700, color: '#e2e8f0' }}>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: C.onSurface }}>
                               {prices[t] ? `$${prices[t].toFixed(2)}` : '—'}
                             </div>
                           </div>
@@ -2067,7 +1710,7 @@ export default function App() {
             <ErrorBoundary>
               <div role="tabpanel" id="panel-trades" aria-labelledby="tab-trades">
                 {analysisState !== 'done' && (
-                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
                     Run Analysis first to generate trades.
                   </div>
                 )}
@@ -2075,12 +1718,12 @@ export default function App() {
                 {analysisState === 'done' && trades.length === 0 && (
                   <div style={{ ...S.card, textAlign: 'center', padding: '32px 20px' }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>✓</div>
-                    <div style={{ color: '#94a3b8', fontSize: 15 }}>
+                    <div style={{ color: C.onSurfaceMuted, fontSize: 15 }}>
                       All positions are within the{' '}
-                      <strong style={{ color: '#94a3b8' }}>{fmt.pct(threshold)}</strong> rebalance
-                      band. No trades needed.
+                      <strong style={{ color: C.onSurfaceMuted }}>{fmt.pct(threshold)}</strong>{' '}
+                      rebalance band. No trades needed.
                     </div>
-                    <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 8 }}>
+                    <div style={{ color: C.onSurfaceMuted, fontSize: 13, marginTop: 8 }}>
                       Shannon's Demon: Only rebalance when drift captures a meaningful volatility
                       premium above transaction costs.
                     </div>
@@ -2111,7 +1754,7 @@ export default function App() {
                         style={{
                           cursor: 'pointer',
                           fontSize: 14,
-                          color: '#94a3b8',
+                          color: C.onSurfaceMuted,
                           minHeight: 44,
                           display: 'flex',
                           alignItems: 'center',
@@ -2166,16 +1809,16 @@ export default function App() {
                                     ...S.td,
                                     fontFamily: 'monospace',
                                     fontWeight: 600,
-                                    color: '#e2e8f0',
+                                    color: C.onSurface,
                                   }}
                                 >
                                   {tr.ticker}
                                 </td>
-                                <td style={{ ...S.td, color: '#94a3b8' }}>{tr.account}</td>
+                                <td style={{ ...S.td, color: C.onSurfaceMuted }}>{tr.account}</td>
                                 <td style={S.td}>{fmt.shares(tr.shares)}</td>
                                 <td style={S.td}>{fmt.usd(tr.dollarAmount)}</td>
                                 <td style={S.td}>{fmt.pct(tr.currentWeight)}</td>
-                                <td style={{ ...S.td, color: '#93c5fd' }}>
+                                <td style={{ ...S.td, color: C.focus }}>
                                   {fmt.pct(tr.targetWeight)}
                                 </td>
                                 <td style={{ ...S.td, color: '#f87171' }}>{fmt.pct(tr.drift)}</td>
@@ -2209,7 +1852,7 @@ export default function App() {
                                   <span style={S.pill(tr.action.toLowerCase())}>{tr.action}</span>{' '}
                                   <span style={{ fontFamily: 'monospace' }}>{tr.ticker}</span>
                                 </span>
-                                <span style={{ color: '#94a3b8' }}>
+                                <span style={{ color: C.onSurfaceMuted }}>
                                   {fmt.shares(tr.shares)} sh · {fmt.usd(tr.dollarAmount)}
                                 </span>
                               </div>
@@ -2229,7 +1872,7 @@ export default function App() {
             <ErrorBoundary>
               <div role="tabpanel" id="panel-retirement" aria-labelledby="tab-retirement">
                 {analysisState !== 'done' ? (
-                  <div style={{ color: '#94a3b8', textAlign: 'center', marginTop: 60 }}>
+                  <div style={{ color: C.onSurfaceMuted, textAlign: 'center', marginTop: 60 }}>
                     Run Analysis first to generate retirement projections.
                   </div>
                 ) : retirementResults?.error ? (
@@ -2669,10 +2312,10 @@ export default function App() {
                           data-testid="metrics-disclaimer"
                           style={{
                             fontSize: 12,
-                            color: '#94a3b8',
+                            color: C.onSurfaceMuted,
                             marginBottom: 14,
                             padding: '8px 12px',
-                            background: '#131d2e',
+                            background: C.surfaceInput,
                             borderRadius: 6,
                           }}
                         >
@@ -2723,7 +2366,7 @@ export default function App() {
                                 </tbody>
                               </table>
                             </div>
-                            <div style={{ color: '#94a3b8', fontSize: 12, marginTop: 8 }}>
+                            <div style={{ color: C.onSurfaceMuted, fontSize: 12, marginTop: 8 }}>
                               Both runs use the same simulated markets (seed 42); only the spending
                               rule differs. Guardrails are models, not guarantees.
                             </div>
@@ -2749,7 +2392,7 @@ export default function App() {
                         <div style={S.card}>
                           <div style={S.cardTitle}>
                             Required Minimum Distributions (RMD){' '}
-                            <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 8 }}>
+                            <span style={{ fontSize: 11, color: C.onSurfaceMuted, marginLeft: 8 }}>
                               Table: {RMD_TABLE_VERSION}
                             </span>
                           </div>

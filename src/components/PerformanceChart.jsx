@@ -1,5 +1,6 @@
 import Tooltip from './Tooltip';
 import { fmt } from '../utils/finance';
+import { C } from '../tokens';
 
 export default function PerformanceChart({ S, perfData }) {
   if (perfData.dates.length <= 10) return null;
@@ -10,14 +11,14 @@ export default function PerformanceChart({ S, perfData }) {
           Performance Simulation
         </Tooltip>
       </div>
-      <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 12 }}>
+      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginBottom: 12 }}>
         Rebalanced (blue) vs buy-and-hold (gray) over {perfData.dates.length} trading days.
       </div>
       <div
         style={{
           position: 'relative',
           height: 200,
-          background: '#0a0f1e',
+          background: C.background,
           borderRadius: 6,
           padding: '12px 8px 24px 52px',
         }}
@@ -73,7 +74,7 @@ export default function PerformanceChart({ S, perfData }) {
             flexDirection: 'column',
             justifyContent: 'space-between',
             fontSize: 12,
-            color: '#94a3b8',
+            color: C.onSurfaceMuted,
           }}
         >
           <span>{fmt.pct(Math.max(...perfData.rebalanced, ...perfData.buyAndHold) - 1)}</span>
@@ -88,7 +89,7 @@ export default function PerformanceChart({ S, perfData }) {
           flexWrap: 'wrap',
           marginTop: 8,
           fontSize: 13,
-          color: '#94a3b8',
+          color: C.onSurfaceMuted,
         }}
       >
         <span>
@@ -97,7 +98,7 @@ export default function PerformanceChart({ S, perfData }) {
               display: 'inline-block',
               width: 12,
               height: 2,
-              background: '#3b82f6',
+              background: C.primary,
               marginRight: 4,
               verticalAlign: 'middle',
             }}
@@ -110,7 +111,7 @@ export default function PerformanceChart({ S, perfData }) {
               display: 'inline-block',
               width: 12,
               height: 2,
-              background: '#94a3b8',
+              background: C.onSurfaceMuted,
               marginRight: 4,
               verticalAlign: 'middle',
             }}

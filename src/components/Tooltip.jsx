@@ -1,4 +1,5 @@
 import { useState, useId } from 'react';
+import { C } from '../tokens';
 
 export default function Tooltip({ children, tip }) {
   const [show, setShow] = useState(false);
@@ -32,13 +33,13 @@ export default function Tooltip({ children, tip }) {
             bottom: '120%',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: '#0d1424',
+            background: C.surface,
             border: '1px solid #334155',
             borderRadius: 6,
             padding: '10px 12px',
             fontSize: 13,
             lineHeight: 1.5,
-            color: '#cbd5e1',
+            color: C.onSurfaceSecondary,
             width: 300,
             maxWidth: '80vw',
             zIndex: 10,

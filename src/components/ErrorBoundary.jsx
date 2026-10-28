@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { C } from '../tokens';
 
 export default class ErrorBoundary extends Component {
   state = { hasError: false, error: null };
@@ -13,8 +14,8 @@ export default class ErrorBoundary extends Component {
         <div
           style={{
             padding: 20,
-            color: '#fca5a5',
-            background: '#1a0808',
+            color: C.onNegative,
+            background: C.errorSurface,
             border: '1px solid #7f1d1d',
             borderRadius: 8,
           }}
@@ -25,7 +26,7 @@ export default class ErrorBoundary extends Component {
             style={{
               marginLeft: 12,
               padding: '4px 10px',
-              background: '#7f1d1d',
+              background: C.errorBorder,
               color: '#fff',
               border: 'none',
               borderRadius: 4,
