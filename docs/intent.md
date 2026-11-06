@@ -71,4 +71,4 @@ The product's plan came from the Superpowers brainstorming → spec → plan wor
 
 ## Tooling
 
-`AGENTS.md` points here. The opencode `@planner` agent expects `intent.md` → `spec.md` → `plan.md` (default location `docs/ai-sdlc/<feature>/`); this repo keeps them flat in `docs/`. The AI-DLC shell (`aidlc/`, `.claude/`) is installed but has no active workflow.
+`AGENTS.md` points here. The opencode `@planner` agent expects `intent.md` → `spec.md` → `plan.md` (default location `docs/ai-sdlc/<feature>/`); this repo keeps them flat in `docs/`.
