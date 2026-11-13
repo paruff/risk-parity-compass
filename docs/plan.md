@@ -50,7 +50,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 
 ## Math review (2026-11-13)
 
-Property-based review of `src/utils/` found 11 defects, pinned as `it.fails` properties in `src/utils/__tests__/properties.test.js`. No fixes yet; findings and fix order are in `docs/superpowers/plans/2026-11-13-portfolio-math-review.md`. No issues opened.
+Property-based review of `src/utils/` found 11 defects (`docs/superpowers/plans/2026-11-13-portfolio-math-review.md`). Findings 1, 2, 4, 5, 6, 7 and 8 (the ones the UI reaches) are fixed on `claude/gracious-sagan-bxbhxz` and pinned by passing properties in `src/utils/__tests__/properties.test.js`. Findings 3, 9, 11 and 12 remain open as `it.fails` properties. Golden Butterfly was set to an equal 20% split on the same branch. No issue or PR opened yet.
 
 ## Verification Strategy
 

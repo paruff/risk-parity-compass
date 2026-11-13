@@ -1,7 +1,7 @@
 # Portfolio math review: findings and fix plan (2026-11-13)
 
 Review of `src/utils/` (finance, withdrawal, portfolioPath, longRun, portfolios) for correctness.
-No production code has changed. Each finding is pinned by a property-based test in
+Each finding is pinned by a property-based test in
 `src/utils/__tests__/properties.test.js`, registered with `it.fails`: the suite stays green
 while the bug exists and goes red when it is fixed. To see the shrunk counterexamples:
 
@@ -10,6 +10,24 @@ SHOW_BUGS=1 env -u NODE_OPTIONS npx vitest run src/utils/__tests__/properties.te
 ```
 
 `fast-check` (dev dependency) supplies generators and shrinking; the seed is fixed.
+
+## Status
+
+Fixed: 1, 2, 4, 5, 6, 7, 8 (their properties now run as ordinary passing tests).
+Open: 3, 9, 11, 12 (still `it.fails`).
+
+Decisions taken while fixing:
+
+- **Trades (6, 7):** nothing trades until a ticker's portfolio-level drift passes the threshold;
+  then every account is traded to its target, one row per account and ticker. This is the only
+  list that is executable account by account, but it also relocates tickers between accounts.
+- **Success rate (5):** the user's spend is scaled to each window's starting value, which is the
+  same as replaying the user's portfolio through that window. `rollingWithdrawalRates` takes
+  `startingValue` (default: first path value).
+- **Drift (2):** the historical CAGR is converted with `ln(1 + R)`; the −σ²/2 term is kept, so
+  the simulated median grows more slowly than the history (conservative, disclosed).
+- **ERC (4):** cyclical coordinate descent on the log-barrier form; weights stay positive.
+- Golden Butterfly set to 20/20/20/20/20 at the owner's request.
 
 ## Findings
 
@@ -48,8 +66,6 @@ recursion against the closed-form annuity balance, and its monotonicity in spend
 - SWR and PWR searches cap at 20%; very short effective horizons saturate there.
 - `netSpend` is evaluated once at today's age, so Social Security that starts later never
   reduces spending inside the simulations.
-- `portfolios.js` Golden Butterfly: the description lists "short Treasuries, gold" as 20/19, the
-  code has SHY 0.19 and GLDM 0.20. One of them is wrong; check against the source page.
 
 ## Fix plan
 

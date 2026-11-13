@@ -131,9 +131,9 @@ function inverseVolWeights(vols) {
 }
 
 // Equal-risk-contribution weights: every asset contributes the same share of
-// portfolio variance. Long-only fixed point w_i <- w_i * sqrt(target / rc_i),
-// started from inverse-vol (which is exact when all correlations are equal).
-// ponytail: plain damped iteration, switch to Newton if a large universe is slow.
+// portfolio variance. Long-only. Solves (Σx)_i = (1/n) / x_i, the stationarity
+// condition of ½·x'Σx − (1/n)·Σ ln x_i, one coordinate at a time: each update is the
+// positive root of a quadratic, so weights stay positive whatever the correlations.
 function ercWeights(vols, corrMatrix) {
   const tickers = Object.keys(vols);
   const n = tickers.length;
@@ -142,22 +142,22 @@ function ercWeights(vols, corrMatrix) {
   const cov = sig.map((si, i) =>
     sig.map((sj, j) => (i === j ? 1 : (corrMatrix?.[tickers[i]]?.[tickers[j]] ?? 0)) * si * sj)
   );
-  let w = sig.map(s => 1 / s);
-  const norm = () => {
-    const tot = w.reduce((a, b) => a + b, 0);
-    w = w.map(x => x / tot);
-  };
-  norm();
-  for (let iter = 0; iter < 20000; iter++) {
-    const rc = w.map((wi, i) => wi * cov[i].reduce((a, c, j) => a + c * w[j], 0));
-    const tot = rc.reduce((a, b) => a + b, 0);
-    if (!(tot > 0)) break;
-    const dev = Math.max(...rc.map(r => Math.abs(r / tot - 1 / n)));
-    if (dev < 1e-10) break;
-    w = w.map((wi, i) => wi * Math.sqrt(tot / n / rc[i]));
-    norm();
+  const c = 1 / n;
+  const x = sig.map(s => 1 / s);
+  for (let sweep = 0; sweep < 5000; sweep++) {
+    for (let i = 0; i < n; i++) {
+      let a = 0;
+      for (let j = 0; j < n; j++) if (j !== i) a += cov[i][j] * x[j];
+      const root = Math.sqrt(a * a + 4 * cov[i][i] * c);
+      // Two algebraically equal forms; each avoids cancellation for its sign of a.
+      x[i] = a >= 0 ? (2 * c) / (a + root) : (root - a) / (2 * cov[i][i]);
+    }
+    const rc = x.map((xi, i) => xi * cov[i].reduce((acc, v, j) => acc + v * x[j], 0));
+    const tot = rc.reduce((acc, v) => acc + v, 0);
+    if (Math.max(...rc.map(r => Math.abs(r / tot - c))) < 1e-10) break;
   }
-  return Object.fromEntries(tickers.map((t, i) => [t, w[i]]));
+  const total = x.reduce((acc, v) => acc + v, 0);
+  return Object.fromEntries(tickers.map((t, i) => [t, x[i] / total]));
 }
 
 // ─── TAX LOCATION WATERFALL ───────────────────────────────────────────────────
@@ -205,74 +205,50 @@ function taxLocationWaterfall(targetWeights, prices, accounts, totalValue) {
 // targetAllocation: { "Taxable": { SPY: $amount }, ... }
 // prices: { SPY: 450.23, ... }
 // threshold: 0.05 (5%)
+// Nothing trades until some ticker's portfolio-level weight drifts past the threshold.
+// Once one does, the whole portfolio is rebalanced (as the backtest and Monte Carlo do):
+// one trade per account and ticker, target dollars minus current dollars in that account.
+// A sell therefore never exceeds what the account holds, and buys equal sells whenever
+// holdings are worth totalValue. currentWeight, targetWeight and drift are per ticker
+// across all accounts.
 function generateTrades(currentHoldings, targetAllocation, prices, totalValue, threshold) {
-  const trades = [];
+  if (!(totalValue > 0)) return [];
 
-  // Compute current $ values per account per ticker
-  const currentValues = {};
-  for (const [acct, holdings] of Object.entries(currentHoldings)) {
-    currentValues[acct] = {};
-    for (const [ticker, shares] of Object.entries(holdings)) {
-      currentValues[acct][ticker] = shares * (prices[ticker] ?? 0);
-    }
-  }
-
-  // Aggregate current total per ticker across all accounts
-  const currentTotalByTicker = {};
-  for (const holdings of Object.values(currentValues)) {
-    for (const [ticker, val] of Object.entries(holdings)) {
-      currentTotalByTicker[ticker] = (currentTotalByTicker[ticker] ?? 0) + val;
-    }
-  }
-
-  // Aggregate target total per ticker
-  const targetTotalByTicker = {};
-  for (const holdings of Object.values(targetAllocation)) {
-    for (const [ticker, val] of Object.entries(holdings)) {
-      targetTotalByTicker[ticker] = (targetTotalByTicker[ticker] ?? 0) + val;
-    }
-  }
-
-  // All tickers
-  const allTickers = new Set([
-    ...Object.keys(currentTotalByTicker),
-    ...Object.keys(targetTotalByTicker),
-  ]);
-
-  for (const ticker of allTickers) {
-    const currentVal = currentTotalByTicker[ticker] ?? 0;
-    const targetVal = targetTotalByTicker[ticker] ?? 0;
-    const currentWeight = totalValue > 0 ? currentVal / totalValue : 0;
-    const targetWeight = targetVal / totalValue;
-    const drift = Math.abs(currentWeight - targetWeight);
-
-    if (drift > threshold) {
-      const deltaVal = targetVal - currentVal;
+  const currentByTicker = {};
+  const targetByTicker = {};
+  const deltas = [];
+  const accounts = new Set([...Object.keys(currentHoldings), ...Object.keys(targetAllocation)]);
+  for (const account of accounts) {
+    const held = currentHoldings[account] ?? {};
+    const target = targetAllocation[account] ?? {};
+    for (const ticker of new Set([...Object.keys(held), ...Object.keys(target)])) {
       const price = prices[ticker];
       if (!price) continue;
-      const shares = Math.abs(deltaVal / price);
-
-      // Find which account to execute trade in (prefer tax-advantaged for sells to avoid cap gains)
-      // Simple heuristic: trade in the account where the target says it belongs
-      let tradeAccount =
-        Object.keys(targetAllocation).find(acc => (targetAllocation[acc][ticker] ?? 0) > 0) ??
-        Object.keys(targetAllocation)[0];
-
-      trades.push({
-        ticker,
-        action: deltaVal > 0 ? 'BUY' : 'SELL',
-        shares: parseFloat(shares.toFixed(2)),
-        dollarAmount: Math.abs(deltaVal),
-        currentWeight,
-        targetWeight,
-        drift,
-        account: tradeAccount,
-        price,
-      });
+      const currentVal = (held[ticker] ?? 0) * price;
+      const targetVal = target[ticker] ?? 0;
+      currentByTicker[ticker] = (currentByTicker[ticker] ?? 0) + currentVal;
+      targetByTicker[ticker] = (targetByTicker[ticker] ?? 0) + targetVal;
+      deltas.push({ account, ticker, price, deltaVal: targetVal - currentVal });
     }
   }
 
-  return trades.sort((a, b) => b.drift - a.drift);
+  const drift = t => Math.abs(currentByTicker[t] - targetByTicker[t]) / totalValue;
+  if (!Object.keys(currentByTicker).some(t => drift(t) > threshold)) return [];
+
+  return deltas
+    .filter(d => Math.abs(d.deltaVal) >= 0.01)
+    .map(({ account, ticker, price, deltaVal }) => ({
+      ticker,
+      action: deltaVal > 0 ? 'BUY' : 'SELL',
+      shares: parseFloat(Math.abs(deltaVal / price).toFixed(2)),
+      dollarAmount: Math.abs(deltaVal),
+      currentWeight: currentByTicker[ticker] / totalValue,
+      targetWeight: targetByTicker[ticker] / totalValue,
+      drift: drift(ticker),
+      account,
+      price,
+    }))
+    .sort((a, b) => b.drift - a.drift || b.dollarAmount - a.dollarAmount);
 }
 
 // ─── CORRELATION ─────────────────────────────────────────────────────────────
@@ -387,6 +363,10 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
   const minLen = Math.min(...tickers.map(t => allCloses[t]?.length ?? 0));
   if (minLen < 10) return { dates: [], rebalanced: [], buyAndHold: [] };
 
+  // Align on the most recent minLen closes (as correlationMatrix does), so a ticker
+  // with a longer history is compared on the same dates as the shortest one.
+  const series = Object.fromEntries(tickers.map(t => [t, allCloses[t].slice(-minLen)]));
+
   // Current weights (rebalanced), drift-tracked across the loop
   const currentWeights = { ...weights };
 
@@ -404,14 +384,14 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
     // Rebalanced: compute return from weight drift then check rebalance
     let rebalReturn = 0;
     for (const t of tickers) {
-      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      const dayReturn = (series[t][d] ?? series[t][d - 1]) / (series[t][d - 1] ?? 1);
       rebalReturn += currentWeights[t] * dayReturn;
     }
     rebalanced.push(rebalanced[rebalanced.length - 1] * rebalReturn);
 
     // Update current weights after price moves
     for (const t of tickers) {
-      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      const dayReturn = (series[t][d] ?? series[t][d - 1]) / (series[t][d - 1] ?? 1);
       currentWeights[t] = (currentWeights[t] * dayReturn) / rebalReturn;
     }
 
@@ -432,7 +412,7 @@ function simulatePerformance(allCloses, weights, threshold = 0.05) {
     // Buy-and-hold: sum of fixed dollar amounts growing at individual rates
     let bhTotal = 0;
     for (const t of tickers) {
-      const dayReturn = (allCloses[t][d] ?? allCloses[t][d - 1]) / (allCloses[t][d - 1] ?? 1);
+      const dayReturn = (series[t][d] ?? series[t][d - 1]) / (series[t][d - 1] ?? 1);
       bhDollars[t] *= dayReturn;
       bhTotal += bhDollars[t];
     }
@@ -646,7 +626,8 @@ function monteCarloSimulation(allCloses, weights, vols, corrMatrix, options = {}
       let rebalReturn = 0;
       for (let i = 0; i < n; i++) {
         const t = tickers[i];
-        const growth = Math.exp(dailyDrift[t] + Math.sqrt(dt) * correlated[i]);
+        // L comes from the per-step covariance, so `correlated` is already a daily shock.
+        const growth = Math.exp(dailyDrift[t] + correlated[i]);
         pathPrices[t] *= growth;
         rebalReturn += currentWeights[t] * growth;
         currentWeights[t] *= growth;

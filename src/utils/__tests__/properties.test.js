@@ -1,6 +1,6 @@
 // Property-based review of the portfolio math (fast-check, fixed seed).
 //
-// `it(...)`  : an invariant that holds today.
+// `it(...)`  : an invariant that holds today (some are regressions for fixed findings).
 // `bug(...)` : an invariant that SHOULD hold but does not. It is registered with
 //              `it.fails`, so the suite stays green while the bug exists and turns
 //              red the moment the bug is fixed (then change `bug` to `it`).
@@ -121,9 +121,9 @@ describe('properties: weights and risk', () => {
     });
   });
 
-  // BUG 4: the fixed-point update takes sqrt(target / rc_i); when an asset is negatively
+  // Regression, finding 4 (fixed): the fixed-point update takes sqrt(target / rc_i); when an asset is negatively
   // correlated with the rest its starting rc_i is negative and every weight becomes NaN.
-  bug('BUG 4: ercWeights returns finite long-only weights with equal risk shares', () => {
+  it('ercWeights returns finite long-only weights with equal risk shares', () => {
     check([market], m => {
       const w = ercWeights(m.vols, m.corr);
       for (const t of m.tickers) expect(w[t]).toBeGreaterThan(0);
@@ -172,9 +172,9 @@ describe('properties: allocation and trades', () => {
     });
   });
 
-  // BUG 6: the trade's account is "where the target puts the ticker" (or the first
+  // Regression, finding 6 (fixed): the trade's account is "where the target puts the ticker" (or the first
   // account), not where the shares are, so it can tell you to sell shares you do not hold there.
-  bug('BUG 6: a SELL never exceeds the shares held in the account it names', () => {
+  it('a SELL never exceeds the shares held in the account it names', () => {
     check([book], ({ holdings, allocation, priceOf, total }) => {
       for (const tr of generateTrades(holdings, allocation, priceOf, total, 0.05)) {
         if (tr.action === 'SELL') {
@@ -184,9 +184,9 @@ describe('properties: allocation and trades', () => {
     });
   });
 
-  // BUG 7: only tickers past the drift threshold trade, so buys and sells do not net
+  // Regression, finding 7 (fixed): only tickers past the drift threshold trade, so buys and sells do not net
   // to zero and the list cannot be executed without outside cash (or leaves cash idle).
-  bug('BUG 7: generated trades are self-financing (buys equal sells)', () => {
+  it('generated trades are self-financing (buys equal sells)', () => {
     check([book], ({ holdings, allocation, priceOf, total }) => {
       const trades = generateTrades(holdings, allocation, priceOf, total, 0.05);
       const net = sum(trades.map(t => (t.action === 'BUY' ? 1 : -1) * t.dollarAmount));
@@ -220,20 +220,17 @@ describe('properties: backtest and portfolio path', () => {
     });
   });
 
-  // BUG 8: series are aligned from their first element, not their most recent one
+  // Regression, finding 8 (fixed): series are aligned from their first element, not their most recent one
   // (correlationMatrix aligns from the end), so a ticker with a shorter history shifts dates.
-  bug(
-    'BUG 8: older history on one ticker does not change the backtest of the shared window',
-    () => {
-      check([twoSeries, prices(15)], ([a, b, w], older) => {
-        const scale = a[0] / older.at(-1);
-        const longA = [...older.slice(0, -1).map(p => p * scale), ...a];
-        const expected = simulatePerformance({ A: a, B: b }, w, 0.05);
-        const actual = simulatePerformance({ A: longA, B: b }, w, 0.05);
-        expected.buyAndHold.forEach((v, d) => expect(actual.buyAndHold[d]).toBeCloseTo(v, 9));
-      });
-    }
-  );
+  it('older history on one ticker does not change the backtest of the shared window', () => {
+    check([twoSeries, prices(15)], ([a, b, w], older) => {
+      const scale = a[0] / older.at(-1);
+      const longA = [...older.slice(0, -1).map(p => p * scale), ...a];
+      const expected = simulatePerformance({ A: a, B: b }, w, 0.05);
+      const actual = simulatePerformance({ A: longA, B: b }, w, 0.05);
+      expected.buyAndHold.forEach((v, d) => expect(actual.buyAndHold[d]).toBeCloseTo(v, 9));
+    });
+  });
 });
 
 // ── Drawdown and rolling withdrawal rates ──────────────────────────────────
@@ -282,10 +279,10 @@ describe('properties: drawdown', () => {
     });
   });
 
-  // BUG 5: successRate tests the user's dollar spend against each window's own starting
+  // Regression, finding 5 (fixed): successRate tests the user's dollar spend against each window's own starting
   // value. The path starts at the user's portfolio and grows, so later windows start
   // richer and survive spending that the user's actual portfolio would not (spec §3.2, §3.4).
-  bug('BUG 5: identical return windows give identical outcomes for the same spend', () => {
+  it('identical return windows give identical outcomes for the same spend', () => {
     check(
       [
         num(1e5, 5e6),
@@ -309,9 +306,9 @@ describe('properties: drawdown', () => {
     );
   });
 
-  // BUG 5 (reachable form): the 1928+ path compounds from totalValue, so a 1990 window
+  // Regression, finding 5, reachable form (fixed): the 1928+ path compounds from totalValue, so a 1990 window
   // starts with hundreds of times the user's money while spend stays in today's dollars.
-  bug('BUG 5: long-run success rate replays the user’s own portfolio from each start year', () => {
+  it('long-run success rate replays the user’s own portfolio from each start year', () => {
     const proxied = ['VTI', 'IEF', 'GLD', 'BIL'];
     check(
       [
@@ -356,9 +353,9 @@ describe('properties: Monte Carlo', () => {
   const seed = fc.integer({ min: 1, max: 1e6 });
   const MC = { numRuns: 12 };
 
-  // BUG 1: shocks are L·z with L from the per-step covariance (already σ·√dt) and are
+  // Regression, finding 1 (fixed): shocks are L·z with L from the per-step covariance (already σ·√dt) and are
   // then multiplied by √dt again, so simulated vol is σ/√252 (daily) or σ/√12 (monthly).
-  bug('BUG 1: monteCarloSimulation terminal log-return dispersion is σ√T', () => {
+  it('monteCarloSimulation terminal log-return dispersion is σ√T', () => {
     check(
       [num(0.05, 0.5), seed],
       (sigma, s) => {
@@ -375,7 +372,7 @@ describe('properties: Monte Carlo', () => {
     );
   });
 
-  bug('BUG 1: monteCarloWithWithdrawals (Gaussian mode) dispersion is σ√T', () => {
+  it('monteCarloWithWithdrawals (Gaussian mode) dispersion is σ√T', () => {
     check(
       [num(0.05, 0.5), seed, num(1e5, 5e6)],
       (sigma, s, V) => {
@@ -394,9 +391,9 @@ describe('properties: Monte Carlo', () => {
     );
   });
 
-  // BUG 2: historical drift uses years = closes.length / 12 (n closes span n − 1 months)
+  // Regression, finding 2 (fixed): historical drift uses years = closes.length / 12 (n closes span n − 1 months)
   // and then applies the resulting CAGR as a continuously compounded rate.
-  bug('BUG 2: with zero vol, historical drift reproduces the history’s own growth rate', () => {
+  it('with zero vol, historical drift reproduces the history’s own growth rate', () => {
     check(
       [num(-0.05, 0.12), fc.integer({ min: 3, max: 25 }), fc.integer({ min: 1, max: 30 })],
       (g, histYears, simYears) => {
