@@ -28,7 +28,7 @@ Deploys free to GitHub Pages: <https://paruff.github.io/risk-parity-compass/>
 
 **Portfolio library**
 
-- **Templates** — Golden Butterfly, All Seasons and Golden Ratio as published on riskparityradio.com (URL and review date recorded per template), plus the classic Permanent Portfolio credited to Harry Browne
+- **Templates** — All Seasons and Golden Ratio as published on riskparityradio.com, Golden Butterfly in its classic equal 20% split (URL and review date recorded per template), plus the classic Permanent Portfolio credited to Harry Browne
 - **Template cards** — each shows description, allocations and source, with its own Load button
 - **Compare** — up to 3 templates at once against your current weights, with SWR, PWR, success probability and max drawdown side by side
 - **Diversification score** — average and max pairwise correlation plus macro-class count, with warnings above 0.6 average or below 4 classes

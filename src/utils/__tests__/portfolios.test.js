@@ -33,10 +33,10 @@ describe('PORTFOLIO_TEMPLATES', () => {
   it('pins each template to its sourced weights', () => {
     const w = id => PORTFOLIO_TEMPLATES.find(t => t.id === id).allocations;
     expect(w('golden-butterfly')).toEqual({
-      VTI: 0.205,
-      VIOV: 0.205,
+      VTI: 0.2,
+      VIOV: 0.2,
       VGLT: 0.2,
-      SHY: 0.19,
+      SHY: 0.2,
       GLDM: 0.2,
     });
     expect(w('all-seasons')).toEqual({ VTI: 0.3, VGLT: 0.4, VGIT: 0.15, GLDM: 0.075, PDBC: 0.075 });
