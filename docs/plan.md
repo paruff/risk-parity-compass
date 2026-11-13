@@ -48,6 +48,10 @@ Order = severity then dependency. One issue = one branch = one PR.
 - "Lowest spend reached" metric for the guardrail comparison.
 - Fallback price provider for the snapshot refresh (Alpha Vantage, Polygon/Massive, Twelve Data or Finnhub). Blocked on obtaining an API key; until then Yahoo is a single point of failure. See `Known Limitations.md`.
 
+## Math review (2026-11-13)
+
+Property-based review of `src/utils/` found 11 defects, pinned as `it.fails` properties in `src/utils/__tests__/properties.test.js`. No fixes yet; findings and fix order are in `docs/superpowers/plans/2026-11-13-portfolio-math-review.md`. No issues opened.
+
 ## Verification Strategy
 
 Each PR: unit tests with independently computed oracles (`docs/spec.md` §4), `npm run lint`, `format`, `build`, `test:e2e`, Lighthouse CI. Metric-changing PRs also update `Known Limitations.md` and in-app disclaimers.
