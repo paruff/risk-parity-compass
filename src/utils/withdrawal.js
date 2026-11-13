@@ -200,7 +200,8 @@ export function drawdownPath(portfolioValues, monthlySpend, options = {}) {
 // constant real withdrawal rate that (a) never depletes the portfolio (SWR) and
 // (b) never ends below the original real principal (PWR).
 // portfolioValues: monthly real portfolio value series (from weights × prices)
-// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, monthlySpend, referenceRate = 0.04, minWindows = MIN_WINDOWS }
+// options: { horizonYears = 30, periodsPerYear = 12, inflationRate = 0, monthlySpend, referenceRate = 0.04, minWindows = MIN_WINDOWS, startingValue = portfolioValues[0] }
+// startingValue: the user's portfolio in dollars, which monthlySpend is drawn from; every window is replayed from it.
 // successRate = share of windows where `monthlySpend` (dollars, the user's spend) survives;
 // without monthlySpend it falls back to referenceRate * startValue.
 // Returns: { swr, pwr, successRate, effectiveYears, windowCount, withheld, withheldReason, worstStart,
@@ -216,6 +217,7 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     referenceRate = 0.04,
     monthlySpend: userMonthlySpend,
     minWindows = MIN_WINDOWS,
+    startingValue = portfolioValues[0],
   } = options;
   const horizonMonths = horizonYears * periodsPerYear;
   const n = portfolioValues.length;
@@ -298,7 +300,12 @@ export function rollingWithdrawalRates(portfolioValues, options = {}) {
     }
 
     // Evaluate at referenceRate for success rate (not at SWR)
-    const monthlySpendRef = userMonthlySpend ?? (referenceRate * startValue) / periodsPerYear;
+    // The user's spend is in dollars of their own portfolio (startingValue), so scale it to
+    // this window's start: the same as replaying their portfolio through the window's returns.
+    const monthlySpendRef =
+      userMonthlySpend != null
+        ? (userMonthlySpend * startValue) / startingValue
+        : (referenceRate * startValue) / periodsPerYear;
     const refResult = drawdownPath(slice, monthlySpendRef, { periodsPerYear, inflationRate });
 
     samples.push({
@@ -422,7 +429,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
       const closes = allCloses[t] ?? [];
       if (closes.length >= 2) {
         const totalReturn = closes[closes.length - 1] / closes[0];
-        const years = closes.length / 12;
+        const years = (closes.length - 1) / 12; // n closes span n − 1 months
         annualDrift[t] = years > 0 ? totalReturn ** (1 / years) - 1 : 0;
       } else {
         annualDrift[t] = 0;
@@ -451,11 +458,12 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
     currentPrices[t] = series?.[series.length - 1] ?? 1;
   }
 
-  // Per-step drift for GBM: (μ - σ²/2) · dt
+  // Per-step drift for GBM: (ln(1 + R) − σ²/2) · dt. annualDrift is an effective annual
+  // return R, so it is converted to a continuously compounded rate before use.
   const stepDrift = {};
   for (const t of tickers) {
     const sigma = vols[t] ?? 0;
-    stepDrift[t] = (annualDrift[t] - 0.5 * sigma * sigma) * dt;
+    stepDrift[t] = (Math.log1p(Math.max(annualDrift[t], -0.99)) - 0.5 * sigma * sigma) * dt;
   }
 
   // Seeded PRNG
@@ -502,7 +510,7 @@ export function monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, 
         const t = tickers[i];
         const growth = bootstrap
           ? (1 + bootstrap[t][yearIdx]) ** (1 / 12)
-          : Math.exp(stepDrift[t] + Math.sqrt(dt) * correlated[i]);
+          : Math.exp(stepDrift[t] + correlated[i]); // L is per-step: already a monthly shock
         pathPrices[t] *= growth;
         rebalReturn += currentWeights[t] * growth;
         currentWeights[t] *= growth;

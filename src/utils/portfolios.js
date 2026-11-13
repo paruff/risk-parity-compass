@@ -86,15 +86,16 @@ export const PORTFOLIO_TEMPLATES = [
   {
     id: 'golden-butterfly',
     name: 'Golden Butterfly',
-    source: 'Risk Parity Radio, https://www.riskparityradio.com/portfolios (July 2026 rebalancing)',
-    lastReviewed: '2026-10-28',
+    source:
+      'Risk Parity Radio, https://www.riskparityradio.com/portfolios (classic equal-weight version)',
+    lastReviewed: '2026-11-13',
     description:
-      'Five-asset portfolio: US stocks, small-cap value, long Treasuries, short Treasuries, gold. Weights are the currently published ones (20.5/20.5/20/20/19); RPR plans a glide to 25/25/20/20/10 by 2035.',
+      'Five-asset portfolio, 20% each: US stocks, small-cap value, long Treasuries, short Treasuries, gold. This is the classic equal split, not the 20.5/20.5/20/20/19 weights RPR currently publishes.',
     allocations: {
-      VTI: 0.205, // US Total Market
-      VIOV: 0.205, // US Small-Cap Value
+      VTI: 0.2, // US Total Market
+      VIOV: 0.2, // US Small-Cap Value
       VGLT: 0.2, // Long-Term Treasury
-      SHY: 0.19, // Short-Term Treasury
+      SHY: 0.2, // Short-Term Treasury
       GLDM: 0.2, // Gold
     },
   },

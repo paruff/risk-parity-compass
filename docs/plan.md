@@ -48,6 +48,10 @@ Order = severity then dependency. One issue = one branch = one PR.
 - "Lowest spend reached" metric for the guardrail comparison.
 - Fallback price provider for the snapshot refresh (Alpha Vantage, Polygon/Massive, Twelve Data or Finnhub). Blocked on obtaining an API key; until then Yahoo is a single point of failure. See `Known Limitations.md`.
 
+## Math review (2026-11-13)
+
+Property-based review of `src/utils/` found 11 defects (`docs/superpowers/plans/2026-11-13-portfolio-math-review.md`). Findings 1, 2, 4, 5, 6, 7 and 8 (the ones the UI reaches) are fixed on `claude/gracious-sagan-bxbhxz` and pinned by passing properties in `src/utils/__tests__/properties.test.js`. Findings 3, 9, 11 and 12 remain open as `it.fails` properties. Golden Butterfly was set to an equal 20% split on the same branch. No issue or PR opened yet.
+
 ## Verification Strategy
 
 Each PR: unit tests with independently computed oracles (`docs/spec.md` §4), `npm run lint`, `format`, `build`, `test:e2e`, Lighthouse CI. Metric-changing PRs also update `Known Limitations.md` and in-app disclaimers.
