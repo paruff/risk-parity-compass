@@ -292,8 +292,9 @@ function positionDrift(valueByTicker = {}, cash = 0, targetWeights = {}, thresho
   if (total <= 0) return [];
   return Object.entries(valueByTicker).map(([ticker, v]) => {
     const weight = v / total;
-    const delta = weight - (targetWeights[ticker] ?? 0);
-    return { ticker, weight, delta, warn: Math.abs(delta) > threshold };
+    const target = targetWeights[ticker] ?? 0;
+    const delta = weight - target;
+    return { ticker, weight, target, delta, warn: Math.abs(delta) > threshold };
   });
 }
 

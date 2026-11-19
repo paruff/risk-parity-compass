@@ -25,12 +25,14 @@
 A hedging asset can have a legitimately negative `riskContribution()`. The Risk Contribution bar renders `width: `${rc * 100}%``, which browsers clamp to 0 for negative values — the bar silently disappears while the adjacent `fmt.pct(rc)` label still shows the negative number, so the bar and the label visibly disagree. Line 782 in the same file already guards an analogous case with `Math.max(0, ...)`; this task follows that established pattern via a small, testable helper in `finance.js` rather than an inline `Math.max` in JSX (consistent with `fmt` already living in `finance.js`).
 
 **Files:**
+
 - Modify: `src/utils/finance.js` (add `clampPct` next to `fmt`, export it)
 - Modify: `src/App.jsx:1346` (use `clampPct(rc)` for the bar width)
 - Modify: `src/App.jsx:14-29` (import `clampPct`)
 - Test: `src/utils/__tests__/finance.test.js`
 
 **Interfaces:**
+
 - Produces: `clampPct(v: number): number` — clamps `v` to the `[0, 1]` range. Exported from `src/utils/finance.js` alongside `fmt`.
 
 - [ ] **Step 1: Write the failing test**
@@ -176,20 +178,22 @@ import {
 Then in the Risk Contribution bar (currently around line 1339-1352):
 
 ```javascript
-                                  {/* Risk contribution bar */}
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: 0,
-                                      top: 2,
-                                      height: 12,
-                                      width: `${rc * 100}%`,
-                                      background: diff > 0.02 ? '#f59e0b88' : '#16a34a88',
-                                      borderRadius: 2,
-                                      opacity: 0.85,
-                                      transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
-                                    }}
-                                  />
+{
+  /* Risk contribution bar */
+}
+<div
+  style={{
+    position: 'absolute',
+    left: 0,
+    top: 2,
+    height: 12,
+    width: `${rc * 100}%`,
+    background: diff > 0.02 ? '#f59e0b88' : '#16a34a88',
+    borderRadius: 2,
+    opacity: 0.85,
+    transition: 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+  }}
+/>;
 ```
 
 change `width: \`${rc * 100}%\`,` to:
@@ -217,10 +221,12 @@ git commit -m "fix: clamp risk contribution bar width for hedging assets"
 `riskContribution()` only normalizes to percentages when `totalRC > 0`. A well-hedged portfolio (near-perfectly negatively correlated assets) has near-zero total variance, so `totalRC` can legitimately be `<= 0`. In that branch the function currently returns raw, non-normalized covariance units while the UI still formats them with `fmt.pct`, silently breaking the "sums to 100%" contract from the Phase 3 plan with no error surfaced.
 
 **Files:**
+
 - Modify: `src/utils/finance.js:303-339` (`riskContribution` function)
 - Test: `src/utils/__tests__/finance.test.js`
 
 **Interfaces:**
+
 - Consumes: no signature change to `riskContribution(weights, vols, corrMatrix)`.
 - Produces: `riskContribution(...)` now always returns an object whose values sum to `1` (previously only guaranteed when `totalRC > 0`).
 
@@ -229,15 +235,15 @@ git commit -m "fix: clamp risk contribution bar width for hedging assets"
 Add to the existing `describe('riskContribution')` block in `src/utils/__tests__/finance.test.js` (after the existing two `it` blocks):
 
 ```javascript
-  it('falls back to an equal split when total risk contribution is zero (fully hedged portfolio)', () => {
-    const weights = { A: 0.5, B: 0.5 };
-    const vols = { A: 0.1, B: 0.1 };
-    const corr = { A: { A: 1, B: -1 }, B: { A: -1, B: 1 } };
-    const rc = riskContribution(weights, vols, corr);
-    expect(rc.A).toBeCloseTo(0.5, 5);
-    expect(rc.B).toBeCloseTo(0.5, 5);
-    expect(rc.A + rc.B).toBeCloseTo(1, 5);
-  });
+it('falls back to an equal split when total risk contribution is zero (fully hedged portfolio)', () => {
+  const weights = { A: 0.5, B: 0.5 };
+  const vols = { A: 0.1, B: 0.1 };
+  const corr = { A: { A: 1, B: -1 }, B: { A: -1, B: 1 } };
+  const rc = riskContribution(weights, vols, corr);
+  expect(rc.A).toBeCloseTo(0.5, 5);
+  expect(rc.B).toBeCloseTo(0.5, 5);
+  expect(rc.A + rc.B).toBeCloseTo(1, 5);
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -250,32 +256,32 @@ Expected: FAIL — with the current code, `rc.A` and `rc.B` are both `0` (raw, n
 In `src/utils/finance.js`, find:
 
 ```javascript
-  // Normalize to percentages
-  if (totalRC > 0) {
-    for (const t of tickers) {
-      rc[t] = rc[t] / totalRC;
-    }
+// Normalize to percentages
+if (totalRC > 0) {
+  for (const t of tickers) {
+    rc[t] = rc[t] / totalRC;
   }
-  return rc;
+}
+return rc;
 ```
 
 Replace with:
 
 ```javascript
-  // Normalize to percentages. A fully (or near-fully) hedged portfolio can
-  // have ~zero total variance, i.e. totalRC <= 0; fall back to an equal
-  // split so the "sums to 100%" contract always holds instead of silently
-  // returning raw, non-normalized covariance units.
-  if (totalRC > 0) {
-    for (const t of tickers) {
-      rc[t] = rc[t] / totalRC;
-    }
-  } else {
-    for (const t of tickers) {
-      rc[t] = 1 / n;
-    }
+// Normalize to percentages. A fully (or near-fully) hedged portfolio can
+// have ~zero total variance, i.e. totalRC <= 0; fall back to an equal
+// split so the "sums to 100%" contract always holds instead of silently
+// returning raw, non-normalized covariance units.
+if (totalRC > 0) {
+  for (const t of tickers) {
+    rc[t] = rc[t] / totalRC;
   }
-  return rc;
+} else {
+  for (const t of tickers) {
+    rc[t] = 1 / n;
+  }
+}
+return rc;
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -302,6 +308,7 @@ git commit -m "fix: normalize risk contribution to 100% for hedged portfolios"
 The deploy workflow's "Enable GitHub Pages" step force-sets `build_type=legacy` (branch-based deploys) immediately before the `deploy` job runs `actions/deploy-pages@v4`, which requires Pages to be configured for `build_type=workflow` (Actions-based deploys). If the `gh api` call succeeds, it can silently reconfigure Pages back to legacy delivery right before the workflow-based deploy step, and any resulting failure is masked by the `|| echo ::warning` fallback.
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml:34-39`
 
 **Interfaces:** None (CI config only).
@@ -311,23 +318,23 @@ The deploy workflow's "Enable GitHub Pages" step force-sets `build_type=legacy` 
 In `.github/workflows/deploy.yml`, find:
 
 ```yaml
-      - name: Enable GitHub Pages
-        run: |
-          gh api repos/{owner}/{repo}/pages -f build_type=legacy -f source='{"branch":"main","path":"/"}' 2>/dev/null || \
-          echo "::warning::GitHub Pages may not be enabled. Enable it at https://github.com/${{ github.repository }}/settings/pages"
-        env:
-          GH_TOKEN: ${{ github.token }}
+- name: Enable GitHub Pages
+  run: |
+    gh api repos/{owner}/{repo}/pages -f build_type=legacy -f source='{"branch":"main","path":"/"}' 2>/dev/null || \
+    echo "::warning::GitHub Pages may not be enabled. Enable it at https://github.com/${{ github.repository }}/settings/pages"
+  env:
+    GH_TOKEN: ${{ github.token }}
 ```
 
 Replace with:
 
 ```yaml
-      - name: Enable GitHub Pages
-        run: |
-          gh api repos/{owner}/{repo}/pages -f build_type=workflow 2>/dev/null || \
-          echo "::warning::GitHub Pages may not be enabled. Enable it at https://github.com/${{ github.repository }}/settings/pages"
-        env:
-          GH_TOKEN: ${{ github.token }}
+- name: Enable GitHub Pages
+  run: |
+    gh api repos/{owner}/{repo}/pages -f build_type=workflow 2>/dev/null || \
+    echo "::warning::GitHub Pages may not be enabled. Enable it at https://github.com/${{ github.repository }}/settings/pages"
+  env:
+    GH_TOKEN: ${{ github.token }}
 ```
 
 (`build_type=workflow` matches how the job actually deploys, via `actions/deploy-pages@v4`. The `source` field is a `build_type=legacy` option only and is dropped — it has no effect for `build_type=workflow`.)
@@ -358,6 +365,7 @@ This step cannot be validated locally (no local GitHub Actions/Pages API). After
 This is a pure cleanup with no behavior change — the existing `simulatePerformance` tests are the regression check.
 
 **Files:**
+
 - Modify: `src/utils/finance.js:353-358, 406`
 
 **Interfaces:** None (no signature or behavior change).
@@ -372,23 +380,23 @@ Expected: PASS (baseline, in particular the `describe('simulatePerformance')` bl
 In `src/utils/finance.js`, find:
 
 ```javascript
-  // Current weights (rebalanced) and buy-and-hold weights
-  const currentWeights = { ...weights };
-  const bhValues = {};
-  for (const t of tickers) {
-    bhValues[t] = weights[t] * (allCloses[t][0] ?? 1);
-  }
+// Current weights (rebalanced) and buy-and-hold weights
+const currentWeights = { ...weights };
+const bhValues = {};
+for (const t of tickers) {
+  bhValues[t] = weights[t] * (allCloses[t][0] ?? 1);
+}
 
-  const rebalanced = [1];
+const rebalanced = [1];
 ```
 
 Replace with:
 
 ```javascript
-  // Current weights (rebalanced), drift-tracked across the loop
-  const currentWeights = { ...weights };
+// Current weights (rebalanced), drift-tracked across the loop
+const currentWeights = { ...weights };
 
-  const rebalanced = [1];
+const rebalanced = [1];
 ```
 
 - [ ] **Step 3: Clarify the buy-and-hold push**
@@ -396,15 +404,15 @@ Replace with:
 In the same function, find:
 
 ```javascript
-    buyAndHold.push(buyAndHold[0] * bhTotal);
+buyAndHold.push(buyAndHold[0] * bhTotal);
 ```
 
 Replace with:
 
 ```javascript
-    // bhTotal is already the absolute cumulative value (starts at 1, since
-    // bhDollars is normalized to sum to 1) — push it directly.
-    buyAndHold.push(bhTotal);
+// bhTotal is already the absolute cumulative value (starts at 1, since
+// bhDollars is normalized to sum to 1) — push it directly.
+buyAndHold.push(bhTotal);
 ```
 
 - [ ] **Step 4: Run tests to confirm no behavior change**
@@ -433,12 +441,14 @@ git commit -m "refactor: remove dead code and clarify buy-and-hold accumulation"
 This task is lower priority than Tasks 1-4 and is scoped narrowly on purpose (per ponytail/lazy-dev guidance for this project): it does not attempt a full `App.jsx` restructure, only lifts out the three self-contained blocks this review specifically flagged.
 
 **Files:**
+
 - Create: `src/components/RiskContribution.jsx`
 - Create: `src/components/CorrelationMatrix.jsx`
 - Create: `src/components/PerformanceChart.jsx`
 - Modify: `src/App.jsx` (replace the three inline blocks with component calls; add imports; drop now-unused local imports from `./utils/finance`)
 
 **Interfaces:**
+
 - Produces: `RiskContribution({ S, tickers, targetWeights, riskContrib })` — presentational, no internal state.
 - Produces: `CorrelationMatrix({ S, tickers, corrMatrix })` — presentational, no internal state.
 - Produces: `PerformanceChart({ S, perfData })` — presentational, no internal state.

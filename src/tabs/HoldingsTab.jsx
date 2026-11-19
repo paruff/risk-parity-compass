@@ -10,8 +10,7 @@ import { C } from '../tokens';
 import ErrorBoundary from '../components/ErrorBoundary';
 
 // Invested + cash against the account balance; warns when the gap exceeds 5% (typo or stale count).
-function AccountReconcile({ balance, invested, cash, warn }) {
-  const gap = balance - invested - cash;
+function AccountReconcile({ invested, cash, gap, warn }) {
   if (invested + cash === 0) return null;
   return (
     <div
@@ -48,6 +47,12 @@ export default function HoldingsTab({
 }) {
   const valueByAcct = Object.fromEntries(
     ACCOUNT_TYPES.map(acct => [acct, holdingsValue(currentHoldings[acct], prices)])
+  );
+  const checkByAcct = Object.fromEntries(
+    ACCOUNT_TYPES.map(acct => [
+      acct,
+      validateAccount(currentHoldings[acct], prices, accounts[acct] ?? 0),
+    ])
   );
   const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
   // No targets exist until an analysis has run; comparing against {} would flag everything as 0% target.
@@ -103,7 +108,7 @@ export default function HoldingsTab({
                     <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 3 }}>
                       ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
                       {(accounts[acct] ?? 0) > 0 &&
-                        ` · ${fmt.pct((currentHoldings[acct][ticker] * prices[ticker]) / accounts[acct])} of balance`}
+                        ` · ${fmt.pct(checkByAcct[acct].positions.find(p => p.ticker === ticker)?.weight ?? 0)} of balance`}
                     </div>
                   )}
                 </div>
@@ -125,9 +130,9 @@ export default function HoldingsTab({
                 onChange={e => updateHolding(acct, CASH, e.target.value)}
               />
               <AccountReconcile
-                balance={accounts[acct] ?? 0}
                 {...valueByAcct[acct]}
-                warn={validateAccount(currentHoldings[acct], prices, accounts[acct] ?? 0).warn}
+                gap={checkByAcct[acct].gap}
+                warn={checkByAcct[acct].warn}
               />
             </div>
           </div>
@@ -151,7 +156,7 @@ export default function HoldingsTab({
                   <span>
                     {fmt.usd(v)}
                     {driftByTicker[t] &&
-                      ` · ${fmt.pct(driftByTicker[t].weight)} vs ${fmt.pct(targetWeights[t] ?? 0)} target`}
+                      ` · ${fmt.pct(driftByTicker[t].weight)} vs ${fmt.pct(driftByTicker[t].target)} target`}
                   </span>
                 </div>
               ))}
@@ -182,8 +187,7 @@ export default function HoldingsTab({
                   role="alert"
                   style={{ color: C.warning, fontSize: 13, marginTop: 4 }}
                 >
-                  ⚠ {d.ticker} is {fmt.pct(d.weight)} of holdings vs {fmt.pct(d.weight - d.delta)}{' '}
-                  target
+                  ⚠ {d.ticker} is {fmt.pct(d.weight)} of holdings vs {fmt.pct(d.target)} target
                 </div>
               ))}
           </div>
