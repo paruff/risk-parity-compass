@@ -60,12 +60,10 @@ tests/e2e/
 ### Task 1: `fetchMonthlyHistory` + overlap computation
 
 **Files:**
-
 - Create: `src/utils/__tests__/finance.test.js` (add tests)
 - Modify: `src/utils/finance.js` (add function)
 
 **Interfaces:**
-
 - Consumes: existing `fetchQuote` pattern, MSW mock
 - Produces: `fetchMonthlyHistory(ticker: string) => Promise<{ dates: string[], closes: number[] }>`, `computeOverlap(histories: Record<string, {dates, closes}>) => { aligned: Record<string, number[]>, effectiveYears: number }`
 
@@ -97,7 +95,7 @@ test('computeOverlap aligns tickers to common date range', () => {
   expect(Object.keys(aligned)).toEqual(['A', 'B']);
   expect(aligned.A).toEqual([101, 102]); // B starts Feb
   expect(aligned.B).toEqual([50, 51]);
-  expect(effectiveYears).toBeCloseTo(2 / 12, 2);
+  expect(effectiveYears).toBeCloseTo(2/12, 2);
 });
 
 test('computeOverlap returns empty when no overlap', () => {
@@ -153,12 +151,10 @@ git commit -m "feat: add fetchMonthlyHistory and overlap computation for retirem
 ### Task 2: `withdrawal.js` — drawdownPath
 
 **Files:**
-
 - Create: `src/utils/withdrawal.js`
 - Create: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: none (pure)
 - Produces: `drawdownPath(portfolioValues: number[], monthlySpend: number, { periodsPerYear?: number, inflationRate?: number }) => { balances: number[], depletedYear: number | null, maxDrawdown: number, terminalReal: number, yearsLasted: number }`
 
@@ -179,7 +175,7 @@ test('drawdownPath with zero spend returns full balance', () => {
 });
 
 test('drawdownPath depletes when spend > returns', () => {
-  const values = Array.from({ length: 60 }, (_, i) => 100000 * 1.005 ** i); // 6% nominal
+  const values = Array.from({ length: 60 }, (_, i) => 100000 * (1.005)**i); // 6% nominal
   const r = drawdownPath(values, 600); // 7.2% annual real spend
   expect(r.depletedYear).not.toBeNull();
   expect(r.yearsLasted).toBeLessThan(5);
@@ -224,12 +220,10 @@ git commit -m "feat: add drawdownPath for withdrawal engine"
 ### Task 3: `withdrawal.js` — rollingWithdrawalRates (SWR/PWR)
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `rollingWithdrawalRates(portfolioValues: number[], { horizonYears: number, periodsPerYear?: number, inflationRate?: number }) => { swr: number, pwr: number, successRate: number, worstStart: number, worstDepletionYear: number | null, maxDrawdown: number, samples: { startIndex: number, swr: number, pwr: number, depleted: boolean }[] }`
 
 - [ ] **Step 1: Write failing tests**
@@ -242,14 +236,14 @@ test('rollingWithdrawalRates returns SWR and PWR for flat portfolio', () => {
   // 20 years of flat 100k nominal
   const values = Array.from({ length: 240 }, () => 100000);
   const r = rollingWithdrawalRates(values, { horizonYears: 10, inflationRate: 0 });
-  expect(r.swr).toBeCloseTo(1 / 120, 3); // 100k / 120 months = 833/mo
+  expect(r.swr).toBeCloseTo(1/120, 3); // 100k / 120 months = 833/mo
   expect(r.pwr).toBe(r.swr); // flat = same
   expect(r.successRate).toBe(1);
   expect(r.maxDrawdown).toBe(0);
 });
 
 test('rollingWithdrawalRates binary search tolerance', () => {
-  const values = Array.from({ length: 360 }, (_, i) => 100000 * 1.004 ** i); // ~5% nominal
+  const values = Array.from({ length: 360 }, (_, i) => 100000 * 1.004**i); // ~5% nominal
   const r = rollingWithdrawalRates(values, { horizonYears: 30, inflationRate: 0.03 });
   expect(r.swr).toBeGreaterThan(0.03); // ~4% SWR expected
   expect(r.swr).toBeLessThan(0.07);
@@ -283,12 +277,10 @@ git commit -m "feat: add rollingWithdrawalRates for SWR/PWR backtest"
 ### Task 4: `withdrawal.js` — monteCarloWithWithdrawals
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: `mulberry32`, `normalSampler` from `finance.js`
 - Produces: `monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options) => { terminalValues: Float64Array, successRate: number, bands: { p10, p25, p50, p75, p90 }, stats: { mean, median, p10, p90, cagr, sharpe }, depletionYears: number[] }`
 
@@ -299,18 +291,11 @@ git commit -m "feat: add rollingWithdrawalRates for SWR/PWR backtest"
 import { monteCarloWithWithdrawals } from '../withdrawal';
 
 test('monteCarloWithWithdrawals is deterministic with fixed seed', () => {
-  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i * 0.1) * 2) };
+  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 + Math.sin(i*0.1)*2) };
   const weights = { SPY: 1 };
   const vols = { SPY: 0.15 };
   const corr = { SPY: { SPY: 1 } };
-  const opts = {
-    simulations: 100,
-    steps: 120,
-    monthlySpend: 400,
-    inflationRate: 0.03,
-    driftMode: 'zero',
-    seed: 42,
-  };
+  const opts = { simulations: 100, steps: 120, monthlySpend: 400, inflationRate: 0.03, driftMode: 'zero', seed: 42 };
   const r1 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
   const r2 = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
   expect(r1.terminalValues).toEqual(r2.terminalValues);
@@ -318,18 +303,11 @@ test('monteCarloWithWithdrawals is deterministic with fixed seed', () => {
 });
 
 test('monteCarloWithWithdrawals successRate = fraction never depleted', () => {
-  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005 ** i) };
+  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005**i) };
   const weights = { SPY: 1 };
   const vols = { SPY: 0.15 };
   const corr = { SPY: { SPY: 1 } };
-  const opts = {
-    simulations: 200,
-    steps: 120,
-    monthlySpend: 100,
-    inflationRate: 0.03,
-    driftMode: 'historical',
-    seed: 123,
-  };
+  const opts = { simulations: 200, steps: 120, monthlySpend: 100, inflationRate: 0.03, driftMode: 'historical', seed: 123 };
   const r = monteCarloWithWithdrawals(allCloses, weights, vols, corr, opts);
   expect(r.successRate).toBeGreaterThanOrEqual(0);
   expect(r.successRate).toBeLessThanOrEqual(1);
@@ -366,13 +344,11 @@ git commit -m "feat: add monteCarloWithWithdrawals with percentile bands"
 ### Task 5: RMD table data module
 
 **Files:**
-
 - Create: `src/utils/rmd-tables.json`
 - Modify: `src/utils/withdrawal.js` (add `requiredMinimumDistribution`)
 - Modify: `src/utils/__tests__/withdrawal.test.js` (add RMD tests)
 
 **Interfaces:**
-
 - Produces: `requiredMinimumDistribution(age: number, priorYearEndBalance: number, { tableVersion?: string } = {}) => { age, distributionPeriod, rmd, eligible: boolean }`, `RMD_TABLE_VERSION` constant exported.
 
 - [ ] **Step 1: Create `src/utils/rmd-tables.json`**
@@ -382,49 +358,15 @@ git commit -m "feat: add monteCarloWithWithdrawals with percentile bands"
   "version": "2022+",
   "source": "IRS Uniform Lifetime Table (Table III)",
   "table": {
-    "73": 26.5,
-    "74": 25.5,
-    "75": 24.6,
-    "76": 23.7,
-    "77": 22.9,
-    "78": 22.0,
-    "79": 21.1,
-    "80": 20.2,
-    "81": 19.4,
-    "82": 18.5,
-    "83": 17.7,
-    "84": 16.9,
-    "85": 16.0,
-    "86": 15.2,
-    "87": 14.4,
-    "88": 13.7,
-    "89": 12.9,
-    "90": 12.2,
-    "91": 11.5,
-    "92": 10.8,
-    "93": 10.1,
-    "94": 9.5,
-    "95": 8.9,
-    "96": 8.3,
-    "97": 7.8,
-    "98": 7.3,
-    "99": 6.8,
-    "100": 6.4,
-    "101": 6.0,
-    "102": 5.6,
-    "103": 5.2,
-    "104": 4.9,
-    "105": 4.5,
-    "106": 4.2,
-    "107": 3.9,
-    "108": 3.7,
-    "109": 3.4,
-    "110": 3.1,
-    "111": 2.9,
-    "112": 2.6,
-    "113": 2.4,
-    "114": 2.1,
-    "115": 1.9
+    "73": 26.5, "74": 25.5, "75": 24.6, "76": 23.7, "77": 22.9,
+    "78": 22.0, "79": 21.1, "80": 20.2, "81": 19.4, "82": 18.5,
+    "83": 17.7, "84": 16.9, "85": 16.0, "86": 15.2, "87": 14.4,
+    "88": 13.7, "89": 12.9, "90": 12.2, "91": 11.5, "92": 10.8,
+    "93": 10.1, "94": 9.5, "95": 8.9, "96": 8.3, "97": 7.8,
+    "98": 7.3, "99": 6.8, "100": 6.4, "101": 6.0, "102": 5.6,
+    "103": 5.2, "104": 4.9, "105": 4.5, "106": 4.2, "107": 3.9,
+    "108": 3.7, "109": 3.4, "110": 3.1, "111": 2.9, "112": 2.6,
+    "113": 2.4, "114": 2.1, "115": 1.9
   }
 }
 ```
@@ -491,11 +433,9 @@ git commit -m "feat: add versioned RMD table and requiredMinimumDistribution"
 ### Task 6: Retirement tab state & inputs in `App.jsx`
 
 **Files:**
-
 - Modify: `src/App.jsx` (state, inputs, tab)
 
 **Interfaces:**
-
 - Consumes: existing state (tickers, accounts, targetWeights, prices, vols, etc.)
 - Produces: new state fields under `retirement` object, new tab `retirement`, input handlers
 
@@ -507,21 +447,7 @@ import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://query1.finance.yahoo.com/**', route =>
-    route.fulfill({
-      json: {
-        chart: {
-          result: [
-            {
-              indicators: {
-                adjclose: [
-                  { adjclose: Array.from({ length: 500 }, (_, i) => 100 + Math.sin(i * 0.1) * 2) },
-                ],
-              },
-            },
-          ],
-        },
-      },
-    })
+    route.fulfill({ json: { chart: { result: [{ indicators: { adjclose: [{ adjclose: Array.from({length: 500}, (_,i)=>100+Math.sin(i*0.1)*2) }] } }] } } })
   );
   await page.goto('/shannonsdemon/');
   await page.waitForSelector('#root');
@@ -569,7 +495,6 @@ Add tab `retirement` to tabs array. Add Retirement tab panel with inputs (labele
 - [ ] **Step 4: Wire up calculation in Retirement tab**
 
 On calculate (or auto on input change with debounce):
-
 - Call `fetchMonthlyHistory` for each ticker (or reuse existing price history if available)
 - Compute overlap → aligned monthly portfolio values using `targetWeights` × prices
 - Call `rollingWithdrawalRates` for SWR/PWR
@@ -594,11 +519,9 @@ git commit -m "feat: add Retirement tab with inputs and SWR/PWR metrics"
 ### Task 7: Drawdown backtest chart (SVG, dependency-free)
 
 **Files:**
-
 - Modify: `src/App.jsx` (add chart component inline or as `DrawdownChart` if reused)
 
 **Interfaces:**
-
 - Consumes: `rollingWithdrawalRates` samples (startIndex, swr, pwr, depleted)
 - Produces: SVG chart in Retirement tab
 
@@ -609,7 +532,7 @@ git commit -m "feat: add Retirement tab with inputs and SWR/PWR metrics"
 import { rollingWithdrawalRates } from '../withdrawal';
 
 test('rollingWithdrawalRates samples have shape for chart', () => {
-  const values = Array.from({ length: 360 }, (_, i) => 100000 * 1.004 ** i);
+  const values = Array.from({ length: 360 }, (_, i) => 100000 * 1.004**i);
   const r = rollingWithdrawalRates(values, { horizonYears: 30, inflationRate: 0.03 });
   expect(r.samples.length).toBeGreaterThan(0);
   expect(r.samples[0]).toHaveProperty('startIndex');
@@ -640,11 +563,9 @@ git commit -m "feat: add drawdown backtest chart to Retirement tab"
 ### Task 8: Monte Carlo fan chart (SVG, dependency-free)
 
 **Files:**
-
 - Modify: `src/App.jsx`
 
 **Interfaces:**
-
 - Consumes: `monteCarloWithWithdrawals` bands (p10, p25, p50, p75, p90 arrays per step)
 - Produces: SVG fan chart with shaded percentile bands
 
@@ -669,15 +590,13 @@ git commit -m "feat: add Monte Carlo fan chart to Retirement tab"
 ### Task 9: Disclaimer banner & accessibility pass
 
 **Files:**
-
 - Modify: `src/App.jsx`
 
 - [ ] **Step 1: Add disclaimer adjacent to every metric card**
 
 ```jsx
 <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
-  Planning estimates only — not financial, tax, or legal advice. Historical and simulated results do
-  not guarantee future outcomes.
+  Planning estimates only — not financial, tax, or legal advice. Historical and simulated results do not guarantee future outcomes.
 </div>
 ```
 

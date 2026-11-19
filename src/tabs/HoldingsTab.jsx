@@ -55,10 +55,9 @@ export default function HoldingsTab({
     ])
   );
   const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
-  // No targets exist until an analysis has run; comparing against {} would flag everything as 0% target.
-  const drift = Object.keys(targetWeights ?? {}).length
-    ? positionDrift(currentValueByTicker, totalCash, targetWeights)
-    : [];
+  // No targets exist until an analysis has run; without them show weights only, never a 0% target.
+  const hasTargets = Object.keys(targetWeights ?? {}).length > 0;
+  const drift = positionDrift(currentValueByTicker, totalCash, targetWeights);
   const driftByTicker = Object.fromEntries(drift.map(d => [d.ticker, d]));
   const tracked = currentTotalFromPrices + totalCash;
 
@@ -156,7 +155,11 @@ export default function HoldingsTab({
                   <span>
                     {fmt.usd(v)}
                     {driftByTicker[t] &&
-                      ` · ${fmt.pct(driftByTicker[t].weight)} vs ${fmt.pct(driftByTicker[t].target)} target`}
+                      ` · ${fmt.pct(driftByTicker[t].weight)}${
+                        hasTargets
+                          ? ` vs ${fmt.pct(driftByTicker[t].target)} target`
+                          : ' (target after Run Analysis)'
+                      }`}
                   </span>
                 </div>
               ))}
@@ -179,7 +182,7 @@ export default function HoldingsTab({
               <strong style={{ color: C.onSurface }}>{fmt.usd(tracked)}</strong> vs account total:{' '}
               <strong style={{ color: C.onSurface }}>{fmt.usd(totalValue)}</strong>
             </div>
-            {drift
+            {(hasTargets ? drift : [])
               .filter(d => d.warn)
               .map(d => (
                 <div

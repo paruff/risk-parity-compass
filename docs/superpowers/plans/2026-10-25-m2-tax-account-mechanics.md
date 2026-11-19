@@ -50,12 +50,10 @@ tests/e2e/
 ### Task 1: `withdrawalSequence` — tax-aware ordering
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `withdrawalSequence(accounts, monthlySpend, { bracketHeuristic?: boolean, rmdByAccount?: Record<string, number> }) => { byAccount: Record<string, { taxable: number, traditional: number, roth: number }>, totalSpend: number, bracketUsed: number, shortfall: number }`
 
 - [ ] **Step 1: Write failing tests**
@@ -92,7 +90,7 @@ test('withdrawalSequence bracketHeuristic limits traditional to bracket', () => 
   const r = withdrawalSequence(accounts, 10000, { bracketHeuristic: true });
   // Heuristic: don't push traditional withdrawal into next marginal bracket
   // Implementation detail: cap traditional at ~44k (2024 12% bracket top for single)
-  expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000 / 12);
+  expect(r.byAccount['Traditional IRA / 401k']).toBeLessThanOrEqual(44000/12);
 });
 ```
 
@@ -104,7 +102,6 @@ Expected: FAIL
 - [ ] **Step 3: Implement `withdrawalSequence` in `src/utils/withdrawal.js`**
 
 Algorithm:
-
 1. Compute RMD for each traditional account (using `requiredMinimumDistribution`).
 2. Spend order: Taxable → Traditional (max of needed and RMD) → Roth.
 3. If `bracketHeuristic`, cap traditional at estimated bracket ceiling (configurable, default ~$44k/yr for 12% bracket).
@@ -128,12 +125,10 @@ git commit -m "feat: add withdrawalSequence with tax-aware ordering"
 ### Task 2: Cash buffer model
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `applyCashBuffer(monthlySpend, bufferMonths, portfolioValue, { refillThreshold?: number }) => { fromBuffer: number, fromPortfolio: number, newBufferMonths: number }`, integrated into `drawdownPath` when `cashBufferMonths > 0`.
 
 - [ ] **Step 1: Write failing tests**
@@ -151,10 +146,10 @@ test('drawdownPath with cash buffer draws from buffer first', () => {
 });
 
 test('drawdownPath buffer refills when portfolio grows', () => {
-  const values = Array.from({ length: 120 }, (_, i) => 100000 * 1.01 ** i); // growing
+  const values = Array.from({ length: 120 }, (_, i) => 100000 * 1.01**i); // growing
   const r = drawdownPath(values, 4000, { inflationRate: 0, cashBufferMonths: 12 });
   // Buffer should refill; portfolio balance should reflect refill
-  expect(r.balances[24]).toBeGreaterThan(100000 - 4000 * 12);
+  expect(r.balances[24]).toBeGreaterThan(100000 - 4000*12);
 });
 
 test('drawdownPath buffer depletion forces portfolio withdrawal', () => {
@@ -192,11 +187,9 @@ git commit -m "feat: add cash buffer model to drawdownPath"
 ### Task 3: RMD table UI in Retirement tab
 
 **Files:**
-
 - Modify: `src/App.jsx` (add RMD table panel)
 
 **Interfaces:**
-
 - Consumes: `requiredMinimumDistribution` from `withdrawal.js`, user birth year input
 - Produces: RMD table in Retirement tab showing age, distribution period, RMD amount per traditional account
 
@@ -244,11 +237,9 @@ git commit -m "feat: add RMD table to Retirement tab"
 ### Task 4: Withdrawal sequencing display in Retirement tab
 
 **Files:**
-
 - Modify: `src/App.jsx`
 
 **Interfaces:**
-
 - Consumes: `withdrawalSequence` output
 - Produces: Per-account breakdown table in Retirement tab
 
@@ -294,7 +285,6 @@ git commit -m "feat: add withdrawal sequencing display to Retirement tab"
 ### Task 5: Cash buffer inputs & display
 
 **Files:**
-
 - Modify: `src/App.jsx` (buffer months input, buffer status in results)
 
 - [ ] **Step 1: Add buffer months input to Retirement tab inputs** (label, number input, 44px)

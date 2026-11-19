@@ -50,12 +50,10 @@ tests/e2e/
 ### Task 1: `guardrailSpend` — RPR-80 policy
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `guardrailSpend(currentSpend, portfolioValue, startingValue, policy, opts) => { nextSpend: number, policyState: 'normal' | 'cut' | 'recovering', cutRate: number }` where `policy` = `'rpr-80'`
 
 - [ ] **Step 1: Write failing tests**
@@ -129,12 +127,10 @@ git commit -m "feat: add rpr-80 guardrail spending policy"
 ### Task 2: `guardrailSpend` — Guyton-Klinger policy
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `guardrailSpend(..., policy = 'guyton-klinger', { initialRate, upperGuardrail, lowerGuardrail, ... })` with full GK rules.
 
 - [ ] **Step 1: Write failing tests**
@@ -178,7 +174,6 @@ Expected: FAIL
 - [ ] **Step 3: Implement Guyton-Klinger in `guardrailSpend`**
 
 Rules (simplified from GK 2006):
-
 - Withdrawal rate = spend / portfolio
 - If rate > upperGuardrail → cut spend by 10%
 - If rate < lowerGuardrail → increase spend by 10%
@@ -202,12 +197,10 @@ git commit -m "feat: add guyton-klinger guardrail spending policy"
 ### Task 3: `guardrailSpend` — VPW (Variable Percentage Withdrawal)
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js`
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `guardrailSpend(..., policy = 'vpw', { age, vpwTable? })` — VPW table by age.
 
 - [ ] **Step 1: Write failing tests**
@@ -262,12 +255,10 @@ git commit -m "feat: add vpw guardrail spending policy"
 ### Task 4: Integrate guardrails into drawdownPath & MC
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js` (drawdownPath, monteCarloWithWithdrawals)
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - `drawdownPath` and `monteCarloWithWithdrawals` accept `guardrail` option and call `guardrailSpend` each month/step.
 
 - [ ] **Step 1: Write failing tests**
@@ -277,31 +268,19 @@ git commit -m "feat: add vpw guardrail spending policy"
 import { drawdownPath, monteCarloWithWithdrawals } from '../withdrawal';
 
 test('drawdownPath with rpr-80 reduces spend after drop', () => {
-  const values = Array.from({ length: 60 }, (_, i) => (i < 12 ? 100000 : 70000)); // drop at month 12
+  const values = Array.from({ length: 60 }, (_, i) => i < 12 ? 100000 : 70000); // drop at month 12
   const r = drawdownPath(values, 5000, { guardrail: 'rpr-80' });
   // Spend should drop after month 12
   expect(r.balances[13]).toBeGreaterThan(r.balances[12]); // less withdrawn
 });
 
 test('monteCarloWithWithdrawals guardrail affects successRate', () => {
-  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005 ** i) };
+  const allCloses = { SPY: Array.from({ length: 200 }, (_, i) => 100 * 1.005**i) };
   const weights = { SPY: 1 };
   const vols = { SPY: 0.15 };
   const corr = { SPY: { SPY: 1 } };
-  const base = monteCarloWithWithdrawals(allCloses, weights, vols, corr, {
-    simulations: 200,
-    steps: 120,
-    monthlySpend: 400,
-    guardrail: 'none',
-    seed: 1,
-  });
-  const guarded = monteCarloWithWithdrawals(allCloses, weights, vols, corr, {
-    simulations: 200,
-    steps: 120,
-    monthlySpend: 400,
-    guardrail: 'rpr-80',
-    seed: 1,
-  });
+  const base = monteCarloWithWithdrawals(allCloses, weights, vols, corr, { simulations: 200, steps: 120, monthlySpend: 400, guardrail: 'none', seed: 1 });
+  const guarded = monteCarloWithWithdrawals(allCloses, weights, vols, corr, { simulations: 200, steps: 120, monthlySpend: 400, guardrail: 'rpr-80', seed: 1 });
   expect(guarded.successRate).toBeGreaterThanOrEqual(base.successRate);
 });
 ```
@@ -334,13 +313,11 @@ git commit -m "feat: integrate guardrails into drawdownPath and Monte Carlo"
 ### Task 5: Income floor (Social Security / pension) inputs & netting
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js` (net spend helper)
 - Modify: `src/App.jsx` (SS/pension inputs, bridge years display)
 - Modify: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `netSpend(grossSpend, ssMonthly, pensionMonthly, ssStartAge, pensionStartAge, currentAge) => { netMonthlySpend: number, bridgeYears: number, ssActive: boolean, pensionActive: boolean }`
 
 - [ ] **Step 1: Write failing tests**
@@ -406,11 +383,9 @@ git commit -m "feat: add income floor (SS/pension) netting and bridge years"
 ### Task 6: Static vs Guardrail comparison view
 
 **Files:**
-
 - Modify: `src/App.jsx` (comparison panel in Retirement tab)
 
 **Interfaces:**
-
 - Consumes: two sets of results (static + guardrail) from same inputs
 - Produces: side-by-side metric cards + overlaid fan charts
 

@@ -26,34 +26,31 @@
 ## File Map
 
 ### New Files
-
-| File                           | Purpose                               |
-| ------------------------------ | ------------------------------------- |
-| `package.json`                 | npm config, scripts, deps             |
-| `index.html`                   | Vite HTML entry                       |
-| `src/main.jsx`                 | React bootstrap                       |
-| `src/App.jsx`                  | Migrated component (from `index.jsx`) |
-| `.github/workflows/ci.yml`     | CI: lint, format, build               |
-| `.github/workflows/deploy.yml` | CD: build → gh-pages                  |
-| `.eslintrc.json`               | ESLint flat config                    |
-| `.prettierrc`                  | Prettier config                       |
-| `.husky/pre-commit`            | Husky hook (auto-generated)           |
+| File | Purpose |
+|---|---|
+| `package.json` | npm config, scripts, deps |
+| `index.html` | Vite HTML entry |
+| `src/main.jsx` | React bootstrap |
+| `src/App.jsx` | Migrated component (from `index.jsx`) |
+| `.github/workflows/ci.yml` | CI: lint, format, build |
+| `.github/workflows/deploy.yml` | CD: build → gh-pages |
+| `.eslintrc.json` | ESLint flat config |
+| `.prettierrc` | Prettier config |
+| `.husky/pre-commit` | Husky hook (auto-generated) |
 
 ### Modified Files
-
-| File             | Changes                                      |
-| ---------------- | -------------------------------------------- |
-| `vite.config.js` | Add React plugin, keep base                  |
-| `.gitignore`     | Add `node_modules/`, `dist/`, `.husky/`      |
-| `README.md`      | Rewrite for React/Vite + deploy instructions |
+| File | Changes |
+|---|---|
+| `vite.config.js` | Add React plugin, keep base |
+| `.gitignore` | Add `node_modules/`, `dist/`, `.husky/` |
+| `README.md` | Rewrite for React/Vite + deploy instructions |
 
 ### Deleted Files
-
-| File               | Reason                 |
-| ------------------ | ---------------------- |
-| `app.py`           | Legacy Streamlit       |
-| `requirements.txt` | Legacy Python deps     |
-| `index.jsx`        | Moved to `src/App.jsx` |
+| File | Reason |
+|---|---|
+| `app.py` | Legacy Streamlit |
+| `requirements.txt` | Legacy Python deps |
+| `index.jsx` | Moved to `src/App.jsx` |
 
 ---
 
@@ -62,11 +59,9 @@
 ### Task 1: Create package.json
 
 **Files:**
-
 - Create: `package.json`
 
 **Interfaces:**
-
 - Produces: `npm` scripts (`dev`, `build`, `preview`, `lint`, `format`, `format:fix`, `prepare`) and all dependency versions used by later tasks.
 
 - [ ] **Step 1: Write package.json**
@@ -121,11 +116,9 @@ git commit -m "chore: add package.json with React, Vite, ESLint, Prettier, Husky
 ### Task 2: Create index.html
 
 **Files:**
-
 - Create: `index.html`
 
 **Interfaces:**
-
 - Consumes: `src/main.jsx` as module entry
 - Produces: HTML shell for Vite dev server and production build
 
@@ -138,10 +131,7 @@ git commit -m "chore: add package.json with React, Vite, ESLint, Prettier, Husky
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shannon's Demon — Risk Parity Rebalancer</title>
-    <meta
-      name="description"
-      content="Portfolio optimizer using inverse volatility and tax-efficient asset location"
-    />
+    <meta name="description" content="Portfolio optimizer using inverse volatility and tax-efficient asset location" />
   </head>
   <body>
     <div id="root"></div>
@@ -162,26 +152,24 @@ git commit -m "feat: add index.html Vite entry point"
 ### Task 3: Create src/main.jsx
 
 **Files:**
-
 - Create: `src/main.jsx`
 
 **Interfaces:**
-
 - Consumes: `./App` (default export from Task 4)
 - Produces: React 18 root render
 
 - [ ] **Step 1: Write src/main.jsx**
 
 ```jsx
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);
+)
 ```
 
 - [ ] **Step 2: Commit**
@@ -196,12 +184,10 @@ git commit -m "feat: add src/main.jsx React bootstrap"
 ### Task 4: Migrate index.jsx → src/App.jsx
 
 **Files:**
-
 - Create: `src/App.jsx` (from existing `index.jsx`)
 - Delete: `index.jsx` (root)
 
 **Interfaces:**
-
 - Consumes: None (self-contained component with inline styles and localStorage)
 - Produces: Default export `App` component used by `src/main.jsx`
 
@@ -227,24 +213,22 @@ git commit -m "feat: migrate index.jsx to src/App.jsx"
 ### Task 5: Update vite.config.js
 
 **Files:**
-
 - Modify: `vite.config.js`
 
 **Interfaces:**
-
 - Consumes: `@vitejs/plugin-react`
 - Produces: Vite config with React plugin + existing base path
 
 - [ ] **Step 1: Update vite.config.js**
 
 ```js
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   base: '/shannonsdemon/',
   plugins: [react()],
-});
+})
 ```
 
 - [ ] **Step 2: Commit**
@@ -259,11 +243,9 @@ git commit -m "chore: update vite.config.js with React plugin"
 ### Task 6: Update .gitignore
 
 **Files:**
-
 - Modify: `.gitignore`
 
 **Interfaces:**
-
 - Produces: Ignored patterns for Node/Vite artifacts
 
 - [ ] **Step 1: Append to .gitignore**
@@ -291,11 +273,9 @@ git commit -m "chore: update .gitignore for Node/Vite artifacts"
 ### Task 7: Create ESLint flat config
 
 **Files:**
-
 - Create: `.eslintrc.json` (ESLint 9 flat config)
 
 **Interfaces:**
-
 - Produces: Lint rules for `npm run lint` (used in CI)
 
 - [ ] **Step 1: Write .eslintrc.json**
@@ -304,7 +284,11 @@ git commit -m "chore: update .gitignore for Node/Vite artifacts"
 {
   "root": true,
   "env": { "browser": true, "es2022": true },
-  "extends": ["eslint:recommended", "plugin:react/recommended", "plugin:react-hooks/recommended"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended"
+  ],
   "parserOptions": { "ecmaVersion": "latest", "sourceType": "module" },
   "settings": { "react": { "version": "18.3" } },
   "plugins": ["react", "react-hooks"],
@@ -333,11 +317,9 @@ git commit -m "chore: add ESLint flat config"
 ### Task 8: Create Prettier config
 
 **Files:**
-
 - Create: `.prettierrc`
 
 **Interfaces:**
-
 - Produces: Format rules for `npm run format` / `format:fix` (used in CI + Husky)
 
 - [ ] **Step 1: Write .prettierrc**
@@ -371,12 +353,10 @@ git commit -m "chore: add Prettier config"
 ### Task 9: Initialize Husky + lint-staged
 
 **Files:**
-
 - Create: `.husky/pre-commit` (auto-generated by `husky install`)
 - Modify: `package.json` (add `lint-staged` field)
 
 **Interfaces:**
-
 - Consumes: `lint-staged` config in `package.json`
 - Produces: Pre-commit hook that runs ESLint+Prettier on staged files
 
@@ -387,30 +367,25 @@ git commit -m "chore: add Prettier config"
   "*.{js,jsx}": ["eslint --fix", "prettier --write"]
 }
 ```
-
 (Add this as a top-level field in `package.json`)
 
 - [ ] **Step 2: Install deps and initialize Husky**
 
 Run:
-
 ```bash
 npm ci
 npm run prepare
 ```
-
 Verify: `.husky/pre-commit` exists and contains `npx lint-staged`
 
 - [ ] **Step 3: Test pre-commit hook**
 
 Run:
-
 ```bash
 echo "const x = 1;" > src/temp.js
 git add src/temp.js
 git commit -m "test" 2>&1 | head -20
 ```
-
 Expected: Hook runs ESLint/Prettier on staged file
 
 Run: `rm src/temp.js && git reset HEAD~1`
@@ -427,11 +402,9 @@ git commit -m "chore: add Husky + lint-staged pre-commit hook"
 ### Task 10: Create CI workflow
 
 **Files:**
-
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
-
 - Consumes: `npm ci`, `npm run lint`, `npm run format`, `npm run build`
 - Produces: CI gate on every push/PR
 
@@ -473,11 +446,9 @@ git commit -m "ci: add GitHub Actions CI workflow"
 ### Task 11: Create CD deploy workflow
 
 **Files:**
-
 - Create: `.github/workflows/deploy.yml`
 
 **Interfaces:**
-
 - Consumes: `npm run build` → outputs `dist/`
 - Produces: Deploys `dist/` to `gh-pages` branch
 
@@ -533,16 +504,14 @@ git commit -m "ci: add GitHub Pages deploy workflow"
 ### Task 12: Rewrite README.md
 
 **Files:**
-
 - Modify: `README.md`
 
 **Interfaces:**
-
 - Produces: Updated documentation for React/Vite setup, dev commands, and GitHub Pages deployment
 
 - [ ] **Step 1: Write new README.md**
 
-````markdown
+```markdown
 # Shannon's Demon — Risk Parity Rebalancer
 
 A React + Vite static site for portfolio optimization using risk parity principles and tax-efficient asset location strategies. Deploys free to GitHub Pages.
@@ -570,12 +539,10 @@ npm run build
 # Preview build locally
 npm run preview
 ```
-````
 
 ## Deployment
 
 Automatic via GitHub Actions on push to `main`:
-
 1. CI runs (lint, format, build)
 2. CD deploys `dist/` to GitHub Pages at `https://paruff.github.io/shannonsdemon/`
 
@@ -603,27 +570,24 @@ Uses Yahoo Finance unofficial v8 chart endpoint (no API key). Works from browser
 ## License
 
 MIT — see `LICENSE`.
-
-````
+```
 
 - [ ] **Step 2: Commit**
 
 ```bash
 git add README.md
 git commit -m "docs: rewrite README for React + Vite + GitHub Pages"
-````
+```
 
 ---
 
 ### Task 13: Delete legacy files
 
 **Files:**
-
 - Delete: `app.py`
 - Delete: `requirements.txt`
 
 **Interfaces:**
-
 - Produces: Clean repo without Python/Streamlit artifacts
 
 - [ ] **Step 1: Delete files**
@@ -642,24 +606,20 @@ git commit -m "chore: remove legacy Streamlit app and Python deps"
 ### Task 14: Final verification
 
 **Files:**
-
 - None new (verification of full pipeline)
 
 **Interfaces:**
-
 - Consumes: All prior tasks
 - Produces: Confirmed working dev server, build, and CI-ready repo
 
 - [ ] **Step 1: Fresh install + build**
 
 Run:
-
 ```bash
 rm -rf node_modules dist package-lock.json
 npm ci
 npm run build
 ```
-
 Expected: `dist/` created with `index.html`, assets, no errors.
 
 - [ ] **Step 2: Dev server smoke test**
@@ -698,18 +658,15 @@ git commit -m "chore: final migration verification — all gates pass"
 ### Task 15: Add Vitest + Unit Tests for Finance Helpers
 
 **Files:**
-
 - Create: `package.json` (add vitest, @vitest/ui)
 - Create: `vitest.config.js`
 - Create: `src/utils/__tests__/finance.test.js`
 
 **Interfaces:**
-
 - Consumes: `annualizedVol`, `inverseVolWeights`, `taxLocationWaterfall`, `generateTrades` from `src/App.jsx` (extract to `src/utils/finance.js` first)
 - Produces: Test coverage for pure finance logic
 
 - [ ] **Step 1: Extract finance helpers to `src/utils/finance.js`**
-
 ```bash
 mkdir -p src/utils
 # Move fetchQuote, annualizedVol, inverseVolWeights, taxLocationWaterfall, generateTrades, TAX_INEFFICIENCY, ACCOUNT_TYPES, LOOKBACK_OPTIONS, fmt from App.jsx to src/utils/finance.js
@@ -717,7 +674,6 @@ mkdir -p src/utils
 ```
 
 - [ ] **Step 2: Add Vitest deps to package.json**
-
 ```json
 "devDependencies": {
   "vitest": "^2.0.0",
@@ -731,73 +687,70 @@ mkdir -p src/utils
 ```
 
 - [ ] **Step 3: Write vitest.config.js**
-
 ```js
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  test: { environment: 'jsdom', include: ['src/**/*.test.{js,jsx}'] },
-});
+  test: { environment: 'jsdom', include: ['src/**/*.test.{js,jsx}'] }
+})
 ```
 
-- [ ] **Step 4: Write src/utils/**tests**/finance.test.js**
-
+- [ ] **Step 4: Write src/utils/__tests__/finance.test.js**
 ```js
-import { describe, it, expect } from 'vitest';
-import { annualizedVol, inverseVolWeights, taxLocationWaterfall, generateTrades } from '../finance';
+import { describe, it, expect } from 'vitest'
+import { annualizedVol, inverseVolWeights, taxLocationWaterfall, generateTrades } from '../finance'
 
 describe('annualizedVol', () => {
   it('returns ~0.15 for 15% annual vol', () => {
-    const closes = [100, 101, 99, 102, 98, 103, 97, 104, 96, 105];
-    const vol = annualizedVol(closes);
-    expect(vol).toBeGreaterThan(0.1);
-    expect(vol).toBeLessThan(0.3);
-  });
+    const closes = [100, 101, 99, 102, 98, 103, 97, 104, 96, 105]
+    const vol = annualizedVol(closes)
+    expect(vol).toBeGreaterThan(0.1)
+    expect(vol).toBeLessThan(0.3)
+  })
   it('returns 0 for flat prices', () => {
-    expect(annualizedVol([100, 100, 100, 100])).toBe(0);
-  });
-});
+    expect(annualizedVol([100, 100, 100, 100])).toBe(0)
+  })
+})
 
 describe('inverseVolWeights', () => {
   it('weights inversely to volatility', () => {
-    const weights = inverseVolWeights({ A: 0.1, B: 0.2 });
-    expect(weights.A).toBeCloseTo(0.667, 2);
-    expect(weights.B).toBeCloseTo(0.333, 2);
-  });
-});
+    const weights = inverseVolWeights({ A: 0.1, B: 0.2 })
+    expect(weights.A).toBeCloseTo(0.667, 2)
+    expect(weights.B).toBeCloseTo(0.333, 2)
+  })
+})
 
 describe('taxLocationWaterfall', () => {
   it('places high-inefficiency assets in best accounts first', () => {
-    const targetWeights = { TLT: 0.4, SPY: 0.6 };
-    const prices = { TLT: 100, SPY: 400 };
-    const accounts = { 'Roth IRA': 50000, Taxable: 50000 };
-    const result = taxLocationWaterfall(targetWeights, prices, accounts, 100000);
-    expect(result['Roth IRA'].TLT).toBeGreaterThan(0);
-  });
-});
+    const targetWeights = { TLT: 0.4, SPY: 0.6 }
+    const prices = { TLT: 100, SPY: 400 }
+    const accounts = { 'Roth IRA': 50000, 'Taxable': 50000 }
+    const result = taxLocationWaterfall(targetWeights, prices, accounts, 100000)
+    expect(result['Roth IRA'].TLT).toBeGreaterThan(0)
+  })
+})
 
 describe('generateTrades', () => {
   it('generates BUY when underweight', () => {
-    const current = { Taxable: { SPY: 0 } };
-    const target = { Taxable: { SPY: 50000 } };
-    const prices = { SPY: 500 };
-    const trades = generateTrades(current, target, prices, 100000, 0.05);
-    expect(trades[0].action).toBe('BUY');
-  });
+    const current = { Taxable: { SPY: 0 } }
+    const target = { Taxable: { SPY: 50000 } }
+    const prices = { SPY: 500 }
+    const trades = generateTrades(current, target, prices, 100000, 0.05)
+    expect(trades[0].action).toBe('BUY')
+  })
   it('generates no trades when within threshold', () => {
-    const current = { Taxable: { SPY: 100 } };
-    const target = { Taxable: { SPY: 50000 } };
-    const prices = { SPY: 500 };
-    const trades = generateTrades(current, target, prices, 100000, 0.05);
-    expect(trades.length).toBe(0);
-  });
-});
+    const current = { Taxable: { SPY: 100 } }
+    const target = { Taxable: { SPY: 50000 } }
+    const prices = { SPY: 500 }
+    const trades = generateTrades(current, target, prices, 100000, 0.05)
+    expect(trades.length).toBe(0)
+  })
+})
 ```
 
 - [ ] **Step 5: Run tests and commit**
-
 ```bash
 npm ci
 npm run test
@@ -810,17 +763,14 @@ git commit -m "test: add Vitest + unit tests for finance helpers"
 ### Task 16: Add MSW + Integration Test for fetchQuote
 
 **Files:**
-
 - Create: `src/utils/__tests__/fetchQuote.test.js`
 - Create: `src/mocks/handlers.js` (MSW handlers)
 
 **Interfaces:**
-
 - Consumes: `fetchQuote` from `src/utils/finance.js`
 - Produces: Integration test with mocked Yahoo Finance responses
 
 - [ ] **Step 1: Add MSW deps**
-
 ```json
 "devDependencies": {
   "msw": "^2.3.0"
@@ -828,59 +778,56 @@ git commit -m "test: add Vitest + unit tests for finance helpers"
 ```
 
 - [ ] **Step 2: Write src/mocks/handlers.js**
-
 ```js
-import { http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw'
 
 export const handlers = [
   http.get('https://query1.finance.yahoo.com/v8/finance/chart/:ticker', ({ params }) => {
-    const { ticker } = params;
+    const { ticker } = params
     if (ticker === 'INVALID') {
-      return new HttpResponse(null, { status: 404 });
+      return new HttpResponse(null, { status: 404 })
     }
     if (ticker === 'RATELIMIT') {
-      return new HttpResponse(null, { status: 429 });
+      return new HttpResponse(null, { status: 429 })
     }
-    const closes = Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.1) * 5);
+    const closes = Array.from({ length: 50 }, (_, i) => 100 + Math.sin(i * 0.1) * 5)
     return HttpResponse.json({
-      chart: { result: [{ indicators: { adjclose: [{ adjclose: closes }] } }] },
-    });
-  }),
-];
+      chart: { result: [{ indicators: { adjclose: [{ adjclose: closes }] } }] }
+    })
+  })
+]
 ```
 
-- [ ] **Step 3: Write src/utils/**tests**/fetchQuote.test.js**
-
+- [ ] **Step 3: Write src/utils/__tests__/fetchQuote.test.js**
 ```js
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
-import { fetchQuote } from '../finance';
-import { setupServer } from 'msw/node';
-import { handlers } from '../../mocks/handlers';
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
+import { fetchQuote } from '../finance'
+import { setupServer } from 'msw/node'
+import { handlers } from '../../mocks/handlers'
 
-const server = setupServer(...handlers);
+const server = setupServer(...handlers)
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
-afterAll(() => server.close());
-afterEach(() => server.resetHandlers());
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+afterAll(() => server.close())
+afterEach(() => server.resetHandlers())
 
 describe('fetchQuote', () => {
   it('returns price + volatility data for valid ticker', async () => {
-    const result = await fetchQuote('SPY', '1y');
-    expect(result.ticker).toBe('SPY');
-    expect(result.latestPrice).toBeGreaterThan(0);
-    expect(result.closes.length).toBeGreaterThan(10);
-  });
+    const result = await fetchQuote('SPY', '1y')
+    expect(result.ticker).toBe('SPY')
+    expect(result.latestPrice).toBeGreaterThan(0)
+    expect(result.closes.length).toBeGreaterThan(10)
+  })
   it('throws on 404', async () => {
-    await expect(fetchQuote('INVALID', '1y')).rejects.toThrow('404');
-  });
+    await expect(fetchQuote('INVALID', '1y')).rejects.toThrow('404')
+  })
   it('throws on 429 rate limit', async () => {
-    await expect(fetchQuote('RATELIMIT', '1y')).rejects.toThrow('429');
-  });
-});
+    await expect(fetchQuote('RATELIMIT', '1y')).rejects.toThrow('429')
+  })
+})
 ```
 
 - [ ] **Step 4: Run and commit**
-
 ```bash
 npm ci
 npm run test
@@ -893,27 +840,23 @@ git commit -m "test: add MSW integration test for fetchQuote"
 ### Task 17: Add Playwright + E2E Smoke Test
 
 **Files:**
-
 - Create: `package.json` (add @playwright/test)
 - Create: `playwright.config.js`
 - Create: `tests/e2e/smoke.spec.js`
 
 **Interfaces:**
-
 - Consumes: Built app (`npm run build`, `npm run preview`)
 - Produces: E2E test covering load → input → analyze → tabs
 
 - [ ] **Step 1: Add Playwright**
-
 ```bash
 npm i -D @playwright/test
 npx playwright install --with-deps chromium
 ```
 
 - [ ] **Step 2: Write playwright.config.js**
-
 ```js
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -921,51 +864,48 @@ export default defineConfig({
   retries: 1,
   use: { baseURL: 'http://localhost:4173', trace: 'on-first-retry' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: { command: 'npm run preview', port: 4173, reuseExistingServer: !process.env.CI },
-});
+  webServer: { command: 'npm run preview', port: 4173, reuseExistingServer: !process.env.CI }
+})
 ```
 
 - [ ] **Step 3: Write tests/e2e/smoke.spec.js**
-
 ```js
-import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test'
 
-test.describe("Shannon's Demon smoke", () => {
+test.describe('Shannon\'s Demon smoke', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/shannonsdemon/');
-    await page.waitForSelector('#root');
-  });
+    await page.goto('/shannonsdemon/')
+    await page.waitForSelector('#root')
+  })
 
   test('loads and runs analysis with default tickers', async ({ page }) => {
-    await page.click('button:has-text("Run Analysis")');
-    await expect(page.locator('text=Risk Parity Targets')).toBeVisible({ timeout: 30000 });
-    await expect(page.locator('text=SPY')).toBeVisible();
-  });
+    await page.click('button:has-text("Run Analysis")')
+    await expect(page.locator('text=Risk Parity Targets')).toBeVisible({ timeout: 30000 })
+    await expect(page.locator('text=SPY')).toBeVisible()
+  })
 
   test('holdings tab accepts input and persists', async ({ page }) => {
-    await page.click('button:has-text("Current Holdings")');
-    await page.fill('input[placeholder="0"]:first-of-type', '100');
-    await page.click('button:has-text("Run Analysis")');
-    await expect(page.locator('text=Trades')).toBeVisible();
-  });
+    await page.click('button:has-text("Current Holdings")')
+    await page.fill('input[placeholder="0"]:first-of-type', '100')
+    await page.click('button:has-text("Run Analysis")')
+    await expect(page.locator('text=Trades')).toBeVisible()
+  })
 
   test('localStorage survives reload', async ({ page }) => {
-    await page.fill('input[placeholder="0"]:first-of-type', '50');
-    await page.reload();
-    await expect(page.locator('input[placeholder="0"]:first-of-type')).toHaveValue('50');
-  });
-});
+    await page.fill('input[placeholder="0"]:first-of-type', '50')
+    await page.reload()
+    await expect(page.locator('input[placeholder="0"]:first-of-type')).toHaveValue('50')
+  })
+})
 ```
 
 - [ ] **Step 4: Add CI step and commit**
-
 ```yaml
 # In .github/workflows/ci.yml, add:
 - run: npx playwright install --with-deps chromium
 - run: npm run build
 - run: npm run test:e2e
 ```
-
 ```bash
 npm ci
 npm run build
@@ -979,51 +919,45 @@ git commit -m "test: add Playwright E2E smoke tests"
 ### Task 18: Add axe-core Accessibility Test
 
 **Files:**
-
 - Create: `package.json` (add axe-core, @axe-core/playwright)
 - Create: `tests/e2e/a11y.spec.js`
 
 **Interfaces:**
-
 - Consumes: Running app
 - Produces: Automated a11y violations report
 
 - [ ] **Step 1: Add deps**
-
 ```bash
 npm i -D axe-core @axe-core/playwright
 ```
 
 - [ ] **Step 3: Write tests/e2e/a11y.spec.js**
-
 ```js
-import { test, expect } from '@playwright/test';
-import AxeBuilder from '@axe-core/playwright';
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 test.describe('Accessibility', () => {
   test('no violations on analysis tab', async ({ page }) => {
-    await page.goto('/shannonsdemon/');
-    await page.click('button:has-text("Run Analysis")');
-    await expect(page.locator('text=Risk Parity Targets')).toBeVisible({ timeout: 30000 });
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
-  });
+    await page.goto('/shannonsdemon/')
+    await page.click('button:has-text("Run Analysis")')
+    await expect(page.locator('text=Risk Parity Targets')).toBeVisible({ timeout: 30000 })
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations).toEqual([])
+  })
   test('no violations on holdings tab', async ({ page }) => {
-    await page.goto('/shannonsdemon/');
-    await page.click('button:has-text("Current Holdings")');
-    const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations).toEqual([]);
-  });
-});
+    await page.goto('/shannonsdemon/')
+    await page.click('button:has-text("Current Holdings")')
+    const results = await new AxeBuilder({ page }).analyze()
+    expect(results.violations).toEqual([])
+  })
+})
 ```
 
 - [ ] **Step 4: Add to CI and commit**
-
 ```yaml
 # In ci.yml:
 - run: npm run test:a11y
 ```
-
 ```bash
 npm ci
 npm run test:a11y
@@ -1036,23 +970,19 @@ git commit -m "test: add axe-core accessibility tests"
 ### Task 19: Add Lighthouse CI Budget
 
 **Files:**
-
 - Create: `lighthouserc.json`
 - Create: `.github/workflows/lighthouse.yml`
 
 **Interfaces:**
-
 - Consumes: Production build
 - Produces: Performance budget enforcement
 
 - [ ] **Step 1: Add Lighthouse CI**
-
 ```bash
 npm i -D @lhci/cli
 ```
 
 - [ ] **Step 2: Write lighthouserc.json**
-
 ```json
 {
   "ci": {
@@ -1074,7 +1004,6 @@ npm i -D @lhci/cli
 ```
 
 - [ ] **Step 3: Write .github/workflows/lighthouse.yml**
-
 ```yaml
 name: Lighthouse CI
 on: [push, pull_request]
@@ -1091,7 +1020,6 @@ jobs:
 ```
 
 - [ ] **Step 4: Commit**
-
 ```bash
 git add lighthouserc.json .github/workflows/lighthouse.yml
 git commit -m "ci: add Lighthouse CI performance budget"
@@ -1102,53 +1030,34 @@ git commit -m "ci: add Lighthouse CI performance budget"
 ### Task 20: Add React Error Boundary
 
 **Files:**
-
 - Modify: `src/App.jsx` (wrap tabs in ErrorBoundary)
 - Create: `src/components/ErrorBoundary.jsx`
 
 **Interfaces:**
-
 - Produces: Graceful fallback UI when render/data errors occur
 
 - [ ] **Step 1: Write src/components/ErrorBoundary.jsx**
-
 ```jsx
-import { Component } from 'react';
+import { Component } from 'react'
 
 export default class ErrorBoundary extends Component {
-  state = { hasError: false, error: null };
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
+  state = { hasError: false, error: null }
+  static getDerivedStateFromError(error) { return { hasError: true, error } }
   render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            padding: 20,
-            color: '#fca5a5',
-            background: '#1a0808',
-            border: '1px solid #7f1d1d',
-            borderRadius: 8,
-          }}
-        >
+        <div style={{ padding: 20, color: '#fca5a5', background: '#1a0808', border: '1px solid #7f1d1d', borderRadius: 8 }}>
           <strong>Something went wrong:</strong> {this.state.error?.message}
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            style={{ marginLeft: 12 }}
-          >
-            Retry
-          </button>
+          <button onClick={() => this.setState({ hasError: false, error: null })} style={{ marginLeft: 12 }}>Retry</button>
         </div>
-      );
+      )
     }
-    return this.props.children;
+    return this.props.children
   }
 }
 ```
 
 - [ ] **Step 2: Wrap each tab in App.jsx**
-
 ```jsx
 import ErrorBoundary from './components/ErrorBoundary'
 // ...
@@ -1158,7 +1067,6 @@ import ErrorBoundary from './components/ErrorBoundary'
 ```
 
 - [ ] **Step 3: Commit**
-
 ```bash
 git add src/components/ErrorBoundary.jsx src/App.jsx
 git commit -m "feat: add React Error Boundary for tab isolation"
@@ -1169,11 +1077,9 @@ git commit -m "feat: add React Error Boundary for tab isolation"
 ### Task 21: UX - Progressive Disclosure (Advanced Collapse)
 
 **Files:**
-
 - Modify: `src/App.jsx` (sidebar sections)
 
 - [ ] **Step 1: Add collapsible "Advanced" section**
-
 ```jsx
 const [showAdvanced, setShowAdvanced] = useState(false)
 // In sidebar:
@@ -1188,14 +1094,12 @@ const [showAdvanced, setShowAdvanced] = useState(false)
 ```
 
 - [ ] **Step 2: Disable Run button until valid**
-
 ```jsx
 const canRun = tickers.length > 0 && totalValue > 0
 <button disabled={analysisState === 'loading' || !canRun} ...>
 ```
 
 - [ ] **Step 3: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: add progressive disclosure + run button validation"
@@ -1206,49 +1110,29 @@ git commit -m "ux: add progressive disclosure + run button validation"
 ### Task 22: UX - Inline Tooltips for Financial Concepts
 
 **Files:**
-
 - Modify: `src/App.jsx` (add Tooltip component + usage)
 
 - [ ] **Step 1: Add Tooltip component**
-
 ```jsx
 function Tooltip({ children, tip }) {
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(false)
   return (
-    <span
-      style={{ position: 'relative', display: 'inline-flex' }}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
+    <span style={{ position: 'relative', display: 'inline-flex' }}
+          onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
       {children}
       {show && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '120%',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#0d1424',
-            border: '1px solid #1e293b',
-            borderRadius: 6,
-            padding: '8px 12px',
-            fontSize: 11,
-            color: '#cbd5e1',
-            whiteSpace: 'nowrap',
-            zIndex: 10,
-            width: 280,
-          }}
-        >
-          {tip}
-        </div>
-      )}
+        <div style={{ position: 'absolute', bottom: '120%', left: '50%', transform: 'translateX(-50%)',
+          background: '#0d1424', border: '1px solid #1e293b', borderRadius: 6, padding: '8px 12px',
+          fontSize: 11, color: '#cbd5e1', whiteSpace: 'nowrap', zIndex: 10, width: 280 }}>
+        {tip}
+      </div>
+    )}
     </span>
-  );
+  )
 }
 ```
 
 - [ ] **Step 2: Apply to labels**
-
 ```jsx
 <Tooltip tip="Inverse volatility: lower vol assets get higher weight so each contributes equal risk">
   <label>Risk Parity</label>
@@ -1265,7 +1149,6 @@ function Tooltip({ children, tip }) {
 ```
 
 - [ ] **Step 3: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: add inline tooltips for financial concepts"
@@ -1276,39 +1159,31 @@ git commit -m "ux: add inline tooltips for financial concepts"
 ### Task 23: UX - Live Validation Feedback
 
 **Files:**
-
 - Modify: `src/App.jsx` (ticker validation, holdings preview)
 
 - [ ] **Step 1: Debounced ticker validation**
-
 ```jsx
-const [tickerStatus, setTickerStatus] = useState({}); // { SPY: 'ok'|'error'|'pending' }
+const [tickerStatus, setTickerStatus] = useState({}) // { SPY: 'ok'|'error'|'pending' }
 useEffect(() => {
   const timer = setTimeout(async () => {
     for (const t of tickers) {
-      setTickerStatus(s => ({ ...s, [t]: 'pending' }));
-      try {
-        await fetchQuote(t, lookback);
-        setTickerStatus(s => ({ ...s, [t]: 'ok' }));
-      } catch {
-        setTickerStatus(s => ({ ...s, [t]: 'error' }));
-      }
+      setTickerStatus(s => ({ ...s, [t]: 'pending' }))
+      try { await fetchQuote(t, lookback); setTickerStatus(s => ({ ...s, [t]: 'ok' })) }
+      catch { setTickerStatus(s => ({ ...s, [t]: 'error' })) }
     }
-  }, 500);
-  return () => clearTimeout(timer);
-}, [tickers, lookback]);
+  }, 500)
+  return () => clearTimeout(timer)
+}, [tickers, lookback])
 // Render status badge next to each ticker in list
 ```
 
 - [ ] **Step 2: Holdings live value preview**
-
 ```jsx
 // Already in App.jsx: {prices[ticker] && shares > 0 && <div>≈ {fmt.usd(shares * prices[ticker])}</div>}
 // Ensure it updates on every keystroke (already works via useState)
 ```
 
 - [ ] **Step 3: Threshold trade preview**
-
 ```jsx
 const estimatedTrades = useMemo(() => generateTrades(currentHoldings, targetAllocation, prices, totalValue, threshold), [...])
 <div style={{ fontSize: 11, color: '#475569' }}>
@@ -1317,7 +1192,6 @@ const estimatedTrades = useMemo(() => generateTrades(currentHoldings, targetAllo
 ```
 
 - [ ] **Step 4: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: live ticker validation + trade preview"
@@ -1328,11 +1202,9 @@ git commit -m "ux: live ticker validation + trade preview"
 ### Task 24: UX - Copy/Paste Workflows
 
 **Files:**
-
 - Modify: `src/App.jsx` (add CSV paste handler, export buttons)
 
 - [ ] **Step 1: CSV paste in Holdings tab**
-
 ```jsx
 const handlePaste = (e) => {
   const text = e.clipboardData.getData('text')
@@ -1348,58 +1220,26 @@ const handlePaste = (e) => {
 ```
 
 - [ ] **Step 2: Export trades as CSV**
-
 ```jsx
 const exportTradesCSV = () => {
-  const headers = [
-    'Action',
-    'Ticker',
-    'Account',
-    'Shares',
-    'Amount',
-    'Current%',
-    'Target%',
-    'Drift',
-  ];
-  const rows = trades.map(t => [
-    t.action,
-    t.ticker,
-    t.account,
-    t.shares,
-    t.dollarAmount,
-    t.currentWeight,
-    t.targetWeight,
-    t.drift,
-  ]);
-  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-  navigator.clipboard.writeText(csv);
-};
-<button onClick={exportTradesCSV}>Copy Trades as CSV</button>;
+  const headers = ['Action', 'Ticker', 'Account', 'Shares', 'Amount', 'Current%', 'Target%', 'Drift']
+  const rows = trades.map(t => [t.action, t.ticker, t.account, t.shares, t.dollarAmount, t.currentWeight, t.targetWeight, t.drift])
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+  navigator.clipboard.writeText(csv)
+}
+<button onClick={exportTradesCSV}>Copy Trades as CSV</button>
 ```
 
 - [ ] **Step 3: Export full state as JSON**
-
 ```jsx
 const exportState = () => {
-  const state = {
-    tickers,
-    lookback,
-    threshold,
-    accounts,
-    currentHoldings,
-    prices,
-    vols,
-    targetWeights,
-    targetAllocation,
-    trades,
-  };
-  navigator.clipboard.writeText(JSON.stringify(state, null, 2));
-};
-<button onClick={exportState}>Copy Full State JSON</button>;
+  const state = { tickers, lookback, threshold, accounts, currentHoldings, prices, vols, targetWeights, targetAllocation, trades }
+  navigator.clipboard.writeText(JSON.stringify(state, null, 2))
+}
+<button onClick={exportState}>Copy Full State JSON</button>
 ```
 
 - [ ] **Step 4: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: add CSV paste + export workflows"
@@ -1410,46 +1250,26 @@ git commit -m "ux: add CSV paste + export workflows"
 ### Task 25: UX - Scenario Save/Compare
 
 **Files:**
-
 - Modify: `src/App.jsx` (scenario state + comparison view)
 
 - [ ] **Step 1: Add scenario management**
-
 ```jsx
 const [scenarios, setScenarios] = useState(() => {
-  try {
-    return JSON.parse(localStorage.getItem('shannonsdemon_scenarios_v1') || '[]');
-  } catch {
-    return [];
-  }
-});
-const saveScenario = name => {
-  const state = {
-    tickers,
-    lookback,
-    threshold,
-    accounts,
-    currentHoldings,
-    name,
-    timestamp: Date.now(),
-  };
-  setScenarios(s => {
-    const ns = [...s, state];
-    localStorage.setItem('...', JSON.stringify(ns));
-    return ns;
-  });
-};
+  try { return JSON.parse(localStorage.getItem('shannonsdemon_scenarios_v1') || '[]') } catch { return [] }
+})
+const saveScenario = (name) => {
+  const state = { tickers, lookback, threshold, accounts, currentHoldings, name, timestamp: Date.now() }
+  setScenarios(s => { const ns = [...s, state]; localStorage.setItem('...', JSON.stringify(ns)); return ns })
+}
 // Render saved scenarios list with Load/Delete buttons
 ```
 
 - [ ] **Step 2: Side-by-side diff (Phase 2 stretch)**
-
 ```jsx
 // Compare two scenarios: show weight diff, trade count diff
 ```
 
 - [ ] **Step 3: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: add scenario save/load (diff in Phase 3)"
@@ -1460,39 +1280,28 @@ git commit -m "ux: add scenario save/load (diff in Phase 3)"
 ### Task 26: UX - Keyboard/Mobile Polish
 
 **Files:**
-
 - Modify: `src/App.jsx` (focus management, bottom sheet on mobile)
 
 - [ ] **Step 1: Tab order + Enter handling**
-
 ```jsx
 // textarea onKeyDown: Enter → applyTickerInput + focus lookback select
 // Tab index flow: tickers → lookback → threshold → accounts → holdings → Run
 ```
 
 - [ ] **Step 2: Mobile bottom sheet for sidebar**
-
 ```jsx
-const [mobileSidebar, setMobileSidebar] = useState(false);
+const [mobileSidebar, setMobileSidebar] = useState(false)
 if (window.innerWidth < 768) {
   // Render sidebar as fixed bottom sheet, toggle via hamburger
 }
 ```
 
 - [ ] **Step 3: Sticky ticker column in tables**
-
 ```css
-th:first-child,
-td:first-child {
-  position: sticky;
-  left: 0;
-  background: #0d1424;
-  z-index: 1;
-}
+th:first-child, td:first-child { position: sticky; left: 0; background: #0d1424; z-index: 1 }
 ```
 
 - [ ] **Step 4: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: keyboard flow + mobile bottom sheet + sticky columns"
@@ -1503,54 +1312,36 @@ git commit -m "ux: keyboard flow + mobile bottom sheet + sticky columns"
 ### Task 27: UX - Error Recovery UI
 
 **Files:**
-
 - Modify: `src/App.jsx` (retry countdown, fallback button)
 
 - [ ] **Step 1: Rate-limit retry countdown**
-
 ```jsx
-const [retryCountdown, setRetryCountdown] = useState(0);
+const [retryCountdown, setRetryCountdown] = useState(0)
 useEffect(() => {
   if (retryCountdown > 0) {
-    const t = setInterval(() => setRetryCountdown(c => c - 1), 1000);
-    return () => clearInterval(t);
+    const t = setInterval(() => setRetryCountdown(c => c - 1), 1000)
+    return () => clearInterval(t)
   }
-}, [retryCountdown]);
+}, [retryCountdown])
 
 // In error UI:
-{
-  retryCountdown > 0 && <span>Retry in {retryCountdown}s…</span>;
-}
-<button
-  onClick={() => {
-    setRetryCountdown(30);
-    runAnalysis();
-  }}
->
-  Retry Now
-</button>;
+{retryCountdown > 0 && <span>Retry in {retryCountdown}s…</span>}
+<button onClick={() => { setRetryCountdown(30); runAnalysis() }}>Retry Now</button>
 ```
 
 - [ ] **Step 2: Alpha Vantage fallback button**
-
 ```jsx
-<button
-  onClick={() => {
-    /* swap fetchQuote to Alpha Vantage adapter */
-  }}
->
+<button onClick={() => { /* swap fetchQuote to Alpha Vantage adapter */ }}>
   Try Alpha Vantage (25 req/day)
 </button>
 ```
 
 - [ ] **Step 3: Fuzzy ticker suggestions**
-
 ```jsx
 // On 404: suggest common ETFs (VOO, IVV, VTI, QQQ, SPY) via Levenshtein distance
 ```
 
 - [ ] **Step 4: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: error recovery with retry + fallback + suggestions"
@@ -1561,11 +1352,9 @@ git commit -m "ux: error recovery with retry + fallback + suggestions"
 ### Task 28: UX - Trust Signals
 
 **Files:**
-
 - Modify: `src/App.jsx` (timestamp, version badge)
 
 - [ ] **Step 1: Last fetched timestamp**
-
 ```jsx
 const [lastFetch, setLastFetch] = useState(null)
 // In runAnalysis: setLastFetch(new Date().toLocaleTimeString())
@@ -1575,23 +1364,14 @@ const [lastFetch, setLastFetch] = useState(null)
 ```
 
 - [ ] **Step 2: Version badge in footer**
-
 ```jsx
 <div style={{ fontSize: 10, color: '#334155' }}>
-  v{__VERSION__} •{' '}
-  <a
-    href="https://github.com/paruff/shannonsdemon/commit/__COMMIT__"
-    target="_blank"
-    rel="noopener"
-  >
-    __COMMIT_SHORT__
-  </a>
+  v{__VERSION__} • <a href="https://github.com/paruff/shannonsdemon/commit/__COMMIT__" target="_blank" rel="noopener">__COMMIT_SHORT__</a>
 </div>
 // Injected via Vite define: { '__VERSION__': JSON.stringify(process.env.npm_package_version), '__COMMIT__': JSON.stringify(process.env.GITHUB_SHA || 'local'), '__COMMIT_SHORT__': JSON.stringify((process.env.GITHUB_SHA || 'local').slice(0,7)) }
 ```
 
 - [ ] **Step 3: Commit**
-
 ```bash
 git add src/App.jsx vite.config.js
 git commit -m "ux: add trust signals (timestamp, version badge)"
@@ -1602,39 +1382,30 @@ git commit -m "ux: add trust signals (timestamp, version badge)"
 ### Task 29: UX - Delight Details
 
 **Files:**
-
 - Modify: `src/App.jsx` (confetti, spring animations, focus rings)
 
 - [ ] **Step 1: Confetti on "No trades needed"**
-
 ```jsx
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 function Confetti({ show }) {
-  useEffect(() => {
-    if (show) {
-      /* canvas-confetti burst */
-    }
-  }, [show]);
-  return null;
+  useEffect(() => { if (show) { /* canvas-confetti burst */ } }, [show])
+  return null
 }
 // In Trades tab: <Confetti show={trades.length === 0 && analysisState === 'done'} />
 ```
 
 - [ ] **Step 2: Spring animation on weight bars**
-
 ```jsx
 // Use CSS transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1)
 // Already works via style width change — ensure transition in WeightBar
 ```
 
 - [ ] **Step 3: Focus rings**
-
 ```jsx
 // Add to S.input: outline: 'none', ':focus-visible': { outline: '2px solid #3b82f6', outlineOffset: 2 }
 ```
 
 - [ ] **Step 4: Light mode toggle (for printing)**
-
 ```jsx
 const [darkMode, setDarkMode] = useState(true)
 <div style={{ ...S.app, background: darkMode ? '#0a0f1e' : '#f8fafc', color: darkMode ? '#e2e8f0' : '#0f172a' }}>
@@ -1642,7 +1413,6 @@ const [darkMode, setDarkMode] = useState(true)
 ```
 
 - [ ] **Step 5: Commit**
-
 ```bash
 git add src/App.jsx
 git commit -m "ux: confetti + spring animations + focus rings + light mode"
@@ -1652,23 +1422,23 @@ git commit -m "ux: confetti + spring animations + focus rings + light mode"
 
 ## Phase 2 Summary
 
-| Task | Category               | Priority                    |
-| ---- | ---------------------- | --------------------------- |
-| 15   | Vitest unit tests      | P0 — ships with migration   |
-| 16   | MSW integration        | P0 — validates API contract |
-| 17   | Playwright E2E         | P0 — regression safety      |
-| 18   | axe-core a11y          | P1 — accessibility baseline |
-| 19   | Lighthouse CI          | P1 — perf budget            |
-| 20   | Error Boundary         | P1 — resilience             |
-| 21   | Progressive disclosure | P1 — UX clarity             |
-| 22   | Inline tooltips        | P1 — learnability           |
-| 23   | Live validation        | P1 — confidence             |
-| 24   | Copy/paste workflows   | P2 — power users            |
-| 25   | Scenario save          | P2 — iteration              |
-| 26   | Keyboard/mobile        | P2 — polish                 |
-| 27   | Error recovery         | P2 — trust                  |
-| 28   | Trust signals          | P2 — credibility            |
-| 29   | Delight details        | P3 — joy                    |
+| Task | Category | Priority |
+|---|---|---|
+| 15 | Vitest unit tests | P0 — ships with migration |
+| 16 | MSW integration | P0 — validates API contract |
+| 17 | Playwright E2E | P0 — regression safety |
+| 18 | axe-core a11y | P1 — accessibility baseline |
+| 19 | Lighthouse CI | P1 — perf budget |
+| 20 | Error Boundary | P1 — resilience |
+| 21 | Progressive disclosure | P1 — UX clarity |
+| 22 | Inline tooltips | P1 — learnability |
+| 23 | Live validation | P1 — confidence |
+| 24 | Copy/paste workflows | P2 — power users |
+| 25 | Scenario save | P2 — iteration |
+| 26 | Keyboard/mobile | P2 — polish |
+| 27 | Error recovery | P2 — trust |
+| 28 | Trust signals | P2 — credibility |
+| 29 | Delight details | P3 — joy |
 
 ---
 

@@ -32,23 +32,21 @@
 ### Task 1: Compound withdrawals in `drawdownPath`
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js:53-134`
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: nothing new.
 - Produces: `drawdownPath(portfolioValues: number[], monthlySpend: number, options?: DrawdownOptions): DrawdownResult` where
 
 ```ts
 type DrawdownOptions = {
-  periodsPerYear?: number; // default 12
-  inflationRate?: number; // default 0
-  cashBufferMonths?: number; // default 0   (Task 2)
-  guardrail?: 'none' | 'rpr-80' | 'guyton-klinger' | 'vpw'; // default 'none'
-  startingValue?: number; // default portfolioValues[0]
-  age?: number; // required when guardrail === 'vpw'
+  periodsPerYear?: number;      // default 12
+  inflationRate?: number;       // default 0
+  cashBufferMonths?: number;    // default 0   (Task 2)
+  guardrail?: 'none' | 'rpr-80' | 'guyton-klinger' | 'vpw';  // default 'none'
+  startingValue?: number;       // default portfolioValues[0]
+  age?: number;                 // required when guardrail === 'vpw'
 };
 
 type DrawdownResult = {
@@ -57,8 +55,8 @@ type DrawdownResult = {
   maxDrawdown: number;
   terminalReal: number;
   yearsLasted: number;
-  bufferBalance: number; // Task 2
-  bufferRefills: number; // Task 2
+  bufferBalance: number;        // Task 2
+  bufferRefills: number;        // Task 2
 };
 ```
 
@@ -121,17 +119,14 @@ git commit -m "fix: compound withdrawals in drawdownPath"
 ### Task 2: Fund and refill the cash buffer
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js` (drawdown loop)
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: `drawdownPath` from Task 1.
 - Produces: `DrawdownResult.bufferBalance` (remaining buffer dollars at the end) and `bufferRefills` (count), per the Task 1 type.
 
 Rules:
-
 - The buffer is **carved out of the portfolio at month 0**: `balances[0] -= cashBufferMonths * monthlySpend`.
 - Spend draws from the buffer first, then the portfolio.
 - Refill to `cashBufferMonths * monthlySpend` whenever the portfolio exceeds 90% of its running peak.
@@ -146,11 +141,7 @@ it('funds the buffer out of the portfolio', () => {
 });
 
 it('refills the buffer after a recovery', () => {
-  const dip = [
-    ...flat.slice(0, 120),
-    ...flat.slice(120).map(v => v * 0.7),
-    ...flat.slice(240).map(v => v * 2),
-  ];
+  const dip = [...flat.slice(0, 120), ...flat.slice(120).map(v => v * 0.7), ...flat.slice(240).map(v => v * 2)];
   const r = drawdownPath(dip, 4000, { cashBufferMonths: 12 });
   expect(r.bufferRefills).toBeGreaterThan(0);
   expect(r.bufferBalance).toBeGreaterThan(0);
@@ -187,12 +178,10 @@ git commit -am "fix: fund and refill the cash buffer in drawdownPath"
 ### Task 3: Run Monte Carlo in dollars
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js:280-474`
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: `guardrailSpend` (Task 5 signature; until then keep the existing call shape).
 - Produces: `monteCarloWithWithdrawals(allCloses, weights, vols, corrMatrix, options)` where `options.startingValue: number` is **required** and means portfolio dollars. Omitting it throws `TypeError('startingValue is required (dollars)')`.
 
@@ -209,29 +198,14 @@ it('requires a starting value in dollars', () => {
 });
 
 it('succeeds with no spending', () => {
-  const r = monteCarloWithWithdrawals(...args, {
-    simulations: 50,
-    steps: 120,
-    startingValue: 1e6,
-    monthlySpend: 0,
-  });
+  const r = monteCarloWithWithdrawals(...args, { simulations: 50, steps: 120, startingValue: 1e6, monthlySpend: 0 });
   expect(r.successRate).toBe(1);
   expect(r.stats.median).toBeGreaterThan(1e6);
 });
 
 it('gets worse as spending rises', () => {
-  const low = monteCarloWithWithdrawals(...args, {
-    simulations: 200,
-    steps: 240,
-    startingValue: 1e6,
-    monthlySpend: 2000,
-  });
-  const high = monteCarloWithWithdrawals(...args, {
-    simulations: 200,
-    steps: 240,
-    startingValue: 1e6,
-    monthlySpend: 9000,
-  });
+  const low = monteCarloWithWithdrawals(...args, { simulations: 200, steps: 240, startingValue: 1e6, monthlySpend: 2000 });
+  const high = monteCarloWithWithdrawals(...args, { simulations: 200, steps: 240, startingValue: 1e6, monthlySpend: 9000 });
   expect(high.successRate).toBeLessThan(low.successRate);
   expect(high.successRate).toBeLessThan(1);
 });
@@ -262,12 +236,10 @@ git commit -am "fix: run monteCarloWithWithdrawals in dollars"
 ### Task 4: Honest historical success rate and available history
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js:141-243`
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Consumes: `drawdownPath` from Task 1.
 - Produces: `rollingWithdrawalRates(portfolioValues, options)` returning `{ swr, pwr, successRate, effectiveYears, referenceRate, worstStart, worstDepletionYear, maxDrawdown, samples }`.
   - `options.referenceRate?: number` — default `0.04`. `successRate` is the share of windows in which this **fixed** rate survives.
@@ -315,12 +287,10 @@ git commit -am "fix: report honest success rate and available history"
 ### Task 5: Make guardrails annual-rate correct
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js:630-716`, and both call sites in `drawdownPath` and `monteCarloWithWithdrawals`
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `guardrailSpend(currentSpendPerPeriod, portfolioValue, startingValue, policy, opts)` returning `{ nextSpend, policyState, cutRate }`, where `nextSpend` is **per period**.
   - `opts.periodsPerYear?: number` — default 12.
   - `opts.initialRate?: number` — default `monthlySpend * periodsPerYear / startingValue` supplied by the caller.
@@ -385,12 +355,10 @@ git commit -am "fix: apply guardrail rates on the correct period"
 ### Task 6: Correct withdrawal sequencing
 
 **Files:**
-
 - Modify: `src/utils/withdrawal.js:483-536`
 - Test: `src/utils/__tests__/withdrawal.test.js`
 
 **Interfaces:**
-
 - Produces: `withdrawalSequence(accounts, monthlySpend, options)` returning `{ byAccount: { [account]: number }, totalSpend, rmdSurplus, shortfall }`, all monthly. `byAccount` values stay **numbers** (the UI builds its own rows). `rmdSurplus = max(0, rmdMonthly - remainingSpendBeforeTraditional)`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -400,11 +368,7 @@ it('never truncates an RMD below its floor', () => {
   const r = withdrawalSequence(
     { Taxable: 100_000, 'Traditional IRA / 401k': 500_000, 'Roth IRA': 0 },
     1000,
-    {
-      bracketHeuristic: true,
-      traditionalBracketCap: 500,
-      rmdByAccount: { 'Traditional IRA / 401k': 2000 },
-    }
+    { bracketHeuristic: true, traditionalBracketCap: 500, rmdByAccount: { 'Traditional IRA / 401k': 2000 } }
   );
   expect(r.byAccount['Traditional IRA / 401k']).toBe(2000);
 });
@@ -445,12 +409,10 @@ git commit -am "fix: keep RMD floors intact and report RMD surplus"
 ### Task 7: Weight the backtest portfolio correctly
 
 **Files:**
-
 - Create: `src/utils/portfolioPath.js`
 - Test: `src/utils/__tests__/portfolioPath.test.js`
 
 **Interfaces:**
-
 - Produces: `buildPortfolioPath(seriesByTicker: Record<string, number[]>, weights: Record<string, number>, startingValue: number): number[]` — `path[i] = startingValue * Σ w_k * series_k[i] / series_k[0]`. Tickers missing from `seriesByTicker` are dropped and the remaining weights renormalised. Returns `[]` when no ticker has a series.
 
 - [ ] **Step 1: Write the failing test**
@@ -467,12 +429,8 @@ it('weights by target weight, not by share price', () => {
 });
 
 it('renormalises weights for tickers without history', () => {
-  const path = buildPortfolioPath(
-    { SPY: [100, 110], TLT: [50, 52] },
-    { SPY: 0.5, TLT: 0.3, GLD: 0.2 },
-    1000
-  );
-  expect(path[1]).toBeCloseTo((1000 * (0.5 * 1.1 + 0.3 * 1.04)) / 0.8, 2);
+  const path = buildPortfolioPath({ SPY: [100, 110], TLT: [50, 52] }, { SPY: 0.5, TLT: 0.3, GLD: 0.2 }, 1000);
+  expect(path[1]).toBeCloseTo(1000 * (0.5 * 1.1 + 0.3 * 1.04) / 0.8, 2);
 });
 ```
 
@@ -502,12 +460,10 @@ git commit -m "fix: weight the backtest portfolio by target weight"
 ### Task 8: Rewire `App.jsx` to the corrected contracts
 
 **Files:**
-
 - Modify: `src/App.jsx` (`calculateRetirement`, Retirement tab render, `analysisSignature`)
 - Test: `tests/e2e/retirement.spec.js`
 
 **Interfaces:**
-
 - Consumes: every function above.
 - Produces: no new exports.
 
@@ -568,7 +524,6 @@ git commit -am "fix: wire the corrected withdrawal contracts into the UI"
 ### Task 9: Make the test harness able to fail
 
 **Files:**
-
 - Modify: `tests/e2e/retirement.spec.js` (Yahoo mock), `src/mocks/handlers.js`, `src/utils/__tests__/finance.test.js`
 
 - [ ] **Step 1: Add `timestamp` to every mocked monthly response**
@@ -595,7 +550,6 @@ git commit -am "test: give the retirement mocks real timestamps and a value orac
 ### Task 10: Document and verify
 
 **Files:**
-
 - Modify: `Known Limitations.md`, `README.md`, `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (§9 M3.5 state)
 
 - [ ] **Step 1: Update `Known Limitations.md`** — remove "No RMD logic yet"; state the remaining limitations honestly: heuristic tax logic, constant inflation, Yahoo single source, historical overlap limits, and that guardrails are models not advice.
@@ -627,7 +581,7 @@ Title: `M3.5: correctness remediation`. Body links the review record and lists e
 
 **Spec coverage:** §6.1 recursion → Task 1. §6.2 success/effective history → Task 4. §6.3 dollar units → Task 3. §6.6 period contract → Task 5. §8 numeric oracles → Tasks 1–7 plus Task 9. §5.5 UI obligations and the review's UI findings → Task 8. Buffer funding/refill (§9.2) → Task 2. Portfolio path weighting (review C9) → Task 7. Sequencing (review C5, C6, C8) → Tasks 6 and 8. Docs (§12) → Task 10.
 
-**Gaps found and accepted:** modelling the income floor as a _step_ at the SS/pension start age (review Important #6) is **deferred to M4**, because it changes the drawdown contract's spend signature. Task 8 instead labels the bridge card explicitly as "income assumed from year 0" so the current behaviour is not silently misleading. This is a deliberate scope cut, recorded here so it is not lost.
+**Gaps found and accepted:** modelling the income floor as a *step* at the SS/pension start age (review Important #6) is **deferred to M4**, because it changes the drawdown contract's spend signature. Task 8 instead labels the bridge card explicitly as "income assumed from year 0" so the current behaviour is not silently misleading. This is a deliberate scope cut, recorded here so it is not lost.
 
 **Type consistency:** `periodsPerYear` is used with the same meaning in Tasks 1, 4 and 5. `startingValue` means dollars in Tasks 1 and 3. `byAccount` stays a map of numbers throughout; only the UI builds rows. `effectiveYears` is produced in Task 4 and consumed in Task 8.9.
 

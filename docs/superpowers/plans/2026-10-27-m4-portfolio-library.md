@@ -35,17 +35,14 @@
 ### Task 1: Portfolio templates module (`portfolios.js`)
 
 **Files:**
-
 - Create: `src/utils/portfolios.js`
 - Create: `src/utils/__tests__/portfolios.test.js`
 
 **Interfaces:**
-
 - Consumes: nothing new (self-contained).
 - Produces: `PORTFOLIO_TEMPLATES` (array of template objects), `diversificationScore(corrMatrix)`.
 
 Template schema:
-
 ```js
 {
   id: string;              // slug, e.g. 'golden-butterfly'
@@ -58,7 +55,6 @@ Template schema:
 ```
 
 `diversificationScore(corrMatrix)` returns:
-
 ```js
 {
   avgPairwiseCorrelation: number,
@@ -99,11 +95,7 @@ describe('PORTFOLIO_TEMPLATES', () => {
     expect(gb.source).toBe('Risk Parity Radio');
     // Exact allocations from RPR page (to be filled at implementation)
     expect(gb.allocations).toEqual({
-      VTI: 0.2,
-      VIOV: 0.2,
-      VGLT: 0.2,
-      VGSH: 0.2,
-      GLDM: 0.2,
+      VTI: 0.20, VIOV: 0.20, VGLT: 0.20, VGSH: 0.20, GLDM: 0.20
     });
   });
 
@@ -119,19 +111,17 @@ describe('diversificationScore', () => {
     const highCorr = {
       A: { A: 1, B: 0.8, C: 0.8 },
       B: { A: 0.8, B: 1, C: 0.8 },
-      C: { A: 0.8, B: 0.8, C: 1 },
+      C: { A: 0.8, B: 0.8, C: 1 }
     };
     const r = diversificationScore(highCorr);
     expect(r.avgPairwiseCorrelation).toBeCloseTo(0.8, 2);
-    expect(r.warnings).toContain(
-      'Average pairwise correlation exceeds 0.6 — portfolio may lack diversification'
-    );
+    expect(r.warnings).toContain('Average pairwise correlation exceeds 0.6 — portfolio may lack diversification');
   });
 
   it('flags low macro class count < 4', () => {
     const equityOnly = {
       VTI: { VTI: 1, VOO: 0.95 },
-      VOO: { VTI: 0.95, VOO: 1 },
+      VOO: { VTI: 0.95, VOO: 1 }
     };
     const r = diversificationScore(equityOnly);
     expect(r.classCount).toBeLessThan(4);
@@ -142,7 +132,7 @@ describe('diversificationScore', () => {
     const wellDiv = {
       VTI: { VTI: 1, TLT: -0.2, GLD: 0.1 },
       TLT: { VTI: -0.2, TLT: 1, GLD: 0.05 },
-      GLD: { VTI: 0.1, TLT: 0.05, GLD: 1 },
+      GLD: { VTI: 0.1, TLT: 0.05, GLD: 1 }
     };
     const r = diversificationScore(wellDiv);
     expect(r.avgPairwiseCorrelation).toBeLessThan(0.6);
@@ -160,7 +150,6 @@ Expected: FAIL — module not found / exports missing.
 - [ ] **Step 3: Implement `portfolios.js`**
 
 Create `src/utils/portfolios.js` with:
-
 - `PORTFOLIO_TEMPLATES` array with at least 6 templates (Golden Butterfly, All Seasons, Golden Ratio, Permanent, 50/50, Aggressive) sourced from RPR pages with exact allocations and `lastReviewed` dates.
 - `diversificationScore(corrMatrix)` — computes average/max pairwise correlation (excluding diagonal), counts macro classes from ticker classification heuristic (equity/bonds/commodities/real estate/cash), applies RPR warning thresholds (avg > 0.6, classes < 4).
 - Export `PORTFOLIO_TEMPLATES`, `diversificationScore`, `MACRO_CLASS_MAP` (ticker -> class).
@@ -182,17 +171,14 @@ git commit -m "feat: add portfolios.js with templates and diversificationScore"
 ### Task 2: Portfolios tab UI in `App.jsx`
 
 **Files:**
-
 - Modify: `src/App.jsx` (add `Portfolios` tab, template selector, 3-way comparison view)
 - Modify: `src/utils/portfolios.js` (add `loadTemplate` helper if needed)
 
 **Interfaces:**
-
 - Consumes: `PORTFOLIO_TEMPLATES` from Task 1, `calculateRetirement` engine, `targetWeights`, `totalValue`, `accounts`.
 - Produces: new tab UI state (`selectedTemplateId`, `comparisonMode`), comparison render.
 
 UI requirements (per `DESIGN.md`):
-
 - Tab in tab strip: "Portfolios"
 - Left panel: template selector dropdown with search/filter
 - Main panel: 3-column comparison (Current | Template | Difference) showing:
@@ -259,16 +245,13 @@ git commit -m "feat: add Portfolios tab with template library and 3-way comparis
 ### Task 3: Template load triggers analysis & comparison metrics
 
 **Files:**
-
 - Modify: `src/App.jsx` (wire template load → analysis → retirement comparison)
 
 **Interfaces:**
-
 - Consumes: `calculateRetirement` (async), `rollingWithdrawalRates`, `monteCarloWithWithdrawals`.
 - Produces: `comparisonResults` state with `{ current: metrics, template: metrics, difference: metrics }`.
 
 Behavior:
-
 - User selects template → clicks "Load Template" → tickers/weights update → "Run Analysis" auto-triggers → retirement results computed for both current and template portfolios → comparison view renders with difference column.
 
 - [ ] **Step 1: Write failing E2E test**
@@ -321,12 +304,10 @@ git commit -m "feat: wire template load → analysis → 3-way retirement compar
 ### Task 4: Diversification score integration & warnings
 
 **Files:**
-
 - Modify: `src/App.jsx` (show diversification score in Portfolios tab)
 - Modify: `src/utils/portfolios.js` (ensure `diversificationScore` exported)
 
 **Interfaces:**
-
 - Consumes: `diversificationScore` from `portfolios.js`, `corrMatrix` from analysis.
 - Produces: diversification score card + warning banner in Portfolios tab.
 
@@ -380,11 +361,9 @@ git commit -m "feat: show diversification score and warnings in Portfolios tab"
 ### Task 5: Persist/load template selection & comparison state
 
 **Files:**
-
 - Modify: `src/App.jsx` (add `selectedTemplateId` and `comparisonMode` to persisted state)
 
 **Interfaces:**
-
 - Consumes: existing `saveState`/`loadState` persistence.
 - Produces: `selectedTemplateId`, `comparisonMode` persisted in `shannonsdemon_v1`.
 
@@ -405,9 +384,7 @@ test('Template selection and comparison mode persist across reload', async ({ pa
   await page.waitForSelector('#root');
   await page.click('button:has-text("Portfolios")');
   // Template still selected
-  await expect(page.getByRole('combobox', { name: /select template/i })).toHaveValue(
-    /Golden Butterfly/i
-  );
+  await expect(page.getByRole('combobox', { name: /select template/i })).toHaveValue(/Golden Butterfly/i);
   // Comparison mode still on
   await expect(page.getByText('Difference')).toBeVisible();
 });
@@ -441,13 +418,11 @@ git commit -m "feat: persist template selection and comparison mode"
 ### Task 6: E2E value assertions & timestamped mocks (complete Task 9)
 
 **Files:**
-
 - Modify: `tests/e2e/portfolios.spec.js` (add numeric assertions)
 - Modify: `src/mocks/handlers.js` (ensure timestamps for monthly history)
 - Modify: `src/utils/__tests__/finance.test.js` (move `fetchMonthlyHistory` under MSW)
 
 **Interfaces:**
-
 - Consumes: timestamped Yahoo mock, numeric oracle expectations.
 - Produces: E2E tests asserting metric values, not labels.
 
@@ -496,13 +471,11 @@ git commit -m "test: add numeric assertions and timestamped mocks for Portfolios
 ### Task 7: Documentation & verification (Task 10)
 
 **Files:**
-
 - Modify: `README.md` (add Portfolios tab docs)
 - Modify: `Known Limitations.md` (update with M4 status)
 - Modify: `docs/superpowers/specs/2026-10-25-retirement-production-roadmap-design.md` (mark M4 complete)
 
 **Interfaces:**
-
 - Consumes: all M4 work.
 - Produces: updated docs, roadmap marked complete.
 
@@ -527,7 +500,6 @@ env -u NODE_OPTIONS npm run lint
 env -u NODE_OPTIONS npm run build
 env -u NODE_OPTIONS npx playwright test tests/e2e/portfolios.spec.js
 ```
-
 Expected: all green, 0 ESLint errors, build passes, E2E portfolios tests pass.
 
 - [ ] **Step 5: Commit and push**
@@ -543,7 +515,6 @@ git push origin m4-portfolio-library
 ## Self-Review
 
 **Spec coverage:**
-
 - §7.1 Templates → Task 1
 - §7.2 Diversification score → Task 1 + Task 4
 - §9 M4 Portfolios tab & comparison → Task 2, Task 3
@@ -551,13 +522,11 @@ git push origin m4-portfolio-library
 - §12 DoD → Task 7
 
 **Type consistency:**
-
 - `PORTFOLIO_TEMPLATES` schema consistent across Tasks 1, 2, 3.
 - `diversificationScore` return type same in Tasks 1, 4.
 - `comparisonResults` shape defined in Task 3, used in Task 3, 4.
 
 **Review Focus coverage:**
-
 1. Template data accuracy → Task 1 oracle tests + Task 2 E2E
 2. Diversification thresholds → Task 1 oracle + Task 4 E2E
 3. Comparison math → Task 3 oracle (difference = template - current)
