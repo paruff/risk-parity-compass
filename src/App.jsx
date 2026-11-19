@@ -15,6 +15,7 @@ function useMediaQuery(query) {
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ACCOUNT_TYPES,
+  CASH,
   LOOKBACK_OPTIONS,
   fetchQuote,
   fetchMonthlyHistory,
@@ -23,6 +24,7 @@ import {
   ercWeights,
   taxLocationWaterfall,
   generateTrades,
+  cashAfterTrades,
   correlationMatrix,
   riskContribution,
   simulatePerformance,
@@ -251,6 +253,13 @@ export default function App() {
       }
     }
   }
+  // Cash left per account after the trades, only for accounts where cash was entered.
+  const cashLeft = Object.fromEntries(
+    Object.entries(cashAfterTrades(currentHoldings, trades)).filter(
+      ([acct]) => (currentHoldings[acct]?.[CASH] ?? 0) > 0
+    )
+  );
+  const totalCash = Object.values(cashAfterTrades(currentHoldings, [])).reduce((a, b) => a + b, 0);
   const currentTotalFromPrices = Object.values(currentValueByTicker).reduce((a, b) => a + b, 0);
 
   // ── Run analysis
@@ -524,7 +533,7 @@ export default function App() {
         acct &&
         ticker &&
         ACCOUNT_TYPES.includes(acct.trim()) &&
-        tickers.includes(ticker.trim().toUpperCase())
+        (ticker.trim().toUpperCase() === CASH || tickers.includes(ticker.trim().toUpperCase()))
       ) {
         updateHolding(acct.trim(), ticker.trim().toUpperCase(), parseFloat(shares) || 0);
       }
@@ -1319,6 +1328,7 @@ export default function App() {
               S={S}
               analysisState={analysisState}
               corrMatrix={corrMatrix}
+              currentCash={totalCash}
               currentValueByTicker={currentValueByTicker}
               errorMsg={errorMsg}
               failedTicker={failedTicker}
@@ -1345,6 +1355,7 @@ export default function App() {
             <TradesTab
               S={S}
               analysisState={analysisState}
+              cashLeft={cashLeft}
               exportState={exportState}
               exportTradesCSV={exportTradesCSV}
               threshold={threshold}

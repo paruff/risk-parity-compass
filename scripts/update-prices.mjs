@@ -22,7 +22,7 @@ export const UNIVERSE = [
     'VNQ',
     'EEM', // app defaults
     ...COMMON_ETFS,
-    ...Object.keys(MACRO_CLASS_MAP),
+    ...Object.keys(MACRO_CLASS_MAP).filter(t => t !== 'CASH'), // cash is dollars, not a fund
     ...PORTFOLIO_TEMPLATES.flatMap(t => Object.keys(t.allocations)),
   ]),
 ].sort();
