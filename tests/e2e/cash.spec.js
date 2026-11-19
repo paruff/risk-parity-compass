@@ -42,6 +42,8 @@ test.describe('Cash tracking', () => {
     await expect(page.getByText('Check your share counts')).toHaveCount(0);
     await page.fill('#cash-Taxable', '10000'); // 80% short
     await expect(page.getByText('Check your share counts').first()).toBeVisible();
+    // No analysis yet, so no targets: no drift warning against a phantom 0% target.
+    await expect(page.getByText(/% target/)).toHaveCount(0);
   });
 });
 

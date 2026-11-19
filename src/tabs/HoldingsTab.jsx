@@ -50,7 +50,10 @@ export default function HoldingsTab({
     ACCOUNT_TYPES.map(acct => [acct, holdingsValue(currentHoldings[acct], prices)])
   );
   const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
-  const drift = positionDrift(currentValueByTicker, totalCash, targetWeights);
+  // No targets exist until an analysis has run; comparing against {} would flag everything as 0% target.
+  const drift = Object.keys(targetWeights ?? {}).length
+    ? positionDrift(currentValueByTicker, totalCash, targetWeights)
+    : [];
   const driftByTicker = Object.fromEntries(drift.map(d => [d.ticker, d]));
   const tracked = currentTotalFromPrices + totalCash;
 
