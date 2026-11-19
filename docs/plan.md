@@ -41,6 +41,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 | Pages site broken: repo was `shannonsdemon` but Vite `base` and all docs use `/risk-parity-compass/` | #24 | **Done 2026-10-26:** repo renamed to `risk-parity-compass`; https://paruff.github.io/risk-parity-compass/ returns 200. Close #24 once verified in a browser. |
 | opencode / Claude workflow shells (`.opencode/`, `.claude/`) | — | **Moved out of the repo 2026-10-28:** untracked and gitignored; they live on the maintainer's machine only. AI-DLC removed 2026-11-05. |
 | `DESIGN.md` conformance of new views | — | `PortfoliosTab.jsx` warning banner switched to `warning-surface`/`warning-border`/`warning` tokens. |
+| GOVZ, AVUV, KBWP tickers and per-account cash | #65 | Plan: `docs/superpowers/plans/2026-11-19-tickers-and-cash.md`. Cash is `currentHoldings[acct].CASH` (dollars). |
 
 ## Deferred
 

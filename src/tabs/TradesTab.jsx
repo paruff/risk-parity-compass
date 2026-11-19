@@ -6,6 +6,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 export default function TradesTab({
   S,
   analysisState,
+  cashLeft,
   exportState,
   exportTradesCSV,
   threshold,
@@ -159,6 +160,12 @@ export default function TradesTab({
                         </span>
                       </div>
                     ))}
+                    {cashLeft[acct] != null && (
+                      <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 6 }}>
+                        Cash after trades: {fmt.usd(cashLeft[acct])}
+                        {cashLeft[acct] < -0.5 && ' (buys exceed cash and sales; add funds)'}
+                      </div>
+                    )}
                   </div>
                 );
               })}

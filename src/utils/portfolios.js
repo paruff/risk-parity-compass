@@ -17,6 +17,8 @@ export const MACRO_CLASS_MAP = {
   IWM: 'US Equity',
   SPY: 'US Equity',
   SCHB: 'US Equity',
+  AVUV: 'US Equity', // small-cap value
+  KBWP: 'US Equity', // property & casualty insurers
   // International Equity
   VXUS: 'Intl Equity',
   VEU: 'Intl Equity',
@@ -29,6 +31,7 @@ export const MACRO_CLASS_MAP = {
   TLT: 'US Long Bonds',
   VGLT: 'US Long Bonds',
   EDV: 'US Long Bonds',
+  GOVZ: 'US Long Bonds', // 25+ yr Treasury STRIPS
   IEF: 'US Interm Bonds',
   VGIT: 'US Interm Bonds',
   SCHR: 'US Interm Bonds',
@@ -63,6 +66,9 @@ export const MACRO_CLASS_MAP = {
   // Crypto (optional, not in RPR templates)
   // BITO: 'Crypto', IBIT: 'Crypto',
 };
+
+// Cash is tracked as a dollar balance (see CASH in finance.js), not a priced fund.
+MACRO_CLASS_MAP.CASH = 'Cash';
 
 // Default class for unknown tickers
 const DEFAULT_CLASS = 'Other';

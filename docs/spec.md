@@ -48,6 +48,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Built (PR #27) |
 | FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Built (PR #27) |
 | FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Built (PR #28) |
+| FR-14 | GOVZ, AVUV, KBWP supported; per-account cash balance reconciled to the account balance and shown after trades | #65 | Built |
 | FR-14 | Historical metrics withheld with a reason when history is too short; window count always shown | M7 | Built (#43) |
 | FR-15 | Rolling metrics and Monte Carlo on 1928–2025 proxy history (block bootstrap by calendar year) when every holding has a proxy, labelled as such | M7 | Built (#48, #50, #53) |
 | FR-16 | Bracket-filling draw order with optional Roth conversion, federal-only heuristic | M7 | Built (#51) |

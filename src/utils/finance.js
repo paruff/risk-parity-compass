@@ -60,6 +60,9 @@ const COMMON_ETFS = [
   'IJR',
   'XLK',
   'XLE',
+  'GOVZ',
+  'AVUV',
+  'KBWP',
 ];
 
 function levenshtein(a, b) {
@@ -249,6 +252,32 @@ function generateTrades(currentHoldings, targetAllocation, prices, totalValue, t
       price,
     }))
     .sort((a, b) => b.drift - a.drift || b.dollarAmount - a.dollarAmount);
+}
+
+// ─── CASH ────────────────────────────────────────────────────────────────────
+// Cash is a dollar balance stored per account under currentHoldings[account].CASH (price 1, no
+// fetch, no volatility). It rides along in the existing holdings state, so storage, plan
+// import/export and scenarios need no change. generateTrades skips it (no price entry).
+const CASH = 'CASH';
+
+// One account's holdings -> { invested: priced shares in dollars, cash: dollars }.
+function holdingsValue(held = {}, prices = {}) {
+  let invested = 0;
+  for (const [ticker, shares] of Object.entries(held)) {
+    if (ticker !== CASH && shares > 0 && prices[ticker]) invested += shares * prices[ticker];
+  }
+  return { invested, cash: Math.max(0, held[CASH] ?? 0) };
+}
+
+// Per-account cash left once every trade executes: cash - buys + sells.
+function cashAfterTrades(currentHoldings, trades) {
+  const out = {};
+  for (const [acct, held] of Object.entries(currentHoldings)) out[acct] = held[CASH] ?? 0;
+  for (const t of trades) {
+    out[t.account] =
+      (out[t.account] ?? 0) + (t.action === 'BUY' ? -t.dollarAmount : t.dollarAmount);
+  }
+  return out;
 }
 
 // ─── CORRELATION ─────────────────────────────────────────────────────────────
@@ -710,6 +739,9 @@ const fmt = {
 };
 
 export {
+  CASH,
+  holdingsValue,
+  cashAfterTrades,
   COMMON_ETFS,
   TAX_INEFFICIENCY,
   ACCOUNT_TYPES,
