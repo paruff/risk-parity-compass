@@ -36,6 +36,24 @@ test.describe('Cash tracking', () => {
     await page.click('button:has-text("Trades")');
     await expect(page.locator('text=/Cash after trades: -?\\$[\\d,.]+/').first()).toBeVisible();
   });
+
+  test('warns when the entered holdings are far from the account balance', async ({ page }) => {
+    await page.fill('#cash-Taxable', '49000'); // within 5% of the $50,000 balance
+    await expect(page.getByText('Check your share counts')).toHaveCount(0);
+    await page.fill('#cash-Taxable', '10000'); // 80% short
+    await expect(page.getByText('Check your share counts').first()).toBeVisible();
+    // No analysis yet, so no targets: no drift warning against a phantom 0% target.
+    await expect(page.getByText(/\d% target/)).toHaveCount(0);
+  });
+});
+
+test('flags a position far from its risk parity target after analysis', async ({ page }) => {
+  // All $50,000 in SPY; risk parity never puts ~all of the portfolio in one asset.
+  await page.fill('#holding-Taxable-SPY', '100');
+  await page.click('button:has-text("Run Analysis")');
+  await expect(page.locator('text=Risk Parity Weights')).toBeVisible({ timeout: 15000 });
+  await page.click('button:has-text("Current Holdings")');
+  await expect(page.getByText(/SPY is .* of holdings vs .* target/)).toBeVisible();
 });
 
 test('analysis lists cash as a current weight with a 0% target', async ({ page }) => {

@@ -42,6 +42,7 @@ Order = severity then dependency. One issue = one branch = one PR.
 | opencode / Claude workflow shells (`.opencode/`, `.claude/`) | — | **Moved out of the repo 2026-10-28:** untracked and gitignored; they live on the maintainer's machine only. AI-DLC removed 2026-11-05. |
 | `DESIGN.md` conformance of new views | — | `PortfoliosTab.jsx` warning banner switched to `warning-surface`/`warning-border`/`warning` tokens. |
 | GOVZ, AVUV, KBWP tickers and per-account cash | #65 | Plan: `docs/superpowers/plans/2026-11-19-tickers-and-cash.md`. Cash is `currentHoldings[acct].CASH` (dollars). |
+| Validate share entries against the intended balance | #64 | Plan: `docs/superpowers/plans/2026-11-19-validate-share-entries.md`. Validate-first (5% balance gap, 10-point target drift); assume is a follow-up. |
 
 ## Deferred
 

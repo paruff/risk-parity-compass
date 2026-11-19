@@ -1,13 +1,23 @@
-import { ACCOUNT_TYPES, CASH, fmt, holdingsValue } from '../utils/finance';
+import {
+  ACCOUNT_TYPES,
+  CASH,
+  fmt,
+  holdingsValue,
+  positionDrift,
+  validateAccount,
+} from '../utils/finance';
 import { C } from '../tokens';
 import ErrorBoundary from '../components/ErrorBoundary';
 
-// Invested + cash against the account balance; the gap is money not yet entered above.
-function AccountReconcile({ balance, invested, cash }) {
-  const gap = balance - invested - cash;
+// Invested + cash against the account balance; warns when the gap exceeds 5% (typo or stale count).
+function AccountReconcile({ invested, cash, gap, warn }) {
   if (invested + cash === 0) return null;
   return (
-    <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 3 }}>
+    <div
+      role={warn ? 'alert' : undefined}
+      style={{ fontSize: 13, color: warn ? C.warning : C.onSurfaceMuted, marginTop: 3 }}
+    >
+      {warn && '⚠ Check your share counts: '}
       Invested {fmt.usd(invested)} + cash {fmt.usd(cash)}
       {Math.abs(gap) >= 1 && (
         <>
@@ -30,6 +40,7 @@ export default function HoldingsTab({
   currentValueByTicker,
   handlePaste,
   prices,
+  targetWeights,
   tickers,
   totalValue,
   updateHolding,
@@ -37,7 +48,17 @@ export default function HoldingsTab({
   const valueByAcct = Object.fromEntries(
     ACCOUNT_TYPES.map(acct => [acct, holdingsValue(currentHoldings[acct], prices)])
   );
+  const checkByAcct = Object.fromEntries(
+    ACCOUNT_TYPES.map(acct => [
+      acct,
+      validateAccount(currentHoldings[acct], prices, accounts[acct] ?? 0),
+    ])
+  );
   const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
+  // No targets exist until an analysis has run; without them show weights only, never a 0% target.
+  const hasTargets = Object.keys(targetWeights ?? {}).length > 0;
+  const drift = positionDrift(currentValueByTicker, totalCash, targetWeights);
+  const driftByTicker = Object.fromEntries(drift.map(d => [d.ticker, d]));
   const tracked = currentTotalFromPrices + totalCash;
 
   return (
@@ -85,6 +106,8 @@ export default function HoldingsTab({
                   {prices[ticker] && (currentHoldings[acct]?.[ticker] ?? 0) > 0 && (
                     <div style={{ fontSize: 13, color: C.onSurfaceMuted, marginTop: 3 }}>
                       ≈ {fmt.usd(currentHoldings[acct][ticker] * prices[ticker])}
+                      {(accounts[acct] ?? 0) > 0 &&
+                        ` · ${fmt.pct(checkByAcct[acct].positions.find(p => p.ticker === ticker)?.weight ?? 0)} of balance`}
                     </div>
                   )}
                 </div>
@@ -105,7 +128,11 @@ export default function HoldingsTab({
                 placeholder="0"
                 onChange={e => updateHolding(acct, CASH, e.target.value)}
               />
-              <AccountReconcile balance={accounts[acct] ?? 0} {...valueByAcct[acct]} />
+              <AccountReconcile
+                {...valueByAcct[acct]}
+                gap={checkByAcct[acct].gap}
+                warn={checkByAcct[acct].warn}
+              />
             </div>
           </div>
         ))}
@@ -125,7 +152,15 @@ export default function HoldingsTab({
                   }}
                 >
                   <span style={{ color: C.onSurfaceMuted }}>{t}</span>
-                  <span>{fmt.usd(v)}</span>
+                  <span>
+                    {fmt.usd(v)}
+                    {driftByTicker[t] &&
+                      ` · ${fmt.pct(driftByTicker[t].weight)}${
+                        hasTargets
+                          ? ` vs ${fmt.pct(driftByTicker[t].target)} target`
+                          : ' (target after Run Analysis)'
+                      }`}
+                  </span>
                 </div>
               ))}
               {totalCash > 0 && (
@@ -147,6 +182,17 @@ export default function HoldingsTab({
               <strong style={{ color: C.onSurface }}>{fmt.usd(tracked)}</strong> vs account total:{' '}
               <strong style={{ color: C.onSurface }}>{fmt.usd(totalValue)}</strong>
             </div>
+            {(hasTargets ? drift : [])
+              .filter(d => d.warn)
+              .map(d => (
+                <div
+                  key={d.ticker}
+                  role="alert"
+                  style={{ color: C.warning, fontSize: 13, marginTop: 4 }}
+                >
+                  ⚠ {d.ticker} is {fmt.pct(d.weight)} of holdings vs {fmt.pct(d.target)} target
+                </div>
+              ))}
           </div>
         )}
       </div>

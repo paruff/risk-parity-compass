@@ -1316,6 +1316,7 @@ export default function App() {
               currentValueByTicker={currentValueByTicker}
               handlePaste={handlePaste}
               prices={prices}
+              targetWeights={targetWeights}
               tickers={tickers}
               totalValue={totalValue}
               updateHolding={updateHolding}

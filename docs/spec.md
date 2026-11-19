@@ -52,6 +52,7 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 | FR-15 | Rolling metrics and Monte Carlo on 1928–2025 proxy history (block bootstrap by calendar year) when every holding has a proxy, labelled as such | M7          | Built (#48, #50, #53) |
 | FR-16 | Bracket-filling draw order with optional Roth conversion, federal-only heuristic                                                               | M7          | Built (#51)           |
 | FR-17 | GOVZ, AVUV, KBWP supported; per-account cash balance reconciled to the account balance and shown after trades                                  | #65         | Built                 |
+| FR-18 | Share entries validated: position value and weight shown; warning when invested + cash is >5% off the account balance, or a position is >10 points off target | #64 | Built |
 
 ## 3. Calculation contracts (normative)
 
