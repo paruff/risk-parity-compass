@@ -70,6 +70,13 @@ export default function HoldingsTab({
           uninvested money in the <strong>Cash</strong> box of each account.
         </div>
 
+        {Object.keys(prices).length === 0 && (
+          <div style={{ ...S.warning, marginTop: 8 }}>
+            Position values, weights and target checks appear after you{' '}
+            <strong>Run Analysis</strong> (prices and risk parity targets come from it).
+          </div>
+        )}
+
         <div style={S.card}>
           <div style={{ ...S.cardTitle, marginBottom: 6 }}>Bulk paste</div>
           <textarea
