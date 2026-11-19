@@ -51,6 +51,7 @@ export default function HoldingsTab({
   );
   const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
   const drift = positionDrift(currentValueByTicker, totalCash, targetWeights);
+  const driftByTicker = Object.fromEntries(drift.map(d => [d.ticker, d]));
   const tracked = currentTotalFromPrices + totalCash;
 
   return (
@@ -144,7 +145,11 @@ export default function HoldingsTab({
                   }}
                 >
                   <span style={{ color: C.onSurfaceMuted }}>{t}</span>
-                  <span>{fmt.usd(v)}</span>
+                  <span>
+                    {fmt.usd(v)}
+                    {driftByTicker[t] &&
+                      ` · ${fmt.pct(driftByTicker[t].weight)} vs ${fmt.pct(targetWeights[t] ?? 0)} target`}
+                  </span>
                 </div>
               ))}
               {totalCash > 0 && (

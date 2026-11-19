@@ -46,4 +46,11 @@ test('analysis lists cash as a current weight with a 0% target', async ({ page }
   const row = page.locator('tr', { has: page.locator('td:text-is("CASH")') });
   await expect(row).toContainText('$10,000');
   await expect(row).toContainText('+10.0%');
+
+  test('warns when the entered holdings are far from the account balance', async ({ page }) => {
+    await page.fill('#cash-Taxable', '49000'); // within 5% of the $50,000 balance
+    await expect(page.getByText('Check your share counts')).toHaveCount(0);
+    await page.fill('#cash-Taxable', '10000'); // 80% short
+    await expect(page.getByText('Check your share counts').first()).toBeVisible();
+  });
 });
