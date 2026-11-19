@@ -269,6 +269,34 @@ function holdingsValue(held = {}, prices = {}) {
   return { invested, cash: Math.max(0, held[CASH] ?? 0) };
 }
 
+// Share-entry sanity check (#64). Weights are of the stated balance (total when none is stated);
+// warns when invested + cash is more than `tolerance` of the balance away, e.g. a 100 vs 1000 typo.
+function validateAccount(held = {}, prices = {}, balance = 0, tolerance = 0.05) {
+  const { invested, cash } = holdingsValue(held, prices);
+  const base = balance > 0 ? balance : invested + cash;
+  const positions = Object.entries(held)
+    .filter(([t, n]) => t !== CASH && n > 0 && prices[t])
+    .map(([ticker, n]) => ({
+      ticker,
+      value: n * prices[ticker],
+      weight: (n * prices[ticker]) / base,
+    }));
+  const gap = balance - invested - cash;
+  const gapPct = balance > 0 ? Math.abs(gap) / balance : 0;
+  return { positions, gap, gapPct, warn: invested + cash > 0 && balance > 0 && gapPct > tolerance };
+}
+
+// Portfolio-wide weight of each position (cash in the denominator) vs target; warns past `threshold`.
+function positionDrift(valueByTicker = {}, cash = 0, targetWeights = {}, threshold = 0.1) {
+  const total = Object.values(valueByTicker).reduce((a, b) => a + b, 0) + cash;
+  if (total <= 0) return [];
+  return Object.entries(valueByTicker).map(([ticker, v]) => {
+    const weight = v / total;
+    const delta = weight - (targetWeights[ticker] ?? 0);
+    return { ticker, weight, delta, warn: Math.abs(delta) > threshold };
+  });
+}
+
 // Per-account cash left once every trade executes: cash - buys + sells.
 function cashAfterTrades(currentHoldings, trades) {
   const out = {};
@@ -742,6 +770,8 @@ const fmt = {
 export {
   CASH,
   holdingsValue,
+  validateAccount,
+  positionDrift,
   cashAfterTrades,
   COMMON_ETFS,
   TAX_INEFFICIENCY,

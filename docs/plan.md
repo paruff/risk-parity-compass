@@ -6,42 +6,43 @@ One milestone = one branch = one PR (< 400 changed lines). **Agents never merge;
 
 ## Milestones ↔ GitHub issues
 
-| Milestone | Scope | Issue | Issue state | Delivery | Open work |
-|-----------|-------|-------|-------------|----------|-----------|
-| M1 | Withdrawal engine core | #7 | Closed | PR #12 merged | — |
-| M2 | Tax & account mechanics | #8 | Closed | PR #14 merged | — |
-| M3 | Dynamic spending & income floor | #9 | Closed | Tasks 1–5 via #12/#14/#17; Task 6 via PR #25 | — |
-| M3.5 | Correctness remediation | #22 | Closed | PR #17 merged | — |
-| M4 | Portfolio library & comparison | #10 | Closed | PR #18 (templates module) and PR #19 (Portfolios tab) merged | — |
-| M5 | Production hardening & accessibility | #11 | Closed | PR #27 merged | — |
-| M6 | Learning journey | #23 | Closed | PR #28 merged | Contextual field links deferred; guardrail and sequencing modules corrected under M7 (#29, #35) |
-| M7 | Expert review remediation | #37 | Closed | Plan: `docs/superpowers/plans/2026-10-26-m7-expert-review-remediation.md`; see table below | — |
+| Milestone | Scope                                | Issue | Issue state | Delivery                                                                                   | Open work                                                                                       |
+| --------- | ------------------------------------ | ----- | ----------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| M1        | Withdrawal engine core               | #7    | Closed      | PR #12 merged                                                                              | —                                                                                               |
+| M2        | Tax & account mechanics              | #8    | Closed      | PR #14 merged                                                                              | —                                                                                               |
+| M3        | Dynamic spending & income floor      | #9    | Closed      | Tasks 1–5 via #12/#14/#17; Task 6 via PR #25                                               | —                                                                                               |
+| M3.5      | Correctness remediation              | #22   | Closed      | PR #17 merged                                                                              | —                                                                                               |
+| M4        | Portfolio library & comparison       | #10   | Closed      | PR #18 (templates module) and PR #19 (Portfolios tab) merged                               | —                                                                                               |
+| M5        | Production hardening & accessibility | #11   | Closed      | PR #27 merged                                                                              | —                                                                                               |
+| M6        | Learning journey                     | #23   | Closed      | PR #28 merged                                                                              | Contextual field links deferred; guardrail and sequencing modules corrected under M7 (#29, #35) |
+| M7        | Expert review remediation            | #37   | Closed      | Plan: `docs/superpowers/plans/2026-10-26-m7-expert-review-remediation.md`; see table below | —                                                                                               |
 
 ### M7 work items
 
 Order = severity then dependency. One issue = one branch = one PR.
 
-| Order | Issue | Finding | Severity | State | PR |
-|-------|-------|---------|----------|-------|----|
-| 1 | #29 | F1 `rpr-80` can raise spending | Critical | Closed | #39 merged |
-| 2 | #30 | F2+F3 honest historical metrics | Critical | Closed | #43 merged |
-| 3 | #31 | F4 template fidelity audit (independent) | High | Closed | #44 merged |
-| 4 | #32 | Long-run history (before #33) | High | Closed | #48 (data), #53 (rolling metrics) merged |
-| 5 | #33 | F5 block-bootstrap Monte Carlo (after #32) | High | Closed | #50 merged (#49 merged into a stale stacked branch and was re-opened as #50) |
-| 6 | #34 | F6 ERC weights | Medium | Closed | #45 merged |
-| 7 | #35 | F7 tax-aware drawdown | Medium | Closed | #47 (wording), #51 (bracket-fill) merged |
-| 8 | #36 | F8 hygiene | Low | Closed | #46, #52, #54 merged |
+| Order | Issue | Finding                                    | Severity | State  | PR                                                                           |
+| ----- | ----- | ------------------------------------------ | -------- | ------ | ---------------------------------------------------------------------------- |
+| 1     | #29   | F1 `rpr-80` can raise spending             | Critical | Closed | #39 merged                                                                   |
+| 2     | #30   | F2+F3 honest historical metrics            | Critical | Closed | #43 merged                                                                   |
+| 3     | #31   | F4 template fidelity audit (independent)   | High     | Closed | #44 merged                                                                   |
+| 4     | #32   | Long-run history (before #33)              | High     | Closed | #48 (data), #53 (rolling metrics) merged                                     |
+| 5     | #33   | F5 block-bootstrap Monte Carlo (after #32) | High     | Closed | #50 merged (#49 merged into a stale stacked branch and was re-opened as #50) |
+| 6     | #34   | F6 ERC weights                             | Medium   | Closed | #45 merged                                                                   |
+| 7     | #35   | F7 tax-aware drawdown                      | Medium   | Closed | #47 (wording), #51 (bracket-fill) merged                                     |
+| 8     | #36   | F8 hygiene                                 | Low      | Closed | #46, #52, #54 merged                                                         |
 
 **Next action:** none scheduled. Candidates: expose Guyton-Klinger/VPW (see Deferred), group the tab props into context, a long-bond and commodity proxy series.
 
 ## Housekeeping items (not milestones)
 
-| Item | Issue | Resolution |
-|------|-------|------------|
-| Pages site broken: repo was `shannonsdemon` but Vite `base` and all docs use `/risk-parity-compass/` | #24 | **Done 2026-10-26:** repo renamed to `risk-parity-compass`; https://paruff.github.io/risk-parity-compass/ returns 200. Close #24 once verified in a browser. |
-| opencode / Claude workflow shells (`.opencode/`, `.claude/`) | — | **Moved out of the repo 2026-10-28:** untracked and gitignored; they live on the maintainer's machine only. AI-DLC removed 2026-11-05. |
-| `DESIGN.md` conformance of new views | — | `PortfoliosTab.jsx` warning banner switched to `warning-surface`/`warning-border`/`warning` tokens. |
-| GOVZ, AVUV, KBWP tickers and per-account cash | #65 | Plan: `docs/superpowers/plans/2026-11-19-tickers-and-cash.md`. Cash is `currentHoldings[acct].CASH` (dollars). |
+| Item                                                                                                 | Issue | Resolution                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pages site broken: repo was `shannonsdemon` but Vite `base` and all docs use `/risk-parity-compass/` | #24   | **Done 2026-10-26:** repo renamed to `risk-parity-compass`; https://paruff.github.io/risk-parity-compass/ returns 200. Close #24 once verified in a browser. |
+| opencode / Claude workflow shells (`.opencode/`, `.claude/`)                                         | —     | **Moved out of the repo 2026-10-28:** untracked and gitignored; they live on the maintainer's machine only. AI-DLC removed 2026-11-05.                       |
+| `DESIGN.md` conformance of new views                                                                 | —     | `PortfoliosTab.jsx` warning banner switched to `warning-surface`/`warning-border`/`warning` tokens.                                                          |
+| GOVZ, AVUV, KBWP tickers and per-account cash                                                        | #65   | Plan: `docs/superpowers/plans/2026-11-19-tickers-and-cash.md`. Cash is `currentHoldings[acct].CASH` (dollars).                                               |
+| Validate share entries against the intended balance                                                  | #64   | Plan: `docs/superpowers/plans/2026-11-19-validate-share-entries.md`. Validate-first (5% balance gap, 10-point target drift); assume is a follow-up.          |
 
 ## Deferred
 
@@ -59,14 +60,14 @@ Each PR: unit tests with independently computed oracles (`docs/spec.md` §4), `n
 
 ## Rename: Shannon's Demon → Risk Parity Compass
 
-| Surface | State |
-|---------|-------|
-| GitHub repo, Pages URL, `package.json`, Vite base | Done (2026-10-26) |
+| Surface                                                                            | State                                                                                  |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| GitHub repo, Pages URL, `package.json`, Vite base                                  | Done (2026-10-26)                                                                      |
 | Storage keys `rpcompass_*`, plan-file `app` id, export filename, import error text | Done in this change; legacy `shannonsdemon_*` keys and plan files still migrate/import |
-| README, AGENTS, intent, spec, `.serena` project name | Done in this change |
-| Local checkout directory `shannonsdemon/` | Manual: `mv` it and re-open the editor |
-| `docs/superpowers/` history, `.agents/skills/portfolio-scenario-analysis` | Left as written; "Shannon's Demon" there names the strategy |
-| Drop legacy-key migration | After one release cycle; track as a #36 follow-up |
+| README, AGENTS, intent, spec, `.serena` project name                               | Done in this change                                                                    |
+| Local checkout directory `shannonsdemon/`                                          | Manual: `mv` it and re-open the editor                                                 |
+| `docs/superpowers/` history, `.agents/skills/portfolio-scenario-analysis`          | Left as written; "Shannon's Demon" there names the strategy                            |
+| Drop legacy-key migration                                                          | After one release cycle; track as a #36 follow-up                                      |
 
 ## Working agreements
 
