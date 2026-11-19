@@ -37,3 +37,13 @@ test.describe('Cash tracking', () => {
     await expect(page.locator('text=/Cash after trades: -?\\$[\\d,.]+/').first()).toBeVisible();
   });
 });
+
+test('analysis lists cash as a current weight with a 0% target', async ({ page }) => {
+  await page.fill('#cash-Taxable', '10000');
+  await page.click('button:has-text("Run Analysis")');
+  await expect(page.locator('text=Risk Parity Weights')).toBeVisible({ timeout: 15000 });
+  // $10,000 of the $100,000 total is 10.0% current, 0.0% target
+  const row = page.locator('tr', { has: page.locator('td:text-is("CASH")') });
+  await expect(row).toContainText('$10,000');
+  await expect(row).toContainText('+10.0%');
+});

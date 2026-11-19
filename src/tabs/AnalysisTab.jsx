@@ -1,4 +1,4 @@
-import { ACCOUNT_TYPES, TAX_INEFFICIENCY, closestTickers, fmt } from '../utils/finance';
+import { ACCOUNT_TYPES, CASH, TAX_INEFFICIENCY, closestTickers, fmt } from '../utils/finance';
 import { C } from '../tokens';
 import CorrelationMatrix from '../components/CorrelationMatrix';
 import ErrorBoundary from '../components/ErrorBoundary';
@@ -11,6 +11,7 @@ export default function AnalysisTab({
   S,
   analysisState,
   corrMatrix,
+  currentCash = 0,
   currentValueByTicker,
   errorMsg,
   failedTicker,
@@ -30,6 +31,10 @@ export default function AnalysisTab({
   trades,
   vols,
 }) {
+  // Cash is a real current weight with a 0% target, so it shows as drift until trades deploy it.
+  const weightRows = currentCash > 0 ? [...tickers, CASH] : tickers;
+  const valueOf = t => (t === CASH ? currentCash : (currentValueByTicker[t] ?? 0));
+
   return (
     <ErrorBoundary>
       <div role="tabpanel" id="panel-analysis" aria-labelledby="tab-analysis">
@@ -166,8 +171,8 @@ export default function AnalysisTab({
                 target
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tickers.map(t => {
-                  const curW = totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                {weightRows.map(t => {
+                  const curW = totalValue > 0 ? valueOf(t) / totalValue : 0;
                   const tgtW = targetWeights[t] ?? 0;
                   return <WeightBar key={t} ticker={t} current={curW} target={tgtW} />;
                 })}
@@ -200,9 +205,9 @@ export default function AnalysisTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {tickers.map(t => {
+                    {weightRows.map(t => {
                       const tgtW = targetWeights[t] ?? 0;
-                      const curW = totalValue > 0 ? (currentValueByTicker[t] ?? 0) / totalValue : 0;
+                      const curW = totalValue > 0 ? valueOf(t) / totalValue : 0;
                       const drift = curW - tgtW;
                       return (
                         <tr key={t}>
@@ -219,7 +224,7 @@ export default function AnalysisTab({
                           <td style={S.td}>{fmt.vol(vols[t] ?? 0)}</td>
                           <td style={S.td}>{fmt.pct(tgtW)}</td>
                           <td style={S.td}>{fmt.usd(tgtW * totalValue)}</td>
-                          <td style={S.td}>{fmt.usd(currentValueByTicker[t] ?? 0)}</td>
+                          <td style={S.td}>{fmt.usd(valueOf(t))}</td>
                           <td
                             style={{
                               ...S.td,

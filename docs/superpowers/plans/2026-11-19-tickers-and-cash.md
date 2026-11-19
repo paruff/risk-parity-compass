@@ -19,12 +19,12 @@ Cash is a dollar balance under `currentHoldings[account].CASH`, not a priced fun
 
 ## Scope against the issue wording
 
-#65 says cash "counts in total value, weights and trades, and as a macro class". Delivered: cash counts toward the tracked total and the reconcile against the account balance (the account balance already is the total value), is reported in trades as cash after trades, and has a macro class (`Cash`). Not delivered: cash in current-weight rows (see below).
+#65 says cash "counts in total value, weights and trades, and as a macro class". Delivered: cash counts toward the tracked total and the reconcile against the account balance (the account balance already is the total value), is reported in trades as cash after trades, and has a macro class (`Cash`). Cash also appears as a current-weight row (0% target, so it shows as drift) in the Analysis weight bars and table.
 
 ## Not in this PR
 
 - Cash is not a target-weight asset: targets still sum to 100% of the account balance, so the optimiser never chooses to hold cash. A target cash weight is a separate decision.
-- Cash is not a row in the Analysis weight table, and no view reads the `Cash` macro class yet.
+- No view reads the `Cash` macro class yet.
 - `CASH` is excluded from `UNIVERSE` so the price refresh never asks Yahoo for it.
 
 ## Tests

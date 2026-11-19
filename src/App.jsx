@@ -259,6 +259,7 @@ export default function App() {
       ([acct]) => (currentHoldings[acct]?.[CASH] ?? 0) > 0
     )
   );
+  const totalCash = Object.values(cashAfterTrades(currentHoldings, [])).reduce((a, b) => a + b, 0);
   const currentTotalFromPrices = Object.values(currentValueByTicker).reduce((a, b) => a + b, 0);
 
   // ── Run analysis
@@ -1327,6 +1328,7 @@ export default function App() {
               S={S}
               analysisState={analysisState}
               corrMatrix={corrMatrix}
+              currentCash={totalCash}
               currentValueByTicker={currentValueByTicker}
               errorMsg={errorMsg}
               failedTicker={failedTicker}
