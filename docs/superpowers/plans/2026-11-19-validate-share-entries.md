@@ -12,8 +12,8 @@ amount ("assume") is a non-destructive follow-up, deliberately not built here.
 - Portfolio: each position's weight (cash in the denominator) vs `targetWeights`; warn when more than
   **10 points** away.
 
-Known limits: the target comparison needs an analysis to have run (targets do not exist before), so
-before then only the balance check shows. Cash is in the weight denominator while targets exclude it,
+Known limits: targets come from an analysis, so the target comparison shows once one has run; the
+balance check works regardless. Cash is in the weight denominator while targets exclude it,
 matching the Analysis tab's "cash is 0% target", so large cash can trip the drift warning. "Moves
 beyond a threshold" means drift from target, not change since the last entry.
 
