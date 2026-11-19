@@ -34,10 +34,10 @@ export default function HoldingsTab({
   totalValue,
   updateHolding,
 }) {
-  const totalCash = ACCOUNT_TYPES.reduce(
-    (sum, acct) => sum + holdingsValue(currentHoldings[acct], prices).cash,
-    0
+  const valueByAcct = Object.fromEntries(
+    ACCOUNT_TYPES.map(acct => [acct, holdingsValue(currentHoldings[acct], prices)])
   );
+  const totalCash = ACCOUNT_TYPES.reduce((sum, acct) => sum + valueByAcct[acct].cash, 0);
   const tracked = currentTotalFromPrices + totalCash;
 
   return (
@@ -105,10 +105,7 @@ export default function HoldingsTab({
                 placeholder="0"
                 onChange={e => updateHolding(acct, CASH, e.target.value)}
               />
-              <AccountReconcile
-                balance={accounts[acct] ?? 0}
-                {...holdingsValue(currentHoldings[acct], prices)}
-              />
+              <AccountReconcile balance={accounts[acct] ?? 0} {...valueByAcct[acct]} />
             </div>
           </div>
         ))}
@@ -124,7 +121,7 @@ export default function HoldingsTab({
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '4px 0',
-                    borderBottom: '1px solid #0f172a',
+                    borderBottom: `1px solid ${C.border}`,
                   }}
                 >
                   <span style={{ color: C.onSurfaceMuted }}>{t}</span>
@@ -137,7 +134,7 @@ export default function HoldingsTab({
                     display: 'flex',
                     justifyContent: 'space-between',
                     padding: '4px 0',
-                    borderBottom: '1px solid #0f172a',
+                    borderBottom: `1px solid ${C.border}`,
                   }}
                 >
                   <span style={{ color: C.onSurfaceMuted }}>Cash</span>

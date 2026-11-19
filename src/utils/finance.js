@@ -272,7 +272,8 @@ function holdingsValue(held = {}, prices = {}) {
 // Per-account cash left once every trade executes: cash - buys + sells.
 function cashAfterTrades(currentHoldings, trades) {
   const out = {};
-  for (const [acct, held] of Object.entries(currentHoldings)) out[acct] = held[CASH] ?? 0;
+  for (const [acct, held] of Object.entries(currentHoldings))
+    out[acct] = Math.max(0, held[CASH] ?? 0);
   for (const t of trades) {
     out[t.account] =
       (out[t.account] ?? 0) + (t.action === 'BUY' ? -t.dollarAmount : t.dollarAmount);

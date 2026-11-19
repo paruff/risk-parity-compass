@@ -34,6 +34,6 @@ test.describe('Cash tracking', () => {
     await page.click('button:has-text("Run Analysis")');
     await expect(page.locator('text=Risk Parity Weights')).toBeVisible({ timeout: 15000 });
     await page.click('button:has-text("Trades")');
-    await expect(page.locator('text=Cash after trades').first()).toBeVisible();
+    await expect(page.locator('text=/Cash after trades: -?\\$[\\d,.]+/').first()).toBeVisible();
   });
 });

@@ -33,25 +33,25 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 
 ## 2. Functional requirements
 
-| ID | Requirement | Milestone | Status |
-|----|-------------|-----------|--------|
-| FR-1 | Equal-risk-contribution weights (changed from inverse-volatility in M7), tax-location waterfall, drift-threshold trades | MVP | Built |
-| FR-2 | Retirement inputs → SWR, PWR, success probability, max drawdown, effective horizon | M1 | Built (fixed in M3.5) |
-| FR-3 | Monthly drawdown with inflation and cash buffer; rolling historical backtest | M1/M2 | Built |
-| FR-4 | Seeded Monte Carlo with withdrawals, percentile fan chart | M1 | Built |
-| FR-5 | RMD table (73/75 eligibility), withdrawal sequencing taxable → traditional → Roth | M2 | Built |
-| FR-6 | Guardrails `rpr-80`, `guyton-klinger`, `vpw`; Social Security/pension netting; bridge years | M3 | Built |
-| FR-7 | Static vs guardrail outcome comparison on the Retirement tab | M3 (Task 6) | Built (PR #25) |
-| FR-8 | Correctness remediation of M1–M3 (compounding, units, honest success rate, guardrail periods) | M3.5 | Built |
-| FR-9 | Template library; compare up to 3 templates with the user's portfolio; diversification score | M4 | Built (PR #19) |
-| FR-10 | Versioned storage v2, export/import, backup reminder | M5 | Built (PR #27) |
-| FR-11 | Data resilience: stale-price cache, manual override, overlap reporting | M5 | Built (PR #27) |
-| FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()` | M5 | Built (PR #27) |
-| FR-13 | Learning journey: competency rubric, short spaced modules | M6 | Built (PR #28) |
-| FR-14 | GOVZ, AVUV, KBWP supported; per-account cash balance reconciled to the account balance and shown after trades | #65 | Built |
-| FR-14 | Historical metrics withheld with a reason when history is too short; window count always shown | M7 | Built (#43) |
-| FR-15 | Rolling metrics and Monte Carlo on 1928–2025 proxy history (block bootstrap by calendar year) when every holding has a proxy, labelled as such | M7 | Built (#48, #50, #53) |
-| FR-16 | Bracket-filling draw order with optional Roth conversion, federal-only heuristic | M7 | Built (#51) |
+| ID    | Requirement                                                                                                                                    | Milestone   | Status                |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | --------------------- |
+| FR-1  | Equal-risk-contribution weights (changed from inverse-volatility in M7), tax-location waterfall, drift-threshold trades                        | MVP         | Built                 |
+| FR-2  | Retirement inputs → SWR, PWR, success probability, max drawdown, effective horizon                                                             | M1          | Built (fixed in M3.5) |
+| FR-3  | Monthly drawdown with inflation and cash buffer; rolling historical backtest                                                                   | M1/M2       | Built                 |
+| FR-4  | Seeded Monte Carlo with withdrawals, percentile fan chart                                                                                      | M1          | Built                 |
+| FR-5  | RMD table (73/75 eligibility), withdrawal sequencing taxable → traditional → Roth                                                              | M2          | Built                 |
+| FR-6  | Guardrails `rpr-80`, `guyton-klinger`, `vpw`; Social Security/pension netting; bridge years                                                    | M3          | Built                 |
+| FR-7  | Static vs guardrail outcome comparison on the Retirement tab                                                                                   | M3 (Task 6) | Built (PR #25)        |
+| FR-8  | Correctness remediation of M1–M3 (compounding, units, honest success rate, guardrail periods)                                                  | M3.5        | Built                 |
+| FR-9  | Template library; compare up to 3 templates with the user's portfolio; diversification score                                                   | M4          | Built (PR #19)        |
+| FR-10 | Versioned storage v2, export/import, backup reminder                                                                                           | M5          | Built (PR #27)        |
+| FR-11 | Data resilience: stale-price cache, manual override, overlap reporting                                                                         | M5          | Built (PR #27)        |
+| FR-12 | Accessibility: font scale, high contrast, print CSS, PDF via `window.print()`                                                                  | M5          | Built (PR #27)        |
+| FR-13 | Learning journey: competency rubric, short spaced modules                                                                                      | M6          | Built (PR #28)        |
+| FR-14 | Historical metrics withheld with a reason when history is too short; window count always shown                                                 | M7          | Built (#43)           |
+| FR-15 | Rolling metrics and Monte Carlo on 1928–2025 proxy history (block bootstrap by calendar year) when every holding has a proxy, labelled as such | M7          | Built (#48, #50, #53) |
+| FR-16 | Bracket-filling draw order with optional Roth conversion, federal-only heuristic                                                               | M7          | Built (#51)           |
+| FR-17 | GOVZ, AVUV, KBWP supported; per-account cash balance reconciled to the account balance and shown after trades                                  | #65         | Built                 |
 
 ## 3. Calculation contracts (normative)
 
@@ -85,19 +85,19 @@ Persistence keys: `rpcompass_state`, `rpcompass_scenarios`, `rpcompass_pricecach
 
 ## 6. Known gaps and risks
 
-| Gap | Where tracked |
-|-----|---------------|
-| Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo | `Known Limitations.md`; `docs/plan.md` §Deferred |
-| Pages rename (repo now `risk-parity-compass`) | Resolved; close #24 once verified | |
-| Prices are a snapshot (days old, ~50 tickers); Yahoo's unofficial API can rate-limit the refresh | `Known Limitations.md`; deploy workflow |
-| Template allocations are hand-transcribed | `lastReviewed` per template; `Known Limitations.md` |
-| `analysisSignature` once included retirement fields and showed a permanent stale banner | Fixed in PR #19 |
-| Heuristic tax model; federal only; bracket room is a fixed ~$44k/yr, not computed from income | `Known Limitations.md` |
-| ~~`rpr-80` trip can raise spending~~ | Fixed, M7 #29 (PR #39) |
-| ~~Contract 4 violated: rolling success at 4%, one window~~ | Fixed, M7 #30 (PR #43) |
-| ~~Templates diverge from published sources~~ | Fixed, M7 #31 (unpublished templates removed; weights re-sourced 2026-10-28) |
-| Annual-only long-run proxies; 10y Treasury stands in for long bonds; no REIT/EM/commodity/managed-futures series; Gaussian and own-history fallback for those holdings | `Known Limitations.md` |
-| ~~"Risk parity" weights are inverse-volatility~~ | Fixed, M7 #34 (equal-risk-contribution weights) |
+| Gap                                                                                                                                                                    | Where tracked                                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Guyton-Klinger/VPW not selectable in the UI; GK state not carried across years in Monte Carlo                                                                          | `Known Limitations.md`; `docs/plan.md` §Deferred                             |
+| Pages rename (repo now `risk-parity-compass`)                                                                                                                          | Resolved; close #24 once verified                                            |     |
+| Prices are a snapshot (days old, ~50 tickers); Yahoo's unofficial API can rate-limit the refresh                                                                       | `Known Limitations.md`; deploy workflow                                      |
+| Template allocations are hand-transcribed                                                                                                                              | `lastReviewed` per template; `Known Limitations.md`                          |
+| `analysisSignature` once included retirement fields and showed a permanent stale banner                                                                                | Fixed in PR #19                                                              |
+| Heuristic tax model; federal only; bracket room is a fixed ~$44k/yr, not computed from income                                                                          | `Known Limitations.md`                                                       |
+| ~~`rpr-80` trip can raise spending~~                                                                                                                                   | Fixed, M7 #29 (PR #39)                                                       |
+| ~~Contract 4 violated: rolling success at 4%, one window~~                                                                                                             | Fixed, M7 #30 (PR #43)                                                       |
+| ~~Templates diverge from published sources~~                                                                                                                           | Fixed, M7 #31 (unpublished templates removed; weights re-sourced 2026-10-28) |
+| Annual-only long-run proxies; 10y Treasury stands in for long bonds; no REIT/EM/commodity/managed-futures series; Gaussian and own-history fallback for those holdings | `Known Limitations.md`                                                       |
+| ~~"Risk parity" weights are inverse-volatility~~                                                                                                                       | Fixed, M7 #34 (equal-risk-contribution weights)                              |
 
 ## 7. Definition of done (roadmap)
 

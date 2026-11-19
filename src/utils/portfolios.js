@@ -63,12 +63,11 @@ export const MACRO_CLASS_MAP = {
   VNQ: 'US REIT',
   SCHH: 'US REIT',
   VNQI: 'Intl REIT',
+  // Cash: a dollar balance under the key CASH (finance.js), not a priced fund
+  CASH: 'Cash',
   // Crypto (optional, not in RPR templates)
   // BITO: 'Crypto', IBIT: 'Crypto',
 };
-
-// Cash is tracked as a dollar balance (see CASH in finance.js), not a priced fund.
-MACRO_CLASS_MAP.CASH = 'Cash';
 
 // Default class for unknown tickers
 const DEFAULT_CLASS = 'Other';

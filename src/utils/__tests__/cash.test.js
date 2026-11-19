@@ -38,6 +38,12 @@ describe('cash in trades', () => {
   });
 });
 
+describe('cashAfterTrades edge input', () => {
+  it('treats negative stored cash as zero, matching holdingsValue', () => {
+    expect(cashAfterTrades({ Taxable: { [CASH]: -500 } }, []).Taxable).toBe(0);
+  });
+});
+
 describe('macro class', () => {
   it('maps cash and the new tickers', () => {
     expect(getMacroClass(CASH)).toBe('Cash');

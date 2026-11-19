@@ -6,7 +6,7 @@ import ErrorBoundary from '../components/ErrorBoundary';
 export default function TradesTab({
   S,
   analysisState,
-  cashLeft,
+  cashLeft = {},
   exportState,
   exportTradesCSV,
   threshold,
